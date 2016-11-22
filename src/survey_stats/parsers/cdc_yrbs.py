@@ -104,6 +104,9 @@ def parse_surveyvars_spss(spss_file):
             }
         elif line.startswith('VALUE LABELS'):
             vals_flag = True
+            vars_flag = False
+            vals = []
+            var = None
             continue
         elif vals_flag and line.startswith('/.'):
             #save the last var and val lbls
