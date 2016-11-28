@@ -10,7 +10,7 @@ from rpy2.robjects import Formula
 import pandas.rpy.common as com
 pandas2ri.activate()
 
-sys.path.append('/Users/ajish/MEGA/dev/semanticbits/owh/survey_stats/src/survey_stats')
+sys.path.append('src/survey_stats')
 
 import parsers.cdc_yrbs as cdc
 import survey
