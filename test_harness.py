@@ -145,7 +145,7 @@ async def fetch_national(req):
         "response": resp,
         "vars": vars,
         "var_levels": {v: svy_vars[v] for v in vars},
-        "results": fetch_stats(yrbsdes, qn, risk, vars)
+        "results": fetch_stats(yrbsdes, qn, resp, vars)
     })
 
 app.run(host="0.0.0.0", port=7777, debug=True)
