@@ -93,7 +93,8 @@ def fetch_stats(des, qn, response=True, vars=[]):
     def fetch_stats_by(vars, qn_f, des):
         lvl_f = Formula('~%s' % ' + '.join(vars))
         ci = svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs)
-        ct = rsvy.svyby(qn_f, lvl_f, des, rsvy.unwtd_count, na_rm=True)
+        ct = rsvy.svyby(qn_f, lvl_f, des, rsvy.unwtd_count, na_rm=True,
+                        na_rm_by=True, na_rm_all=True)
         merged = pandas2ri.ri2py(rbase.merge(ci, ct))
         del merged['se']
         merged.columns = vars + ['mean', 'se', 'ci_l', 'ci_u', 'count']
@@ -131,6 +132,11 @@ def fetch_stats(des, qn, response=True, vars=[]):
 fetch_stats(yrbsdes, 'qn8', True, ['q2', 'raceeth'])
 
 app = Sanic(__name__)
+
+@app.route("/questions")
+async def fetch_questions(req):
+    res = {k: v["question"] for k, v in svy_vars.items() }
+    return json(res)
 
 @app.route("/national")
 async def fetch_national(req):
