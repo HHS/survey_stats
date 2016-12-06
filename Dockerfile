@@ -25,7 +25,9 @@ WORKDIR /app
 EXPOSE 7777
 
 COPY requirements.txt /app/
-RUN pip3 install --no-cache-dir -r requirements.txt
+
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir -r requirements.txt
 
 COPY . /app
 
