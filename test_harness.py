@@ -157,20 +157,18 @@ def fetch_qn_meta():
 	m = pd.read_json(query).fillna('')
 	m['questioncode'] = m.questioncode.apply( lambda k: k.replace('H','qn') if k[0]=='H' else k.lower() )
 	del m['count_1']
-	print(m.describe())
 	m.set_index(['year','questioncode'], inplace=True, drop=False)
 	return m.to_dict(orient="index")
 
 app = Sanic(__name__)
 meta = fetch_qn_meta()
-print(meta)
-
 @app.route("/questions")
 async def fetch_questions(req, year=2015):
 	def get_meta(k, v, yr=year):
-		key = (yr, k)
-		return meta[key].update(v) if key in meta else v
-	res = {k: get_meta(k,v) for k, v in svy_vars.items() if k[0]=='q'}
+		key = (2015,k.lower())
+		res = dict(meta[key], **v) if key in meta else v
+		return res
+	res = {k: get_meta(k,v) for k, v in svy_vars.items()}
 	return json(res)
 
 
@@ -191,4 +189,4 @@ async def fetch_national(req):
 	})
 
 app.run(host="0.0.0.0", port=7777, debug=True)
-AA
+
