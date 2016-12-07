@@ -114,12 +114,12 @@ def fetch_stats(des, qn, response=True, vars=[]):
 	total_ci = svyciprop_yrbs(qn_f, des, na_rm=True, method='xlogit')
 	total_ct = rsvy.unwtd_count(qn_f, des, na_rm=True)
 	#extract stats
-	res = {'level': 0,
-		'mean': rbase.as_numeric(total_ci)[0],
-  'se': rsvy.SE(total_ci)[0],
-  'ci_l': rbase.attr(total_ci,'ci')[0],
-  'ci_u': rbase.attr(total_ci,'ci')[1],
-  'count': rbase.as_numeric(total_ct)[0]}
+	res = { 'level': 0,
+			'mean': rbase.as_numeric(total_ci)[0],
+  			'se': rsvy.SE(total_ci)[0],
+  			'ci_l': rbase.attr(total_ci,'ci')[0],
+  			'ci_u': rbase.attr(total_ci,'ci')[1],
+  			'count': rbase.as_numeric(total_ct)[0]}
 	#round as appropriate
 	res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k,v in
 		res.items()}
@@ -131,7 +131,7 @@ def fetch_stats(des, qn, response=True, vars=[]):
 		#using svyby to compute across combinations of loadings
 		res.extend(fetch_stats_by(vstack, qn_f, des))
 		vstack.pop()
-		return res
+	return res
 
 print(df['q3'].astype("category").describe(), sys.stderr)
 idx = rdf.colnames.index('q3')
