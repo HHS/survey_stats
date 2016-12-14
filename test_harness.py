@@ -2,7 +2,9 @@ import sys
 import traceback
 import pandas as pd
 import urllib
+import timeit
 from collections import OrderedDict
+import functools
 
 import rpy2
 import rpy2.robjects as robjects
@@ -23,9 +25,15 @@ import survey
 from sanic import Sanic
 from sanic.response import json
 
+#print("setup running")
+#sys.stdout.flush()
+
 rsvy = importr('survey')
 rbase = importr('base')
-
+#rfunc = importr('functional')
+rprll = importr('parallel')
+rbase.options(robjects.vectors.ListVector({'mc.cores':8}))
+print(rbase.getOption("mc.cores"))
 spss_file = 'data/YRBS_2015_SPSS_Syntax.sps'
 dat_file = 'data/yrbs2015.dat'
 
@@ -60,7 +68,11 @@ for q, v in svy_vars.items():
 yrbsdes = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
 						 strata=Formula('~stratum'), data=rdf, nest=True)
 
-
+#svyciprop_yrbs = rfunc.Curry(rsvy.svyciprop, method='xlogit', level=0.95,
+#                             na_rm=True)
+#svybyci_yrbs = rfunc.Curry(rsvy.svyby, keep_var=True, method='xlogit',
+#                           vartype=robjects.vectors.StrVector(['se','ci']),
+#                           na_rm_by=True, na_rm_all=True, multicore=True)
 svyciprop_yrbs = robjects.r('''
 function(formula, design, method='xlogit', level = 0.95, df=degf(design), ...) {
     svyciprop(formula, design, method, level, df, na.rm=TRUE, ...)
@@ -69,7 +81,7 @@ function(formula, design, method='xlogit', level = 0.95, df=degf(design), ...) {
 svybyci_yrbs = robjects.r('''
 function( formula, by, des, fn, ...) {
     svyby(formula, by, des, fn, keep_var=TRUE, method='xlogit',
-          vartype=c('se','ci'), na.rm.by=TRUE, na.rm.all=TRUE, verbose=TRUE)
+          vartype=c('se','ci'), na.rm.by=TRUE, na.rm.all=TRUE, multicore=TRUE)
 }''')
 
 
@@ -101,7 +113,8 @@ def fetch_stats(des, qn, response=True, vars=[]):
 	}
 	def fetch_stats_by(vars, qn_f, des):
 		lvl_f = Formula('~%s' % ' + '.join(vars))
-		ci = svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs, multicore=True)
+        #svyciprop_local =
+		ci = svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs)
 		ct = rsvy.svyby(qn_f, lvl_f, des, rsvy.unwtd_count, na_rm=True,
 				  na_rm_by=True, na_rm_all=True, multicore=True)
 		merged = pandas2ri.ri2py(rbase.merge(ci, ct))
@@ -115,8 +128,8 @@ def fetch_stats(des, qn, response=True, vars=[]):
 	# create formula for selected question and risk profile
 	# ex: ~qn8, ~!qn8
 	qn_f = Formula('~%s%s' % ('' if response else '!', qn))
-	total_ci = svyciprop_yrbs(qn_f, des, na_rm=True, method='xlogit')
-	total_ct = rsvy.unwtd_count(qn_f, des, na_rm=True)
+	total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
+	total_ct = rsvy.unwtd_count(qn_f, des, na_rm=True, multicore=True)
 	#extract stats
 	res = { 'level': 0,
 			'mean': rbase.as_numeric(total_ci)[0],
@@ -137,18 +150,27 @@ def fetch_stats(des, qn, response=True, vars=[]):
 		vstack.pop()
 	return res
 
-print(df['q3'].astype("category").describe(), sys.stderr)
-idx = rdf.colnames.index('q3')
-print(rbase.summary(rdf[idx]), sys.stderr)
+#idx = rdf.colnames.index('q3')
 
-try:
-	print(fetch_stats(yrbsdes, 'qn8', True, ['q2', 'q3']), sys.stderr)
-	print(fetch_stats(yrbsdes, 'qn8', True, ['q2', 'q3', 'raceeth']), sys.stderr)
-except:
-	pass
-finally:
-	print(fetch_stats(yrbsdes, 'qn8', True, ['q2', 'raceeth']), sys.stderr)
+'''
+print("setup complete")
+sys.stdout.flush()
+def test_fn(iter):
+    print("%d - run 1" % iter)
+    sys.stdout.flush()
+    fetch_stats(yrbsdes, 'qn8', True, ['q2', 'q3'])
+    print("%d - run 2" % iter)
+    sys.stdout.flush()
+    fetch_stats(yrbsdes, 'qn8', True, ['q2', 'q3', 'raceeth'])
+    print("%d - run 3" % iter)
+    sys.stdout.flush()
+    fetch_stats(yrbsdes, 'qn8', True, ['q2', 'raceeth'])
 
+for i in range(10):
+    test_fn(i)
+sys.exit()
+#print(timeit.timeit('test_fn()', number=10))
+'''
 
 META_COLS = ['year','questioncode','shortquestiontext','description',
 			 'greater_risk_question','lesser_risk_question','topic','subtopic']
@@ -177,6 +199,7 @@ async def fetch_questions(req, year=2015):
 
 
 @app.route("/national")
+@functools.lru_cache(maxsize=None)
 async def fetch_national(req):
 	qn = req.args['q'][0]
 	vars = [] if not 'v' in req.args else req.args['v'][0].split(',')
