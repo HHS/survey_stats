@@ -5,6 +5,8 @@ import urllib
 import timeit
 from collections import OrderedDict
 import functools
+from collections import namedtuple
+
 
 import rpy2
 import rpy2.robjects as robjects
@@ -186,27 +188,31 @@ def fetch_qn_meta():
 	m.set_index(['year','questioncode'], inplace=True, drop=False)
 	return m.to_dict(orient="index")
 
-app = Sanic(__name__)
+#app = Sanic(__name__)
+from flask import Flask
+from flask import request as req
+from flask.json import jsonify
+
+app = Flask(__name__)
 meta = fetch_qn_meta()
 @app.route("/questions")
-async def fetch_questions(req, year=2015):
+def fetch_questions(year=2015):
 	def get_meta(k, v, yr=year):
 		key = (2015,k.lower())
 		res = dict(meta[key], **v) if key in meta else v
 		return res
 	res = {k: get_meta(k,v) for k, v in svy_vars.items()}
-	return json(res)
+	return jsonify(res)
 
 
 @app.route("/national")
-@functools.lru_cache(maxsize=None)
-async def fetch_national(req):
-	qn = req.args['q'][0]
-	vars = [] if not 'v' in req.args else req.args['v'][0].split(',')
-	resp = True if not 'r' in req.args else int(req.args['r'][0]) > 0
+def fetch_national():
+	qn = req.args.get('q')
+	vars = [] if not 'v' in req.args else req.args.get('v').split(',')
+	resp = True if not 'r' in req.args else int(req.args.get('r')) > 0
 	#return json({ "parsed": True, "args": req.args, "url": req.url,
 	#             "query_string": req.query_string })
-	return json({
+	return jsonify({
 		"q": qn,
 		"question": svy_vars[qn]['question'],
 		"response": resp,
@@ -215,5 +221,5 @@ async def fetch_national(req):
 		"results": fetch_stats(yrbsdes, qn, resp, vars)
 	})
 
-app.run(host="0.0.0.0", port=7777, debug=True)
+#app.run(host="0.0.0.0", port=7777, debug=True)
 
