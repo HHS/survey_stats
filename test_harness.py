@@ -62,15 +62,14 @@ yrbsdes = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
 
 
 svyciprop_yrbs = robjects.r('''
-function(formula, design, method='xlogit', level = 0.95,
-df=degf(design), ...) {
-svyciprop(formula, design, method, level, df, na.rm=TRUE, ...)
+function(formula, design, method='xlogit', level = 0.95, df=degf(design), ...) {
+    svyciprop(formula, design, method, level, df, na.rm=TRUE, ...)
 }''')
 
 svybyci_yrbs = robjects.r('''
 function( formula, by, des, fn, ...) {
-svyby(formula, by, des, fn, keep_var=True, method='xlogit',
-vartype=c('se','ci'))
+    svyby(formula, by, des, fn, keep_var=TRUE, method='xlogit',
+          vartype=c('se','ci'), na.rm.by=TRUE, na.rm.all=TRUE, verbose=TRUE)
 }''')
 
 
@@ -90,6 +89,11 @@ byct = rsvy.svyby(Formula('~!qn8'), Formula('~q2 + raceeth'),
 yrbsdes, rsvy.unwtd_count, na_rm=True)
 
 '''
+#extend Series with fill_none method
+# to take care of json/mysql conversion
+def fill_none(self):
+    return self.where(pd.notnull(self),None)
+pd.Series.fill_none = fill_none
 
 def fetch_stats(des, qn, response=True, vars=[]):
 	DECIMALS = {
@@ -97,9 +101,9 @@ def fetch_stats(des, qn, response=True, vars=[]):
 	}
 	def fetch_stats_by(vars, qn_f, des):
 		lvl_f = Formula('~%s' % ' + '.join(vars))
-		ci = svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs)
+		ci = svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs, multicore=True)
 		ct = rsvy.svyby(qn_f, lvl_f, des, rsvy.unwtd_count, na_rm=True,
-				  na_rm_by=True, na_rm_all=True)
+				  na_rm_by=True, na_rm_all=True, multicore=True)
 		merged = pandas2ri.ri2py(rbase.merge(ci, ct))
 		del merged['se']
 		merged.columns = vars + ['mean', 'se', 'ci_l', 'ci_u', 'count']
@@ -107,7 +111,7 @@ def fetch_stats(des, qn, response=True, vars=[]):
 		merged['q'] = qn
 		merged['q_resp'] = response
 		merged = merged.round(DECIMALS)
-		return merged.apply(lambda r: r.to_dict(), axis=1)
+		return merged.apply(lambda r: r.fill_none().to_dict(), axis=1)
 	# create formula for selected question and risk profile
 	# ex: ~qn8, ~!qn8
 	qn_f = Formula('~%s%s' % ('' if response else '!', qn))
