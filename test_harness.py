@@ -3,9 +3,10 @@ import traceback
 import pandas as pd
 import urllib
 import timeit
-from collections import OrderedDict
+import logging
 import functools
 from collections import namedtuple
+from collections import OrderedDict
 
 
 import rpy2
@@ -24,18 +25,14 @@ sys.path.append('src/survey_stats')
 import parsers.cdc_yrbs as cdc
 import survey
 
-from sanic import Sanic
-from sanic.response import json
-
-#print("setup running")
-#sys.stdout.flush()
 
 rsvy = importr('survey')
 rbase = importr('base')
-#rfunc = importr('functional')
+rfunc = importr('functional')
 rprll = importr('parallel')
-rbase.options(robjects.vectors.ListVector({'mc.cores':8}))
-print(rbase.getOption("mc.cores"))
+rbase.options(robjects.vectors.ListVector({'mc.cores':rprll.detectCores()}))
+
+
 spss_file = 'data/YRBS_2015_SPSS_Syntax.sps'
 dat_file = 'data/yrbs2015.dat'
 
@@ -193,8 +190,48 @@ from flask import Flask
 from flask import request as req
 from flask.json import jsonify
 
+class InvalidUsage(Exception):
+
+    def __init__(self, message, status_code=400, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        self.status_code = status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['message'] = self.message
+        return rv
+
+class ComputationError(Exception):
+
+    def __init__(self, message, status_code=500, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        self.status_code = status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['message'] = self.message
+        rv['status_code'] = self.status_code
+        return rv
+
 app = Flask(__name__)
 meta = fetch_qn_meta()
+
+@app.errorhandler(InvalidUsage)
+def handle_invalid_usage(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
+
+@app.errorhandler(ComputationError)
+def handle_computation_error(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
+
 @app.route("/questions")
 def fetch_questions(year=2015):
 	def get_meta(k, v, yr=year):
@@ -207,19 +244,23 @@ def fetch_questions(year=2015):
 
 @app.route("/national")
 def fetch_national():
-	qn = req.args.get('q')
-	vars = [] if not 'v' in req.args else req.args.get('v').split(',')
-	resp = True if not 'r' in req.args else int(req.args.get('r')) > 0
-	#return json({ "parsed": True, "args": req.args, "url": req.url,
-	#             "query_string": req.query_string })
-	return jsonify({
-		"q": qn,
-		"question": svy_vars[qn]['question'],
-		"response": resp,
-		"vars": vars,
-		"var_levels": {v: svy_vars[v] for v in vars},
-		"results": fetch_stats(yrbsdes, qn, resp, vars)
-	})
+    qn = req.args.get('q')
+    vars = [] if not 'v' in req.args else req.args.get('v').split(',')
+    resp = True if not 'r' in req.args else int(req.args.get('r')) > 0
+    try:
+        return jsonify({
+            "q": qn,
+            "question": svy_vars[qn]['question'],
+            "response": resp,
+            "vars": vars,
+            "var_levels": {v: svy_vars[v] for v in vars},
+            "results": fetch_stats(yrbsdes, qn, resp, vars)
+        })
+    except KeyError as  err:
+        raise InvalidUsage('KeyError: %s' % str(err))
+    except Exception as err:
+        raise ComputationError('Error computing stats! %s' % str(err))
+
 
 #app.run(host="0.0.0.0", port=7777, debug=True)
 
