@@ -17,7 +17,8 @@ RUN set -ex \
       libopenblas-base \
   ' \
   && apt-get update && apt-get install -y $buildDeps --no-install-recommends && rm -rf /var/lib/apt/lists/* \
-  && R --vanilla -e 'install.packages("survey", repos="http://R-Forge.R-project.org")'
+  && R --vanilla -e 'install.packages("survey", repos="http://R-Forge.R-project.org")' \
+  && R --vanilla -e 'install.packages("functional")'
 
 RUN mkdir -p /app
 WORKDIR /app
