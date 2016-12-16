@@ -1,10 +1,6 @@
 import sys
-import traceback
 import pandas as pd
-import urllib
-import timeit
 import logging
-import functools
 from collections import namedtuple
 from collections import OrderedDict
 
@@ -30,25 +26,9 @@ logging.basicConfig(level=logging.DEBUG)
 rsvy = importr('survey')
 rbase = importr('base')
 rfunc = importr('functional')
+rfther = importr('feather', on_conflict="warn")
 rprll = importr('parallel')
 rbase.options(robjects.vectors.ListVector({'mc.cores':rprll.detectCores()}))
-
-
-spss_file = 'data/YRBS_2015_SPSS_Syntax.sps'
-dat_file = 'data/yrbs2015.dat'
-
-spss_file = 'data/2015-sadc-spss-input-program.sps'
-dat_file = 'data/sadc_2015_national.dat'
-
-svy_cols = cdc.parse_fwfcols_spss(spss_file)
-svy_vars = cdc.parse_surveyvars_spss(spss_file)
-logging.info("Parsed SPSS metadata")
-
-df = pd.read_fwf(dat_file, colspecs=list(svy_cols.values()),
-				 names=list(svy_cols.keys()))
-logging.info("Parsed raw survey data")
-rdf = com.convert_to_r_dataframe(df)
-logging.info("Converted survey data to R object")
 
 
 tobool_yrbs = robjects.r('''
@@ -68,35 +48,63 @@ function(v) {
 class ParseCDCSurveyException(Exception):
     pass
 
-for q, v in svy_vars.items():
-    if len(v['responses']) > 0:
-        (codes, cats) = zip(*v['responses'])
-        idx = rdf.colnames.index(q)
-        fac = rdf[idx]
-        #translate integer codes to labels
-        if class_yrbs(fac) in ["integer", "numeric"]:
-            fac = rbase.as_integer(fac)
-            fac = rbase.factor(fac, labels=list(cats))
-            rdf[idx] = fac
-        else:
-            logging.warning("Found non-integer codings for variable:" +
-                            " %s\n%s" % (q, v))
-    elif q.startswith('qn'):
-        idx = rdf.colnames.index(q)
-        fac = rbase.as_numeric(rdf[idx])
-        coerced = rbase.is_na(fac)
-        n_coerced = rbase.sum(coerced)[0]
-        if n_coerced > 0:
-            coerced = factor_summary(rdf[idx].rx(coerced))
-            logging.warning("Coerced non-numeric values for variable:" +
-                            " %s\n%s" % (q, coerced))
-        if rbase.min(fac)[0] < 1 or rbase.max(fac)[0] > 2:
-            raise ParseCDCSurveyException("Found invalid levels for" +
-                                          " boolean var: %s -> %s" %
-                                          (q, factor_summary(fac)))
-        rdf[idx] = tobool_yrbs(fac)
+def load_cdc_survey(dat_file, svy_cols, svy_vars):
+    df = pd.read_fwf(dat_file, colspecs=list(svy_cols.values()),
+                     names=list(svy_cols.keys()), na_values=['.',''])
+    logging.info("Parsed raw survey data")
+    rdf = com.convert_to_r_dataframe(df)
+    logging.info("Converted survey data to R object")
+    for q, v in svy_vars.items():
+        if v['is_integer']:
+            (codes, cats) = zip(*v['responses'])
+            idx = rdf.colnames.index(q)
+            fac = rdf[idx]
+            try:
+                fac = rbase.as_integer(fac)
+                fac = rbase.factor(fac, levels=list(codes), labels=list(cats))
+                rdf[idx] = fac
+            except:
+                logging.error(rbase.summary(rdf[idx]))
+                logging.error(factor_summary(rdf[idx]))
+                logging.error(rbase.summary(fac))
+                raise ParseCDCSurveyException("parsing problems: %s -> %s"
+                                              % (q, v))
+        elif q.startswith('qn'):
+            idx = rdf.colnames.index(q)
+            fac = rbase.as_integer(rdf[idx])
+            coerced = rbase.is_na(fac)
+            n_coerced = rbase.sum(coerced)[0]
+            if n_coerced > 0:
+                coerced = factor_summary(rdf[idx].rx(coerced))
+                logging.warning("Coerced non-numeric values for variable:" +
+                                " %s\n%s" % (q, coerced))
+            if rbase.min(fac, na_rm=True)[0] < 1 or \
+               rbase.max(fac, na_rm=True)[0] > 2:
+                raise ParseCDCSurveyException("Found invalid levels for" +
+                                              " boolean var: %s -> %s" %
+                                              (q, factor_summary(fac)))
+            rdf[idx] = tobool_yrbs(fac)
+    return rdf
 
-print(rbase.summary(rdf))
+spss_file = 'data/YRBS_2015_SPSS_Syntax.sps'
+dat_file = 'data/yrbs2015.dat'
+
+spss_file = 'data/2015-sadc-spss-input-program.sps'
+dat_file = 'data/sadc_2015_national.dat'
+
+svy_cols = cdc.parse_fwfcols_spss(spss_file)
+svy_vars = cdc.parse_surveyvars_spss(spss_file)
+logging.info("Parsed SPSS metadata")
+
+rdf = None
+
+try:
+    rdf = rfther.read_feather('data/yrbs.combined.feather')
+    logging.info('Loaded survey data from feather cache...')
+except:
+    logging.warning("Could not find feather cache, loading raw data...")
+    rdf = load_cdc_survey(dat_file, svy_cols, svy_vars)
+    rfther.write_feather(rdf, 'data/yrbs.combined.feather')
 
 yrbsdes = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
 						 strata=Formula('~stratum'), data=rdf, nest=True)
