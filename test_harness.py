@@ -25,6 +25,7 @@ sys.path.append('src/survey_stats')
 import parsers.cdc_yrbs as cdc
 import survey
 
+logging.basicConfig(level=logging.DEBUG)
 
 rsvy = importr('survey')
 rbase = importr('base')
@@ -36,33 +37,66 @@ rbase.options(robjects.vectors.ListVector({'mc.cores':rprll.detectCores()}))
 spss_file = 'data/YRBS_2015_SPSS_Syntax.sps'
 dat_file = 'data/yrbs2015.dat'
 
+spss_file = 'data/2015-sadc-spss-input-program.sps'
+dat_file = 'data/sadc_2015_national.dat'
+
 svy_cols = cdc.parse_fwfcols_spss(spss_file)
 svy_vars = cdc.parse_surveyvars_spss(spss_file)
+logging.info("Parsed SPSS metadata")
 
 df = pd.read_fwf(dat_file, colspecs=list(svy_cols.values()),
 				 names=list(svy_cols.keys()))
-
+logging.info("Parsed raw survey data")
 rdf = com.convert_to_r_dataframe(df)
+logging.info("Converted survey data to R object")
 
 
 tobool_yrbs = robjects.r('''
 function(col) {
-as.logical( 2 - col)
+    as.logical( 2 - col)
+} ''')
+class_yrbs = robjects.r('''
+function(v) {
+    class(v)
 } ''')
 
+factor_summary = robjects.r('''
+function(v) {
+    summary(as.factor(v))
+}''')
+
+class ParseCDCSurveyException(Exception):
+    pass
 
 for q, v in svy_vars.items():
-	if len(v['responses']) > 0:
-		(codes, cats) = zip(*v['responses'])
-		idx = rdf.colnames.index(q)
-		fac = rbase.as_integer(rdf[idx])
-		fac = rbase.factor(fac, labels=list(cats))
-		rdf[idx] = fac
-	elif q.startswith('qn'):
-		idx = rdf.colnames.index(q)
-		fac = tobool_yrbs(rdf[idx])
-		rdf[idx] = fac
+    if len(v['responses']) > 0:
+        (codes, cats) = zip(*v['responses'])
+        idx = rdf.colnames.index(q)
+        fac = rdf[idx]
+        #translate integer codes to labels
+        if class_yrbs(fac) in ["integer", "numeric"]:
+            fac = rbase.as_integer(fac)
+            fac = rbase.factor(fac, labels=list(cats))
+            rdf[idx] = fac
+        else:
+            logging.warning("Found non-integer codings for variable:" +
+                            " %s\n%s" % (q, v))
+    elif q.startswith('qn'):
+        idx = rdf.colnames.index(q)
+        fac = rbase.as_numeric(rdf[idx])
+        coerced = rbase.is_na(fac)
+        n_coerced = rbase.sum(coerced)[0]
+        if n_coerced > 0:
+            coerced = factor_summary(rdf[idx].rx(coerced))
+            logging.warning("Coerced non-numeric values for variable:" +
+                            " %s\n%s" % (q, coerced))
+        if rbase.min(fac)[0] < 1 or rbase.max(fac)[0] > 2:
+            raise ParseCDCSurveyException("Found invalid levels for" +
+                                          " boolean var: %s -> %s" %
+                                          (q, factor_summary(fac)))
+        rdf[idx] = tobool_yrbs(fac)
 
+print(rbase.summary(rdf))
 
 yrbsdes = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
 						 strata=Formula('~stratum'), data=rdf, nest=True)
@@ -262,5 +296,6 @@ def fetch_national():
         raise ComputationError('Error computing stats! %s' % str(err))
 
 
-#app.run(host="0.0.0.0", port=7777, debug=True)
+if __name__=='__main__':
+    app.run(host="0.0.0.0", port=7777, debug=True)
 
