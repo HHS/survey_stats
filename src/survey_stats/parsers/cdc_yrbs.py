@@ -111,7 +111,8 @@ def parse_surveyvars_spss(spss_file):
             var = var.lower()
             survey_vars[var] = {
                 'question': q,
-                'responses': []
+                'responses': [],
+                'is_integer': False
             }
         elif line.startswith('VALUE LABELS'):
             vals_flag = True
@@ -123,6 +124,7 @@ def parse_surveyvars_spss(spss_file):
             #save the last var and val lbls
             #reset vals_flag
             survey_vars[var]['responses'] = vals[:]
+            survey_vars[var]['is_integer'] = all(x[0].isdigit() for x in vals)
             var = None
             vals = []
             vals_flag = False
@@ -131,6 +133,7 @@ def parse_surveyvars_spss(spss_file):
             # save the last var and val lbls
             # reset
             survey_vars[var]['responses'] = vals[:]
+            survey_vars[var]['is_integer'] = all(x[0].isdigit() for x in vals)
             var = None
             vals = []
             continue
