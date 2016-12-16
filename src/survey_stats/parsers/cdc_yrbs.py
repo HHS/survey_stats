@@ -4,8 +4,11 @@ def strip_line(l):
     # type: (str) -> str
     # strip whitespace and trailing period
     # and remove double quotes
-    return l.strip().strip('.').replace('"','')
+    return l.strip().strip('.').replace('"','').replace("'","")
 
+
+class ParseSPSSException(Exception):
+    pass
 
 def parse_fwfcols_spss(spss_file):
     # type: (str) -> OrderedDict
@@ -22,11 +25,15 @@ def parse_fwfcols_spss(spss_file):
         colspecs: an `OrderedDict` colnames as keys, (st,en) as vals
     """
 
-    def parse_field_width(w):
-        """ parse var, start and end """
-        (var,span) = w.split(' ')[:2]
-        (st,en) = span.split('-')
-        return (var,int(st)-1,int(en))
+    def parse_field_span(span):
+        """ parse start and end """
+        try:
+            (st, en) = span.split('-')
+            ret = (int(st)-1,int(en))
+        except Exception as e:
+            raise ParseSPSSException("Improperly formed span in SPSS" +
+                                     "file! %s -> %s" % (span, str(e)))
+        return ret
 
     # if arg is filename, call self with open fh
     if not getattr(spss_file, 'read', False):
@@ -46,11 +53,15 @@ def parse_fwfcols_spss(spss_file):
         elif widths_flag:
             #parse a line with field widths
             #split on two consec spaces
-            widths = strip_line(line).split('  ')
-            for w in widths:
-                (var, st, en) = parse_field_width(w)
-                var = var.lower()
-                col_specs[var] = (st,en)
+            widths = strip_line(line).replace('(A)','').split()
+            if not len(widths) % 2 == 0:
+                raise ParseSPSSException("Invalid fixed-width field" +
+                                    " definitions on line: %s" %
+                                    strip_line(line))
+            for i in range(0,len(widths),2):
+                #iterate through pairs of var, span, and parse
+                var = widths[i].lower()
+                col_specs[var] = parse_field_span(widths[i+1])
             continue
         else:
             continue
