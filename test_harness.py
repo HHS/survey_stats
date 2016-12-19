@@ -169,7 +169,7 @@ def fetch_stats(des, qn, response=True, vars=[]):
         return merged.apply(lambda r: r.fill_none().to_dict(), axis=1)
     # create formula for selected question and risk profile
     # ex: ~qn8, ~!qn8
-    print(qn,response,vars,file=sys.stderr)
+    #print(qn,response,vars,file=sys.stderr)
     qn_f = Formula('~%s%s' % ('' if response else '!', qn))
     total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
     #extract stats
@@ -194,12 +194,12 @@ def fetch_stats(des, qn, response=True, vars=[]):
         #using svyby to compute across combinations of loadings
         res.extend(fetch_stats_by(vstack, qn_f, des))
         vstack.pop()
-    print(rbase.gc(verbose=True), file=sys.stderr)
+    print(rbase.gc(), file=sys.stderr)
     return res
 
 #idx = rdf.colnames.index('q3')
 
-
+'''
 print("setup complete", )
 sys.stdout.flush()
 def test_fn(iter):
@@ -217,7 +217,7 @@ for i in range(1):
     test_fn(i)
 #sys.exit()
 #print(timeit.timeit('test_fn()', number=10))
-
+'''
 
 META_COLS = ['year','questioncode','shortquestiontext','description',
 			 'greater_risk_question','lesser_risk_question','topic','subtopic']

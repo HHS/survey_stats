@@ -34,5 +34,5 @@ RUN pip3 install --no-cache-dir --upgrade pip && \
 
 COPY . /app
 
-#CMD ["gunicorn", "-w", "6", "--timeout", "120", "-b","0.0.0.0:7777", "test_harness:app"]
-CMD ["uwsgi", "--ini", "uwsgi.ini"]
+CMD ["gunicorn", "-w", "8", "--timeout", "120", "-b","0.0.0.0:7777", "test_harness:app"]
+#CMD ["uwsgi", "--ini", "uwsgi.ini"]
