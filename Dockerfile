@@ -33,4 +33,4 @@ RUN pip3 install --no-cache-dir --upgrade pip && \
 
 COPY . /app
 
-CMD ["gunicorn", "-w", "12", "-b", "0.0.0.0:7777", "test_harness:app"]
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:7777", "test_harness:app"]
