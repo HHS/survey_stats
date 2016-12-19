@@ -1,9 +1,9 @@
+from __future__ import print_function
 import sys
 import pandas as pd
 import logging
 from collections import namedtuple
 from collections import OrderedDict
-
 
 import rpy2
 import rpy2.robjects as robjects
@@ -99,12 +99,12 @@ logging.info("Parsed SPSS metadata")
 rdf = None
 
 try:
-    rdf = rfther.read_feather('data/yrbs.combined.feather')
+    rdf = rfther.read_feather('cache/yrbs.combined.feather')
     logging.info('Loaded survey data from feather cache...')
 except:
     logging.warning("Could not find feather cache, loading raw data...")
     rdf = load_cdc_survey(dat_file, svy_cols, svy_vars)
-    rfther.write_feather(rdf, 'data/yrbs.combined.feather')
+    rfther.write_feather(rdf, 'cache/yrbs.combined.feather')
 
 yrbsdes = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
 						 strata=Formula('~stratum'), data=rdf, nest=True)
@@ -149,69 +149,75 @@ def fill_none(self):
 pd.Series.fill_none = fill_none
 
 def fetch_stats(des, qn, response=True, vars=[]):
-	DECIMALS = {
-		'mean': 4, 'se': 4, 'ci_l': 4, 'ci_u': 4, 'count':0
-	}
-	def fetch_stats_by(vars, qn_f, des):
-		lvl_f = Formula('~%s' % ' + '.join(vars))
+    DECIMALS = {
+        'mean': 4, 'se': 4, 'ci_l': 4, 'ci_u': 4, 'count':0
+    }
+    def fetch_stats_by(vars, qn_f, des):
+        lvl_f = Formula('~%s' % ' + '.join(vars))
         #svyciprop_local =
-		ci = svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs)
-		ct = rsvy.svyby(qn_f, lvl_f, des, rsvy.unwtd_count, na_rm=True,
-				  na_rm_by=True, na_rm_all=True, multicore=True)
-		merged = pandas2ri.ri2py(rbase.merge(ci, ct))
-		del merged['se']
-		merged.columns = vars + ['mean', 'se', 'ci_l', 'ci_u', 'count']
-		merged['level'] = len(vars)
-		merged['q'] = qn
-		merged['q_resp'] = response
-		merged = merged.round(DECIMALS)
-		return merged.apply(lambda r: r.fill_none().to_dict(), axis=1)
-	# create formula for selected question and risk profile
-	# ex: ~qn8, ~!qn8
-	qn_f = Formula('~%s%s' % ('' if response else '!', qn))
-	total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
-	total_ct = rsvy.unwtd_count(qn_f, des, na_rm=True, multicore=True)
-	#extract stats
-	res = { 'level': 0,
-			'mean': rbase.as_numeric(total_ci)[0],
-  			'se': rsvy.SE(total_ci)[0],
-  			'ci_l': rbase.attr(total_ci,'ci')[0],
-  			'ci_u': rbase.attr(total_ci,'ci')[1],
-  			'count': rbase.as_numeric(total_ct)[0]}
-	#round as appropriate
-	res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k,v in
-		res.items()}
-	#setup the result list
-	res = [res]
-	vstack = vars[:]
-	while len(vstack) > 0:
-		#get stats for each level of interactions in vars
-		#using svyby to compute across combinations of loadings
-		res.extend(fetch_stats_by(vstack, qn_f, des))
-		vstack.pop()
-	return res
+        merged = pandas2ri.ri2py(rbase.merge(
+            svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs),
+            rsvy.svyby(qn_f, lvl_f, des, rsvy.unwtd_count, na_rm=True,
+                       na_rm_by=True, na_rm_all=True, multicore=True)
+        ))
+        del merged['se']
+        merged.columns = vars + ['mean', 'se', 'ci_l', 'ci_u', 'count']
+        merged['level'] = len(vars)
+        merged['q'] = qn
+        merged['q_resp'] = response
+        merged = merged.round(DECIMALS)
+        return merged.apply(lambda r: r.fill_none().to_dict(), axis=1)
+    # create formula for selected question and risk profile
+    # ex: ~qn8, ~!qn8
+    print(qn,response,vars,file=sys.stderr)
+    qn_f = Formula('~%s%s' % ('' if response else '!', qn))
+    total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
+    #extract stats
+    res = { 'level': 0,
+           'mean': rbase.as_numeric(total_ci)[0],
+           'se': rsvy.SE(total_ci)[0],
+           'ci_l': rbase.attr(total_ci,'ci')[0],
+           'ci_u': rbase.attr(total_ci,'ci')[1],
+           'count': rbase.as_numeric(rsvy.unwtd_count(qn_f, des, na_rm=True,
+                                                      multicore=True))[0]}
+    total_ci_struct = total_ci.__sexp__
+    del(total_ci)
+    del(total_ci_struct)
+    #round as appropriate
+    res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k,v in
+           res.items()}
+    #setup the result list
+    res = [res]
+    vstack = vars[:]
+    while len(vstack) > 0:
+        #get stats for each level of interactions in vars
+        #using svyby to compute across combinations of loadings
+        res.extend(fetch_stats_by(vstack, qn_f, des))
+        vstack.pop()
+    print(rbase.gc(verbose=True), file=sys.stderr)
+    return res
 
 #idx = rdf.colnames.index('q3')
 
-'''
-print("setup complete")
+
+print("setup complete", )
 sys.stdout.flush()
 def test_fn(iter):
     print("%d - run 1" % iter)
     sys.stdout.flush()
-    fetch_stats(yrbsdes, 'qn8', True, ['q2', 'q3'])
+    print(fetch_stats(yrbsdes, 'qn8', True, ['race7', 'sex']))
     print("%d - run 2" % iter)
     sys.stdout.flush()
-    fetch_stats(yrbsdes, 'qn8', True, ['q2', 'q3', 'raceeth'])
-    print("%d - run 3" % iter)
-    sys.stdout.flush()
-    fetch_stats(yrbsdes, 'qn8', True, ['q2', 'raceeth'])
+#    fetch_stats(yrbsdes, 'qn8', True, ['q2', 'q3', 'raceeth'])
+#    print("%d - run 3" % iter)
+#    sys.stdout.flush()
+#    fetch_stats(yrbsdes, 'qn8', True, ['q2', 'raceeth'])
 
-for i in range(10):
+for i in range(1):
     test_fn(i)
-sys.exit()
+#sys.exit()
 #print(timeit.timeit('test_fn()', number=10))
-'''
+
 
 META_COLS = ['year','questioncode','shortquestiontext','description',
 			 'greater_risk_question','lesser_risk_question','topic','subtopic']
@@ -300,8 +306,8 @@ def fetch_national():
         })
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err))
-    except Exception as err:
-        raise ComputationError('Error computing stats! %s' % str(err))
+    #except Exception as err:
+    #    raise ComputationError('Error computing stats! %s' % str(err))
 
 
 if __name__=='__main__':
