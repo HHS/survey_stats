@@ -4,7 +4,9 @@ import pandas as pd
 import logging
 from collections import namedtuple
 from collections import OrderedDict
-
+from cachetools import cached, LRUCache
+from threading import RLock
+import gc
 import rpy2
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
@@ -29,6 +31,7 @@ rfunc = importr('functional')
 rfther = importr('feather', on_conflict="warn")
 rprll = importr('parallel')
 rbase.options(robjects.vectors.ListVector({'mc.cores':rprll.detectCores()}))
+#rbase.options(robjects.vectors.ListVector({'mc.cores':2}))
 
 
 tobool_yrbs = robjects.r('''
@@ -148,10 +151,19 @@ def fill_none(self):
     return self.where(pd.notnull(self),None)
 pd.Series.fill_none = fill_none
 
+cache = LRUCache(maxsize=None)
+lock = RLock()
+
 def fetch_stats(des, qn, response=True, vars=[]):
     DECIMALS = {
         'mean': 4, 'se': 4, 'ci_l': 4, 'ci_u': 4, 'count':0
     }
+    #def cache_key_fn(*args, **kwargs):
+    #    v = ','.join(sorted(args[0]))
+    #    q = args[1]
+    #    return '%s:%s' % (v,q)
+    
+    #@cached(cache, key=cache_key_fn)
     def fetch_stats_by(vars, qn_f, des):
         lvl_f = Formula('~%s' % ' + '.join(vars))
         #svyciprop_local =
@@ -195,6 +207,7 @@ def fetch_stats(des, qn, response=True, vars=[]):
         res.extend(fetch_stats_by(vstack, qn_f, des))
         vstack.pop()
     print(rbase.gc(), file=sys.stderr)
+    print(gc.collect())
     return res
 
 #idx = rdf.colnames.index('q3')
@@ -306,8 +319,8 @@ def fetch_national():
         })
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err))
-    #except Exception as err:
-    #    raise ComputationError('Error computing stats! %s' % str(err))
+    except Exception as err:
+        raise ComputationError('Error computing stats! %s' % str(err))
 
 
 if __name__=='__main__':
