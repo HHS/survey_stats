@@ -14,6 +14,7 @@ RUN set -ex \
       python3-pip \
       python3-pandas \
       python3-virtualenv \
+      cython3 \
       libopenblas-base \
   ' \
   && apt-get update && apt-get install -y $buildDeps --no-install-recommends && rm -rf /var/lib/apt/lists/* \
@@ -33,4 +34,4 @@ RUN pip3 install --no-cache-dir --upgrade pip && \
 
 COPY . /app
 
-CMD ["gunicorn", "-w", "12", "-b", "0.0.0.0:7777", "test_harness:app"]
+CMD ["gunicorn", "-w", "8", "--timeout", "240", "-b","0.0.0.0:7777", "test_harness:app"]
