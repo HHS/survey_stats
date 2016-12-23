@@ -320,6 +320,7 @@ def handle_computation_error(error):
     response.status_code = error.status_code
     return response
 
+@app.route("/questions")
 @app.route("/questions/<year>")
 def fetch_questions(year=2015):
 	def get_meta(k, v, yr=year):
@@ -329,9 +330,10 @@ def fetch_questions(year=2015):
 	res = {k: get_meta(k,v) for k, v in svy_vars.items()}
 	return jsonify(res)
 
+@app.route('/stats')
 @app.route('/stats/<sitecode>')
 @app.route('/stats/<sitecode>/<year>')
-def fetch_stats(sitecode, year='2015'):
+def fetch_stats(sitecode='XX', year='2015'):
     """TODO: reformat for swagger
     Computes survey stats for given binary response variable, breakout
     variables and population filters
