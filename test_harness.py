@@ -4,7 +4,7 @@ import pandas as pd
 import logging
 from collections import namedtuple
 from collections import OrderedDict
-from cachetools import cached, LRUCache
+#from cachetools import cached, LRUCache
 from threading import RLock
 import gc
 import rpy2
@@ -129,6 +129,13 @@ function( formula, by, des, fn, ...) {
 }''')
 
 
+filter_var_levels = robjects.r('''
+function(des, k, vals){
+    des$variables[[k]] %in% vals
+}
+''')
+
+
 '''sample calls
 robjects.globalenv['yrbsdes'] = yrbsdes
 robjects.globalenv['rdf'] = rdf
@@ -151,8 +158,21 @@ def fill_none(self):
     return self.where(pd.notnull(self),None)
 pd.Series.fill_none = fill_none
 
-cache = LRUCache(maxsize=None)
-lock = RLock()
+#cache = LRUCache(maxsize=None)
+#lock = RLock()
+
+
+def subset(des, filt):
+    #filt is a dict with vars as keys and list of acceptable values as levels
+    #example from R:
+    #  subset(dclus1, sch.wide=="Yes" & comp.imp=="Yes"
+    if len(d.keys()) == 0:
+        return des
+    filtered = rbase.Reduce( "&",
+        [filter_var_levels(des, k, v) for k,v in filt.items()]
+    )
+    print(rbase.summary(filtered), file=sys.stderr)
+    return rsvy.subset_survey_design(des, filtered)
 
 def fetch_stats(des, qn, response=True, vars=[]):
     DECIMALS = {
@@ -162,7 +182,7 @@ def fetch_stats(des, qn, response=True, vars=[]):
     #    v = ','.join(sorted(args[0]))
     #    q = args[1]
     #    return '%s:%s' % (v,q)
-    
+
     #@cached(cache, key=cache_key_fn)
     def fetch_stats_by(vars, qn_f, des):
         lvl_f = Formula('~%s' % ' + '.join(vars))
@@ -231,7 +251,14 @@ for i in range(1):
 #sys.exit()
 #print(timeit.timeit('test_fn()', number=10))
 '''
+d = {'grade': ['11th', '12th'],
+      'race7': ['White', 'Asian'],
+      'year': ['2011', '2013', '2015']}
 
+res = fetch_stats( subset(yrbsdes, d), 'qn8', True, ['sex'] )
+print(res, file=sys.stderr)
+res = fetch_stats( yrbsdes, 'qn8', True, ['sex'] )
+print(res, file=sys.stderr)
 META_COLS = ['year','questioncode','shortquestiontext','description',
 			 'greater_risk_question','lesser_risk_question','topic','subtopic']
 
@@ -293,7 +320,7 @@ def handle_computation_error(error):
     response.status_code = error.status_code
     return response
 
-@app.route("/questions")
+@app.route("/questions/<year>")
 def fetch_questions(year=2015):
 	def get_meta(k, v, yr=year):
 		key = (2015,k.lower())
@@ -302,12 +329,40 @@ def fetch_questions(year=2015):
 	res = {k: get_meta(k,v) for k, v in svy_vars.items()}
 	return jsonify(res)
 
+@app.route('/stats/<sitecode>')
+@app.route('/stats/<sitecode>/<year>')
+def fetch_stats(sitecode, year='2015'):
+    """TODO: reformat for swagger
+    Computes survey stats for given binary response variable, breakout
+    variables and population filters
 
-@app.route("/national")
-def fetch_national():
+    Route Parameters:
+        sitecode: (required) sitecode for state/locality of interest -- use XX
+        for national level survey data (ex: 'XX', 'PA', 'VA', 'MD')
+        year: (default=combined) survey year, omit for combined survey across
+        all years for given sitecode (questions correspond to latest year)
+    URL Parameters:
+        q: (required) question to compute stats for
+        v: (default=None) variables to break out responses by (ex: 'sex,race')
+
+        r: (default=1) response to binary question to compute SE and CI for,
+        options=[1 -> True, 0 -> False]
+        f: (default=None) subset the population using demographic variables,
+        for example (f=sex:Male;race7:White,Asian;year=2011,2013,2015)
+
+    Returns:
+        stuff -- TODO: explain return structure
+    """
+    def validate_var_level(v,f):
+        raise NotImplementedError('Validating variables and selected levels is'
+                                  + 'not yet implemented, sorry bro!')
     qn = req.args.get('q')
     vars = [] if not 'v' in req.args else req.args.get('v').split(',')
     resp = True if not 'r' in req.args else int(req.args.get('r')) > 0
+    filt = {} if not 'f' in req.args else dict(map(lambda fv:
+                                                   (fv.split(':')[0],
+                                                    fv.split(':')[1].split(',')),
+                                                   req.args.get('f').split(';')))
     try:
         return jsonify({
             "q": qn,
@@ -315,7 +370,7 @@ def fetch_national():
             "response": resp,
             "vars": vars,
             "var_levels": {v: svy_vars[v] for v in vars},
-            "results": fetch_stats(yrbsdes, qn, resp, vars)
+            "results": fetch_stats(subset(yrbsdes, filt), qn, resp, vars)
         })
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err))
