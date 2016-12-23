@@ -377,8 +377,8 @@ def fetch_survey_stats(sitecode='XX', year='2015'):
         })
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err))
-    #except Exception as err:
-    #    raise ComputationError('Error computing stats! %s' % str(err))
+    except Exception as err:
+        raise ComputationError('Error computing stats! %s' % str(err))
 
 
 if __name__=='__main__':
