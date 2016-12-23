@@ -166,7 +166,7 @@ def subset(des, filt):
     #filt is a dict with vars as keys and list of acceptable values as levels
     #example from R:
     #  subset(dclus1, sch.wide=="Yes" & comp.imp=="Yes"
-    if len(d.keys()) == 0:
+    if len(filt.keys()) == 0:
         return des
     filtered = rbase.Reduce( "&",
         [filter_var_levels(des, k, v) for k,v in filt.items()]
@@ -333,7 +333,7 @@ def fetch_questions(year=2015):
 @app.route('/stats')
 @app.route('/stats/<sitecode>')
 @app.route('/stats/<sitecode>/<year>')
-def fetch_stats(sitecode='XX', year='2015'):
+def fetch_survey_stats(sitecode='XX', year='2015'):
     """TODO: reformat for swagger
     Computes survey stats for given binary response variable, breakout
     variables and population filters
@@ -365,6 +365,7 @@ def fetch_stats(sitecode='XX', year='2015'):
                                                    (fv.split(':')[0],
                                                     fv.split(':')[1].split(',')),
                                                    req.args.get('f').split(';')))
+    print(filt, file=sys.stderr)
     try:
         return jsonify({
             "q": qn,
@@ -376,8 +377,8 @@ def fetch_stats(sitecode='XX', year='2015'):
         })
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err))
-    except Exception as err:
-        raise ComputationError('Error computing stats! %s' % str(err))
+    #except Exception as err:
+    #    raise ComputationError('Error computing stats! %s' % str(err))
 
 
 if __name__=='__main__':
