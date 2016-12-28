@@ -1,5 +1,6 @@
 from __future__ import print_function
 import sys
+import backtracepython as bt
 import pandas as pd
 import logging
 from collections import namedtuple
@@ -17,6 +18,11 @@ from rpy2.robjects import Formula
 import pandas.rpy.common as com
 
 pandas2ri.activate()
+
+bt.initialize(
+  endpoint="https://rootedinsights.sp.backtrace.io:6098",
+  token="768367df71e2be15321e851494b6dcc7152bf8f48fe5cc85a2deac80b94a31e9"
+)
 
 sys.path.append('src/survey_stats')
 
@@ -70,6 +76,7 @@ def load_cdc_survey(dat_file, svy_cols, svy_vars):
                 logging.error(rbase.summary(rdf[idx]))
                 logging.error(factor_summary(rdf[idx]))
                 logging.error(rbase.summary(fac))
+                bt.send_last_exception()
                 raise ParseCDCSurveyException("parsing problems: %s -> %s"
                                               % (q, v))
         elif q.startswith('qn'):
@@ -378,6 +385,7 @@ def fetch_survey_stats(sitecode='XX', year='2015'):
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err))
     except Exception as err:
+        bt.send_last_exception()
         raise ComputationError('Error computing stats! %s' % str(err))
 
 
