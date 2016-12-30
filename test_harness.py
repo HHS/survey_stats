@@ -32,7 +32,6 @@ import survey
 
 logging.basicConfig(level=logging.DEBUG)
 
-
 spss_file = 'data/YRBS_2015_SPSS_Syntax.sps'
 dat_file = 'data/yrbs2015.dat'
 
@@ -50,7 +49,7 @@ try:
     logging.info('Loaded survey data from feather cache...')
 except:
     logging.warning("Could not find feather cache, loading raw data...")
-    rdf = load_cdc_survey(dat_file, svy_cols, svy_vars)
+    rdf = cdc.load_survey(dat_file, svy_cols, svy_vars)
     rfther.write_feather(rdf, 'cache/yrbs.combined.feather')
 
 yrbsdes = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
