@@ -216,10 +216,10 @@ def fetch_stats(des, qn, response=True, vars=[]):
         total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
     #extract stats
     res = { 'level': 0,
-           'mean': rbase.as_numeric(total_ci)[0],
-           'se': rsvy.SE(total_ci)[0],
-           'ci_l': rbase.attr(total_ci,'ci')[0],
-           'ci_u': rbase.attr(total_ci,'ci')[1],
+           'mean': rbase.as_numeric(total_ci)[0] if total_ci else None,
+           'se': rsvy.SE(total_ci)[0] if total_ci else None,
+           'ci_l': rbase.attr(total_ci,'ci')[0] if total_ci else None,
+           'ci_u': rbase.attr(total_ci,'ci')[1] if total_ci else None,
            'count': count }
     #round as appropriate
     res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k,v in
