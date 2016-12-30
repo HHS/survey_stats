@@ -390,7 +390,7 @@ def fetch_survey_stats(sitecode='XX', year='2015'):
                                                     fv.split(':')[1].split(',')),
                                                    req.args.get('f').split(';')))
     subs = subset(yrbsdes,filt)
-    lsub = rbase.dim(subs[subs.names.index('variables')])[1]
+    lsub = rbase.dim(subs[subs.names.index('variables')])[0]
     print("Filtered %d rows with filter: %s" % (lsub, str(filt)),
           file=sys.stderr)
     if not lsub > 1:
