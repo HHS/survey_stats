@@ -1,6 +1,7 @@
 from __future__ import print_function
 import sys
 import backtracepython as bt
+import numpy as np
 import pandas as pd
 import logging
 from collections import namedtuple
@@ -165,6 +166,9 @@ def fill_none(self):
     return self.where(pd.notnull(self),None)
 pd.Series.fill_none = fill_none
 
+def guard_nan(val):
+    return None if np.isnan(val) else val
+
 #cache = LRUCache(maxsize=None)
 #lock = RLock()
 
@@ -216,10 +220,14 @@ def fetch_stats(des, qn, response=True, vars=[]):
         total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
     #extract stats
     res = { 'level': 0,
-           'mean': rbase.as_numeric(total_ci)[0] if total_ci else None,
-           'se': rsvy.SE(total_ci)[0] if total_ci else None,
-           'ci_l': rbase.attr(total_ci,'ci')[0] if total_ci else None,
-           'ci_u': rbase.attr(total_ci,'ci')[1] if total_ci else None,
+           'mean': guard_nan(
+               rbase.as_numeric(total_ci)[0]) if total_ci else None,
+           'se': guard_nan(
+               rsvy.SE(total_ci)[0]) if total_ci else None,
+           'ci_l': guard_nan(
+               rbase.attr(total_ci,'ci')[0]) if total_ci else None,
+           'ci_u': guard_nan(
+               rbase.attr(total_ci,'ci')[1]) if total_ci else None,
            'count': count }
     #round as appropriate
     res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k,v in
@@ -232,8 +240,8 @@ def fetch_stats(des, qn, response=True, vars=[]):
         #using svyby to compute across combinations of loadings
         res.extend(fetch_stats_by(vstack, qn_f, des))
         vstack.pop()
-    print(rbase.gc(), file=sys.stderr)
-    print(gc.collect())
+    #rbase.gc()
+    #gc.collect()
     return res
 
 #idx = rdf.colnames.index('q3')
