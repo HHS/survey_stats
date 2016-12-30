@@ -298,6 +298,19 @@ class InvalidUsage(Exception):
         rv['message'] = self.message
         return rv
 
+class EmptyFilterError(Exception):
+
+    def __init__(self, message, status_code=400, payload=None):
+        Exception.__init__(self)
+        self.message = message
+        self.status_code = status_code
+        self.payload = payload
+
+    def to_dict(self):
+        rv = dict(self.payload or ())
+        rv['message'] = self.message
+        return rv
+
 class ComputationError(Exception):
 
     def __init__(self, message, status_code=500, payload=None):
@@ -317,6 +330,12 @@ meta = fetch_qn_meta()
 
 @app.errorhandler(InvalidUsage)
 def handle_invalid_usage(error):
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
+
+@app.errorhandler(EmptyFilterError)
+def handle_empty_filter(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
     return response
@@ -372,15 +391,20 @@ def fetch_survey_stats(sitecode='XX', year='2015'):
                                                    (fv.split(':')[0],
                                                     fv.split(':')[1].split(',')),
                                                    req.args.get('f').split(';')))
-    print(filt, file=sys.stderr)
     try:
+        subs = subset(yrbsdes,filt)
+        lsub = rbase.dim(subs[subs.names.index['variables']])[1]
+        print("Filtered %d rows with filter: %s" % (lsub, str(filt)),
+              file=sys.stderr)
+        if not lsub > 1:
+            raise EmptyFilterError("EmptyFilterError: %s" % (str(filt)))
         return jsonify({
             "q": qn,
             "question": svy_vars[qn]['question'],
             "response": resp,
             "vars": vars,
             "var_levels": {v: svy_vars[v] for v in vars},
-            "results": fetch_stats(subset(yrbsdes, filt), qn, resp, vars)
+            "results": fetch_stats(subs, qn, resp, vars)
         })
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err))
