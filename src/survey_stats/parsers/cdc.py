@@ -197,6 +197,8 @@ def parse_surveyvars_spss(spss_file):
     return survey_vars
 
 
+class ParseCDCSurveyException(Exception):
+    pass
 
 def load_survey(dat_file, svy_cols, svy_vars):
     df = pd.read_fwf(dat_file, colspecs=list(svy_cols.values()),
@@ -208,17 +210,19 @@ def load_survey(dat_file, svy_cols, svy_vars):
         if v['is_integer']:
             (codes, cats) = zip(*v['responses'])
             idx = rdf.colnames.index(q)
+            fac = rdf[idx]
             try:
-                rdf[idx] = rbase.factor(
-                    rbase.as_integer(rdf[idx]),
-                    levels=list(codes),
-                    labels=list(cats))
+                fac = rbase.as_integer(fac)
+                fac = rbase.factor(fac, levels=list(codes), labels=list(cats))
+                rdf[idx] = fac
             except:
                 logging.error(rbase.summary(rdf[idx]))
                 logging.error(factor_summary(rdf[idx]))
+                logging.error(rbase.summary(fac))
+                bt.send_last_exception()
                 raise ParseCDCSurveyException("parsing problems: %s -> %s"
                                               % (q, v))
-        elif q.startswith(BOOLEAN_RESPONSE_PREFIX):
+        elif q.startswith('qn'):
             idx = rdf.colnames.index(q)
             fac = rbase.as_integer(rdf[idx])
             coerced = rbase.is_na(fac)
@@ -235,6 +239,7 @@ def load_survey(dat_file, svy_cols, svy_vars):
             rdf[idx] = tobool_yrbs(fac)
     return rdf
 
+'''
 def load_survey_py(dat_file, svy_cols, svy_vars):
     df = pd.read_fwf(dat_file, colspecs=list(svy_cols.values()),
                      names=list(svy_cols.keys()), na_values=['.',''])
@@ -268,4 +273,4 @@ def load_survey_py(dat_file, svy_cols, svy_vars):
     rdf = com.convert_to_r_dataframe(df)
     logging.info("Converted survey data to R object")
     return rdf
-
+'''
