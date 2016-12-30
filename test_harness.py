@@ -178,7 +178,6 @@ def subset(des, filt):
     filtered = rbase.Reduce( "&",
         [filter_var_levels(des, k, v) for k,v in filt.items()]
     )
-    print(rbase.summary(filtered), file=sys.stderr)
     return rsvy.subset_survey_design(des, filtered)
 
 def fetch_stats(des, qn, response=True, vars=[]):
@@ -210,18 +209,18 @@ def fetch_stats(des, qn, response=True, vars=[]):
     # ex: ~qn8, ~!qn8
     #print(qn,response,vars,file=sys.stderr)
     qn_f = Formula('~%s%s' % ('' if response else '!', qn))
-    total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
+    count = rbase.as_numeric(rsvy.unwtd_count(qn_f, des, na_rm=True,
+                                              multicore=True))[0]
+    total_ci = None
+    if count > 0:
+        total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
     #extract stats
     res = { 'level': 0,
            'mean': rbase.as_numeric(total_ci)[0],
            'se': rsvy.SE(total_ci)[0],
            'ci_l': rbase.attr(total_ci,'ci')[0],
            'ci_u': rbase.attr(total_ci,'ci')[1],
-           'count': rbase.as_numeric(rsvy.unwtd_count(qn_f, des, na_rm=True,
-                                                      multicore=True))[0]}
-    total_ci_struct = total_ci.__sexp__
-    del(total_ci)
-    del(total_ci_struct)
+           'count': count }
     #round as appropriate
     res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k,v in
            res.items()}
