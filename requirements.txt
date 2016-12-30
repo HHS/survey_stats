@@ -1,3 +1,4 @@
+cachetools==2.0.0
 click==6.6
 Cython==0.25.2
 feather-format==0.3.1
@@ -12,5 +13,6 @@ python-dateutil==2.6.0
 pytz==2016.10
 rpy2==2.8.4
 six==1.10.0
-Werkzeug==0.11.11
 uWSGI==2.0.14
+Werkzeug==0.11.11
+backtracepython==0.3.2
