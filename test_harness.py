@@ -329,19 +329,10 @@ app = Flask(__name__)
 meta = fetch_qn_meta()
 
 @app.errorhandler(InvalidUsage)
-def handle_invalid_usage(error):
-    response = jsonify(error.to_dict())
-    response.status_code = error.status_code
-    return response
-
 @app.errorhandler(EmptyFilterError)
-def handle_empty_filter(error):
-    response = jsonify(error.to_dict())
-    response.status_code = error.status_code
-    return response
-
 @app.errorhandler(ComputationError)
-def handle_computation_error(error):
+def handle_invalid_usage(error):
+    bt.send_last_exception()
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
     return response
@@ -391,13 +382,13 @@ def fetch_survey_stats(sitecode='XX', year='2015'):
                                                    (fv.split(':')[0],
                                                     fv.split(':')[1].split(',')),
                                                    req.args.get('f').split(';')))
+    subs = subset(yrbsdes,filt)
+    lsub = rbase.dim(subs[subs.names.index['variables']])[1]
+    print("Filtered %d rows with filter: %s" % (lsub, str(filt)),
+          file=sys.stderr)
+    if not lsub > 1:
+        raise EmptyFilterError("EmptyFilterError: %s" % (str(filt)))
     try:
-        subs = subset(yrbsdes,filt)
-        lsub = rbase.dim(subs[subs.names.index['variables']])[1]
-        print("Filtered %d rows with filter: %s" % (lsub, str(filt)),
-              file=sys.stderr)
-        if not lsub > 1:
-            raise EmptyFilterError("EmptyFilterError: %s" % (str(filt)))
         return jsonify({
             "q": qn,
             "question": svy_vars[qn]['question'],
@@ -409,7 +400,6 @@ def fetch_survey_stats(sitecode='XX', year='2015'):
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err))
     except Exception as err:
-        bt.send_last_exception()
         raise ComputationError('Error computing stats! %s' % str(err))
 
 
