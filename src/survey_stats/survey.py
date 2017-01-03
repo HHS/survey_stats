@@ -1,4 +1,7 @@
 from parsers import cdc
+from generative import GenerativeBase, _generative
+
+CACHE_DIR = 'cache/'
 
 svyciprop_yrbs = robjects.r('''
 function(formula, design, method='xlogit', level = 0.95, df=degf(design), ...) {
@@ -27,47 +30,42 @@ pd.Series.fill_none = fill_none
 def guard_nan(val):
     return None if np.isnan(val) else val
 
-def default_resolve_cache_fn(survey_id):
-    raise NotImplementedError('Default cache resolution is not implemented!')
+def load_cdc_survey(spss_file, dat_file, resolve_cache_fn, survey_id):
+    svy_cols = cdc.parse_fwfcols_spss(spss_file)
+    svy_vars = cdc.parse_surveyvars_spss(spss_file)
+    logging.info("Parsed SPSS metadata")
 
-class Survey(object):
-    def __init__(self, data, survey_vars):
-        self.df = data
-        self.vars = survey_vars
-        self.des = rsvy.svydesign(id=Formula("~psu"), weight=Formula("~weight"),
-                                strata=Formula("~stratum"), data=rdf, nest=True)
-    @classmethod
-    def load_cdc_survey(spss_file, dat_file, resolve_cache_fn, survey_id):
-        svy_cols = cdc.parse_fwfcols_spss(spss_file)
-        svy_vars = cdc.parse_surveyvars_spss(spss_file)
-        logging.info("Parsed SPSS metadata")
+    rdf = None
+    cache_file = '%s/%s.feather' % (CACHE_DIR, survey_id)
 
-        rdf = None
+    try:
+        rdf = rfther.read_feather(cache_file)
+        logging.info('Loaded survey data from feather cache...')
+    except:
+        logging.warning("Could not find feather cache, loading raw data...")
+        rdf = cdc.load_cdc_survey(dat_file, svy_cols, svy_vars)
+        rfther.write_feather(rdf, 'data/yrbs.combined.feather')
+        des = rsvy.svydesign(id=Formula("~psu"), weight=Formula("~weight"),
+                             strata=Formula("~stratum"), data=data, nest=True)
+    return (des, svy_vars)
 
-        try:
-            rdf = rfther.read_feather('data/yrbs.combined.feather')
-            logging.info('Loaded survey data from feather cache...')
-        except:
-            logging.warning("Could not find feather cache, loading raw data...")
-            rdf = cdc.load_cdc_survey(dat_file, svy_cols, svy_vars)
-            rfther.write_feather(rdf, 'data/yrbs.combined.feather')
-
-    def subset(self, filt):
-        #filt is a dict with vars as keys and list of acceptable values as levels
-        #example from R:
-        #  subset(dclus1, sch.wide=="Yes" & comp.imp=="Yes"
-        if len(filt.keys()) == 0:
-            return des
+def subset_survey(des, filt):
+    #filt is a dict with vars as keys and list of acceptable values as levels
+    #example from R:
+    #  subset(dclus1, sch.wide=="Yes" & comp.imp=="Yes"
+    if len(filt.keys()) > 0:
         filtered = rbase.Reduce( "&",
-            [filter_var_levels(des, k, v) for k,v in filt.items()]
-        )
+            [filter_var_levels(des, k, v) for k,v in filt.items()])
         return rsvy.subset_survey_design(des, filtered)
+    else:
+        #empty filter, return original design object
+        return des
 
 def fetch_stats(des, qn, response=True, vars=[]):
     DECIMALS = {
         'mean': 4, 'se': 4, 'ci_l': 4, 'ci_u': 4, 'count':0
     }
-    def fetch_stats_by(vars, qn_f, des):
+    def fetch_stats_by(des, qn_f, vars):
         lvl_f = Formula('~%s' % ' + '.join(vars))
         #svyciprop_local =
         merged = pandas2ri.ri2py(rbase.merge(
@@ -110,7 +108,7 @@ def fetch_stats(des, qn, response=True, vars=[]):
     while len(vstack) > 0:
         #get stats for each level of interactions in vars
         #using svyby to compute across combinations of loadings
-        res.extend(fetch_stats_by(vstack, qn_f, des))
+        res.extend(fetch_stats_by(des, qn_f, vstack))
         vstack.pop()
     return res
 
