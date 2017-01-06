@@ -121,9 +121,22 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des'])):
 
         logging.info('creating survey design from data and annotations')
         des = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
-                             strata=Formula('~stratum'), data=data, nest=True)
+                             strata=Formula('~stratum'), data=rdf, nest=True)
         return cls(des=des, vars=svy_vars)
 
+
+    @classmethod
+    def from_rdf(cls, spss_file, rdf):
+        logging.info('loading column definitions')
+        svy_cols = cdc.parse_fwfcols_spss(spss_file)
+
+        logging.info('loading variable annotations')
+        svy_vars = cdc.parse_surveyvars_spss(spss_file)
+
+        logging.info('creating survey design from data and annotations')
+        des = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
+                             strata=Formula('~stratum'), data=rdf, nest=True)
+        return cls(des=des, vars=svy_vars)
 
 
 #idx = rdf.colnames.index('q3')
