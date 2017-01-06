@@ -32,7 +32,7 @@ from datasets import SurveyDataset
 
 logging.basicConfig(level=logging.DEBUG)
 
-META_COLS = ['year','questioncode','shortquestiontext','description',
+META_COLS = ['questioncode','shortquestiontext','description',
 			 'greater_risk_question','lesser_risk_question','topic','subtopic']
 
 META_URL = 'https://chronicdata.cdc.gov/resource/6ay3-nik2.json'
@@ -43,7 +43,7 @@ def fetch_qn_meta():
 	m = pd.read_json(query).fillna('')
 	m['questioncode'] = m.questioncode.apply( lambda k: k.replace('H','qn') if k[0]=='H' else k.lower() )
 	del m['count_1']
-	m.set_index(['year','questioncode'], inplace=True, drop=False)
+	m.set_index('questioncode', inplace=True, drop=False)
 	return m.to_dict(orient="index")
 
 #app = Sanic(__name__)
@@ -109,8 +109,8 @@ def handle_invalid_usage(error):
 @app.route("/questions")
 @app.route("/questions/<int:year>")
 def fetch_questions(year=None):
-    def get_meta(k, v, yr=2015):
-        key = (2015,k.lower())
+    def get_meta(k, v):
+        key = k.lower()
         res = dict(meta[key], **v) if key in meta else v
         return res
     combined = True
@@ -121,34 +121,19 @@ def fetch_questions(year=None):
     res = {k: get_meta(k,v) for k, v in dset.vars.items()}
     return jsonify(res)
 
-@app.route('/stats')
-@app.route('/stats/<sitecode>')
-@app.route('/stats/<sitecode>/<int:year>')
-def fetch_survey_stats(sitecode='XX', year='2015'):
-    """TODO: reformat for swagger
-    Computes survey stats for given binary response variable, breakout
-    variables and population filters
+@app.route('/stats/national')
+@app.route('/stats/national/<int:year>')
+def fetch_national_stats(year=None):
+    return fetch_survey_stats(national=True, year=year)
 
-    Route Parameters:
-        sitecode: (required) sitecode for state/locality of interest -- use XX
-        for national level survey data (ex: 'XX', 'PA', 'VA', 'MD')
-        year: (default=combined) survey year, omit for combined survey across
-        all years for given sitecode (questions correspond to latest year)
-    URL Parameters:
-        q: (required) question to compute stats for
-        v: (default=None) variables to break out responses by (ex: 'sex,race')
+@app.route('/stats/state')
+def fetch_state_stats(year=None):
+    return fetch_survey_stats(national=False, year=None)
 
-        r: (default=1) response to binary question to compute SE and CI for,
-        options=[1 -> True, 0 -> False]
-        f: (default=None) subset the population using demographic variables,
-        for example (f=sex:Male;race7:White,Asian;year=2011,2013,2015)
 
-    Returns:
-        stuff -- TODO: explain return structure
-    """
-    def validate_var_level(v,f):
-        raise NotImplementedError('Validating variables and selected levels is'
-                                  + 'not yet implemented, sorry bro!')
+
+def fetch_survey_stats(national, year):
+    logging.info("requested uri: %s" % req.url)
     qn = req.args.get('q')
     vars = [] if not 'v' in req.args else req.args.get('v').split(',')
     resp = True if not 'r' in req.args else int(req.args.get('r')) > 0
@@ -156,12 +141,10 @@ def fetch_survey_stats(sitecode='XX', year='2015'):
                                                    (fv.split(':')[0],
                                                     fv.split(':')[1].split(',')),
                                                     req.args.get('f').split(';')))
-    national = True
+    logging.info(filt)
     combined = True
     if year and year in range(1993, 2017, 2):
         combined = False
-    if sitecode and sitecode != 'XX':
-        national = False
 
     svy = yrbss.fetch_survey(combined, national, year)
     svy = svy.subset(filt)

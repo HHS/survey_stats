@@ -113,7 +113,7 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des', 'rdf'])):
 
 
     def fetch_stats(self, qn, response=True, vars=[]):
-        return fetch_stats(qn, response, vars)
+        return fetch_stats(self.des, qn, response, vars)
 
 
     @classmethod

@@ -26,10 +26,8 @@ class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
         config = None
         with open(yml_f, 'r') as fh:
             config = yaml.load(fh)['surveys']
-            print(config)
         svys = {}
         for k,v in config.items():
-            print(v)
             svys[k] = cls.fetch_or_load_dataset(k, v['spss'], v['data'])
         return cls(config=config, surveys=svys)
 
@@ -51,7 +49,7 @@ class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
 
     def fetch_survey(self, combined=True, national=True, year=None):
         for k, v in self.config.items():
-            print((combined, national, year, v))
+            logging.info((combined, national, year, v))
             yr_pred = v['year'] == year if year else True
             if v['is_combined'] == combined and \
                v['is_national'] == national and \
