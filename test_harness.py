@@ -27,8 +27,8 @@ bt.initialize(
 
 sys.path.append('src/survey_stats')
 
-import parsers.cdc_yrbs as cdc
-import survey
+from survey import AnnotatedSurvey
+from datasets import SurveyDataset
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -92,9 +92,10 @@ class ComputationError(Exception):
         return rv
 
 
-rbase.gc()
 app = Flask(__name__)
 meta = fetch_qn_meta()
+yrbss = SurveyDataset.load_dataset('data/yrbss.yaml')
+
 
 @app.errorhandler(InvalidUsage)
 @app.errorhandler(EmptyFilterError)
@@ -108,12 +109,13 @@ def handle_invalid_usage(error):
 @app.route("/questions")
 @app.route("/questions/<year>")
 def fetch_questions(year=2015):
-	def get_meta(k, v, yr=year):
-		key = (2015,k.lower())
-		res = dict(meta[key], **v) if key in meta else v
-		return res
-	res = {k: get_meta(k,v) for k, v in svy_vars.items()}
-	return jsonify(res)
+    def get_meta(k, v, yr=year):
+        key = (2015,k.lower())
+        res = dict(meta[key], **v) if key in meta else v
+        return res
+    dset = yrbss.fetch_survey(combined=True, national=True, year=None)
+    res = {k: get_meta(k,v) for k, v in dset.vars.items()}
+    return jsonify(res)
 
 @app.route('/stats')
 @app.route('/stats/<sitecode>')
@@ -149,21 +151,27 @@ def fetch_survey_stats(sitecode='XX', year='2015'):
     filt = {} if not 'f' in req.args else dict(map(lambda fv:
                                                    (fv.split(':')[0],
                                                     fv.split(':')[1].split(',')),
-                                                   req.args.get('f').split(';')))
-    subs = subset(yrbsdes,filt)
-    lsub = rbase.dim(subs[subs.names.index('variables')])[0]
-    print("Filtered %d rows with filter: %s" % (lsub, str(filt)),
-          file=sys.stderr)
-    if not lsub > 1:
-        raise EmptyFilterError("EmptyFilterError: %s" % (str(filt)))
+                                                    req.args.get('f').split(';')))
+    national = True
+    combined = True
+    if year and year in range(1993, 2017, 2):
+        combined = False
+    if sitecode and sitecode != 'XX':
+        national = False
+
+    svy = yrbss.fetch_survey(combined, national, year)
+    svy = svy.subset(filt)
+
+    if not svy.sample_size() > 1:
+        raise EmptyFilterError('EmptyFilterError: %s' % (str(filt)))
     try:
         return jsonify({
-            "q": qn,
-            "question": svy_vars[qn]['question'],
-            "response": resp,
-            "vars": vars,
-            "var_levels": {v: svy_vars[v] for v in vars},
-            "results": fetch_stats(subs, qn, resp, vars)
+            'q': qn,
+            'question': svy_vars[qn]['question'],
+            'response': resp,
+            'vars': vars,
+            'var_levels': {v: svy.vars[v] for v in vars},
+            'results': svy.fetch_stats(qn, resp, vars)
         })
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err))

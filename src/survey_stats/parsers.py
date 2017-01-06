@@ -22,7 +22,7 @@ def strip_line(l):
     return l.strip().strip('.').replace('"','').replace("'","")
 
 
-class ParseCDCSPSSException(Exception):
+class ParseSPSSException(Exception):
     pass
 
 class ParseCDCSurveyException(Exception):
@@ -176,17 +176,17 @@ class ParseCDCSurveyException(Exception):
     pass
 
 def load_survey(dat_files, svy_cols, svy_vars):
-    logging.info("parsing raw survey data")
-    df = pd.concat(map(lambda dat_f: dat_f, pd.read_fwf(dat_f,
-                                          colspecs=list(svy_cols.values()),
-                                          names=list(svy_cols.keys()),
-                                          na_values=['.',''])),
-                   ignore_index=True, copy=False)
-    logging.info("converting survey data to R object")
+    logging.info('parsing raw survey data: %s' % ','.join(dat_files))
+    df = pd.concat(map(lambda dat_f: pd.read_fwf(dat_f,
+                                                 colspecs=list(svy_cols.values()),
+                                                 names=list(svy_cols.keys()),
+                                                 na_values=['.','']),
+                       dat_files), ignore_index=True, copy=False)
+    logging.info('converting survey data to R object')
     rdf = com.convert_to_r_dataframe(df)
-    logging.info("coercing variables to annotated types")
+    logging.info('coercing variables to annotated types')
     for q, v in svy_vars.items():
-            if v['is_integer']:
+        if v['is_integer']:
             (codes, cats) = zip(*v['responses'])
             idx = rdf.colnames.index(q)
             fac = rdf[idx]
@@ -196,10 +196,10 @@ def load_survey(dat_files, svy_cols, svy_vars):
                 rdf[idx] = fac
             except:
                 logging.error(rbase.summary(rdf[idx]))
-                logging.error(factor_summary(rdf[idx]))
+                logging.error(helpr.factor_summary(rdf[idx]))
                 logging.error(rbase.summary(fac))
                 bt.send_last_exception()
-                raise ParseCDCSurveyException("parsing problems: %s -> %s"
+                raise ParseCDCSurveyException('parsing problems: %s -> %s'
                                               % (q, v))
         elif q.startswith('qn'):
             idx = rdf.colnames.index(q)
@@ -207,14 +207,14 @@ def load_survey(dat_files, svy_cols, svy_vars):
             coerced = rbase.is_na(fac)
             n_coerced = rbase.sum(coerced)[0]
             if n_coerced > 0:
-                coerced = factor_summary(rdf[idx].rx(coerced))
-                logging.warning("Coerced non-numeric values for variable:" +
-                                " %s\n%s" % (q, coerced))
+                coerced = helpr.factor_summary(rdf[idx].rx(coerced))
+                logging.warning('Coerced non-numeric values for variable:' +
+                                ' %s\n%s' % (q, coerced))
             if rbase.min(fac, na_rm=True)[0] < 1 or \
                rbase.max(fac, na_rm=True)[0] > 2:
-                raise ParseCDCSurveyException("Found invalid levels for" +
-                                              " boolean var: %s -> %s" %
-                                              (q, factor_summary(fac)))
+                raise ParseCDCSurveyException('Found invalid levels for' +
+                                              ' boolean var: %s -> %s' %
+                                              (q, helpr.factor_summary(fac)))
             rdf[idx] = helpr.tobool(fac)
     return rdf
 
@@ -222,7 +222,7 @@ def load_survey(dat_files, svy_cols, svy_vars):
 def load_survey_py(dat_file, svy_cols, svy_vars):
     df = pd.read_fwf(dat_file, colspecs=list(svy_cols.values()),
                      names=list(svy_cols.keys()), na_values=['.',''])
-    logging.info("Parsed raw survey data")
+    logging.info('Parsed raw survey data')
     for q, v in svy_vars.items():
         if v['is_integer']:
             (codes, cats) = zip(*v['responses'])
@@ -232,7 +232,7 @@ def load_survey_py(dat_file, svy_cols, svy_vars):
                                                   ordered=True)
             except:
                 logging.error(df[q].describe())
-                raise ParseCDCSurveyException("parsing problems: %s -> %s"
+                raise ParseCDCSurveyException('parsing problems: %s -> %s'
                                               % (q, v))
         elif q.startswith(BOOLEAN_RESPONSE_PREFIX):
             idx = rdf.colnames.index(q)
@@ -240,16 +240,16 @@ def load_survey_py(dat_file, svy_cols, svy_vars):
             coerced = rbase.is_na(fac)
             n_coerced = rbase.sum(coerced)[0]
             if n_coerced > 0:
-                coerced = factor_summary(rdf[idx].rx(coerced))
-                logging.warning("Coerced non-numeric values for variable:" +
-                                " %s\n%s" % (q, coerced))
+                coerced = helpr.factor_summary(rdf[idx].rx(coerced))
+                logging.warning('Coerced non-numeric values for variable:' +
+                                ' %s\n%s' % (q, coerced))
             if rbase.min(fac, na_rm=True)[0] < 1 or \
                rbase.max(fac, na_rm=True)[0] > 2:
-                raise ParseCDCSurveyException("Found invalid levels for" +
-                                              " boolean var: %s -> %s" %
-                                              (q, factor_summary(fac)))
+                raise ParseCDCSurveyException('Found invalid levels for' +
+                                              ' boolean var: %s -> %s' %
+                                              (q, helpr.factor_summary(fac)))
             rdf[idx] = tobool(fac)
     rdf = com.convert_to_r_dataframe(df)
-    logging.info("Converted survey data to R object")
+    logging.info('Converted survey data to R object')
     return rdf
 '''

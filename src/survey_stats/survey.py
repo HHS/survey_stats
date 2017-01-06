@@ -1,6 +1,8 @@
 import logging
 import gc
 
+from collections import namedtuple
+
 import numpy as np
 import pandas as pd
 
@@ -12,11 +14,13 @@ from rpy2.robjects import ListVector
 from rpy2.robjects import Formula
 import pandas.rpy.common as com
 
+from parsers import *
+from helpr import *
+
 pandas2ri.activate()
 
 rbase = importr('base')
-rfunc = importr('functional')
-rfther = importr('feather', on_conflict="warn")
+rsvy = importr('survey')
 rprll = importr('parallel')
 rbase.options(robjects.vectors.ListVector({'mc.cores':rprll.detectCores()}))
 
@@ -99,6 +103,10 @@ def fetch_stats(des, qn, response=True, vars=[]):
 class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des'])):
     __slots__ = ()
 
+    @property
+    def sample_size(self):
+        subs = self.des
+        return rbase.dim(subs[subs.names.index('variables')])[0]
 
     def subset(self, filter):
         return self._replace(des=subset_survey_design(self.des, filter))
@@ -111,13 +119,13 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des'])):
     @classmethod
     def load_cdc_survey(cls, spss_file, dat_files):
         logging.info('loading column definitions')
-        svy_cols = cdc.parse_fwfcols_spss(spss_file)
+        svy_cols = parse_fwfcols_spss(spss_file)
 
         logging.info('loading variable annotations')
-        svy_vars = cdc.parse_surveyvars_spss(spss_file)
+        svy_vars = parse_surveyvars_spss(spss_file)
 
         logging.info('loading survey data from fixed-width file')
-        rdf = cdc.load_cdc_survey(dat_files, svy_cols, svy_vars)
+        rdf = load_survey(dat_files, svy_cols, svy_vars)
 
         logging.info('creating survey design from data and annotations')
         des = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
@@ -128,10 +136,10 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des'])):
     @classmethod
     def from_rdf(cls, spss_file, rdf):
         logging.info('loading column definitions')
-        svy_cols = cdc.parse_fwfcols_spss(spss_file)
+        svy_cols = parse_fwfcols_spss(spss_file)
 
         logging.info('loading variable annotations')
-        svy_vars = cdc.parse_surveyvars_spss(spss_file)
+        svy_vars = parse_surveyvars_spss(spss_file)
 
         logging.info('creating survey design from data and annotations')
         des = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
@@ -139,54 +147,3 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des'])):
         return cls(des=des, vars=svy_vars)
 
 
-#idx = rdf.colnames.index('q3')
-
-spss_file = 'data/YRBS_2015_SPSS_Syntax.sps'
-dat_file = 'data/yrbs2015.dat'
-
-spss_file = 'data/2015-sadc-spss-input-program.sps'
-dat_file = 'data/sadc_2015_national.dat'
-
-svy_cols = cdc.parse_fwfcols_spss(spss_file)
-svy_vars = cdc.parse_surveyvars_spss(spss_file)
-logging.info('Parsed SPSS metadata')
-
-rdf = None
-
-try:
-    rdf = rfther.read_feather('cache/yrbs.combined.feather')
-    logging.info('Loaded survey data from feather cache...')
-except:
-    logging.warning('Could not find feather cache, loading raw data...')
-    rdf = cdc.load_survey(dat_file, svy_cols, svy_vars)
-    rfther.write_feather(rdf, 'cache/yrbs.combined.feather')
-
-yrbsdes = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
-						 strata=Formula('~stratum'), data=rdf, nest=True)
-'''
-print('setup complete', )
-sys.stdout.flush()
-def test_fn(iter):
-    print('%d - run 1' % iter)
-    sys.stdout.flush()
-    print(fetch_stats(yrbsdes, 'qn8', True, ['race7', 'sex']))
-    print('%d - run 2' % iter)
-    sys.stdout.flush()
-#    fetch_stats(yrbsdes, 'qn8', True, ['q2', 'q3', 'raceeth'])
-#    print('%d - run 3' % iter)
-#    sys.stdout.flush()
-#    fetch_stats(yrbsdes, 'qn8', True, ['q2', 'raceeth'])
-
-for i in range(1):
-    test_fn(i)
-#sys.exit()
-#print(timeit.timeit('test_fn()', number=10))
-'''
-d = {'grade': ['11th', '12th'],
-      'race7': ['White', 'Asian'],
-      'year': ['2011', '2013', '2015']}
-
-res = fetch_stats( subset(yrbsdes, d), 'qn8', True, ['sex'] )
-print(res, file=sys.stderr)
-res = fetch_stats( yrbsdes, 'qn8', True, ['sex'] )
-print(res, file=sys.stderr)
