@@ -106,6 +106,7 @@ def handle_invalid_usage(error):
     response.status_code = error.status_code
     return response
 
+
 @app.route("/questions")
 @app.route("/questions/<int:year>")
 def fetch_questions(year=None):
@@ -121,15 +122,16 @@ def fetch_questions(year=None):
     res = {k: get_meta(k,v) for k, v in dset.vars.items()}
     return jsonify(res)
 
+
 @app.route('/stats/national')
 @app.route('/stats/national/<int:year>')
 def fetch_national_stats(year=None):
     return fetch_survey_stats(national=True, year=year)
 
+
 @app.route('/stats/state')
 def fetch_state_stats(year=None):
     return fetch_survey_stats(national=False, year=None)
-
 
 
 def fetch_survey_stats(national, year):
@@ -141,12 +143,23 @@ def fetch_survey_stats(national, year):
                                                    (fv.split(':')[0],
                                                     fv.split(':')[1].split(',')),
                                                     req.args.get('f').split(';')))
+
     logging.info(filt)
     combined = True
     if year and year in range(1993, 2017, 2):
         combined = False
 
-    svy = yrbss.fetch_survey(combined, national, year)
+    # update vars and filt column names according to pop_vars
+    (k, cfg) = yrbss.fetch_config(combined, national, year)
+    logging.info((k, cfg))
+    replace_f = lambda x: cfg['pop_vars'][x] if x in cfg['pop_vars'] else x
+    logging.info(vars)
+    vars = list(map(replace_f, vars))
+    filt = {replace_f(k): v for k,v in filt.items()}
+    logging.info(vars)
+    logging.info(filt)
+
+    svy = yrbss.surveys[k]
     svy = svy.subset(filt)
 
     if not svy.sample_size > 1:

@@ -48,14 +48,16 @@ class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
 
 
     def fetch_survey(self, combined=True, national=True, year=None):
-        for k, v in self.config.items():
-            logging.info((combined, national, year, v))
-            yr_pred = v['year'] == year if year else True
-            if v['is_combined'] == combined and \
-               v['is_national'] == national and \
-               yr_pred:
-                return self.surveys[k]
-        return None
+        pred = lambda v: v['is_combined'] == combined and \
+                v['is_national'] == national and \
+                (v['year'] == year if year else True)
+        return next((self.surveys[k] for k,v in self.config.items() if
+                     pred(v)), None)
 
-
+    def fetch_config(self, combined=True, national=True, year=None):
+        pred = lambda v: v['is_combined'] == combined and \
+                v['is_national'] == national and \
+                (v['year'] == year if year else True)
+        return next(((k,v) for k,v in self.config.items() if
+                     pred(v)), None)
 
