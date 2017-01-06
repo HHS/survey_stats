@@ -1,25 +1,25 @@
-from parsers import cdc
-from generative import GenerativeBase, _generative
+import logging
+import gc
 
-CACHE_DIR = 'cache/'
+import numpy as np
+import pandas as pd
 
-svyciprop_yrbs = robjects.r('''
-function(formula, design, method='xlogit', level = 0.95, df=degf(design), ...) {
-    svyciprop(formula, design, method, level, df, na.rm=TRUE, ...)
-}''')
+import rpy2
+import rpy2.robjects as robjects
+from rpy2.robjects import pandas2ri
+from rpy2.robjects.packages import importr
+from rpy2.robjects import ListVector
+from rpy2.robjects import Formula
+import pandas.rpy.common as com
 
-svybyci_yrbs = robjects.r('''
-function( formula, by, des, fn, ...) {
-    svyby(formula, by, des, fn, keep_var=TRUE, method='xlogit',
-          vartype=c('se','ci'), na.rm.by=TRUE, na.rm.all=TRUE, multicore=TRUE)
-}''')
+pandas2ri.activate()
 
+rbase = importr('base')
+rfunc = importr('functional')
+rfther = importr('feather', on_conflict="warn")
+rprll = importr('parallel')
+rbase.options(robjects.vectors.ListVector({'mc.cores':rprll.detectCores()}))
 
-filter_var_levels = robjects.r('''
-function(des, k, vals){
-    des$variables[[k]] %in% vals
-}
-''')
 
 #extend Series with fill_none method
 # to take care of json/mysql conversion
@@ -27,39 +27,22 @@ def fill_none(self):
     return self.where(pd.notnull(self),None)
 pd.Series.fill_none = fill_none
 
+
 def guard_nan(val):
     return None if np.isnan(val) else val
 
-def load_cdc_survey(spss_file, dat_file, resolve_cache_fn, survey_id):
-    svy_cols = cdc.parse_fwfcols_spss(spss_file)
-    svy_vars = cdc.parse_surveyvars_spss(spss_file)
-    logging.info("Parsed SPSS metadata")
-
-    rdf = None
-    cache_file = '%s/%s.feather' % (CACHE_DIR, survey_id)
-
-    try:
-        rdf = rfther.read_feather(cache_file)
-        logging.info('Loaded survey data from feather cache...')
-    except:
-        logging.warning("Could not find feather cache, loading raw data...")
-        rdf = cdc.load_cdc_survey(dat_file, svy_cols, svy_vars)
-        rfther.write_feather(rdf, 'data/yrbs.combined.feather')
-        des = rsvy.svydesign(id=Formula("~psu"), weight=Formula("~weight"),
-                             strata=Formula("~stratum"), data=data, nest=True)
-    return (des, svy_vars)
 
 def subset_survey(des, filt):
     #filt is a dict with vars as keys and list of acceptable values as levels
     #example from R:
     #  subset(dclus1, sch.wide=="Yes" & comp.imp=="Yes"
-    if len(filt.keys()) > 0:
-        filtered = rbase.Reduce( "&",
-            [filter_var_levels(des, k, v) for k,v in filt.items()])
-        return rsvy.subset_survey_design(des, filtered)
-    else:
+    if not len(filt.keys()) > 0:
         #empty filter, return original design object
         return des
+    filtered = rbase.Reduce( "&",
+        [filter_var_levels(des, k, v) for k,v in filt.items()])
+    return rsvy.subset_survey_design(des, filtered)
+
 
 def fetch_stats(des, qn, response=True, vars=[]):
     DECIMALS = {
@@ -112,6 +95,37 @@ def fetch_stats(des, qn, response=True, vars=[]):
         vstack.pop()
     return res
 
+
+class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des'])):
+    __slots__ = ()
+
+
+    def subset(self, filter):
+        return self._replace(des=subset_survey_design(self.des, filter))
+
+
+    def fetch_stats(self, qn, response=True, vars=[]):
+        return fetch_stats(qn, response, vars)
+
+
+    @classmethod
+    def load_cdc_survey(cls, spss_file, dat_files):
+        logging.info('loading column definitions')
+        svy_cols = cdc.parse_fwfcols_spss(spss_file)
+
+        logging.info('loading variable annotations')
+        svy_vars = cdc.parse_surveyvars_spss(spss_file)
+
+        logging.info('loading survey data from fixed-width file')
+        rdf = cdc.load_cdc_survey(dat_files, svy_cols, svy_vars)
+
+        logging.info('creating survey design from data and annotations')
+        des = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
+                             strata=Formula('~stratum'), data=data, nest=True)
+        return cls(des=des, vars=svy_vars)
+
+
+
 #idx = rdf.colnames.index('q3')
 
 spss_file = 'data/YRBS_2015_SPSS_Syntax.sps'
@@ -122,7 +136,7 @@ dat_file = 'data/sadc_2015_national.dat'
 
 svy_cols = cdc.parse_fwfcols_spss(spss_file)
 svy_vars = cdc.parse_surveyvars_spss(spss_file)
-logging.info("Parsed SPSS metadata")
+logging.info('Parsed SPSS metadata')
 
 rdf = None
 
@@ -130,23 +144,23 @@ try:
     rdf = rfther.read_feather('cache/yrbs.combined.feather')
     logging.info('Loaded survey data from feather cache...')
 except:
-    logging.warning("Could not find feather cache, loading raw data...")
+    logging.warning('Could not find feather cache, loading raw data...')
     rdf = cdc.load_survey(dat_file, svy_cols, svy_vars)
     rfther.write_feather(rdf, 'cache/yrbs.combined.feather')
 
 yrbsdes = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
 						 strata=Formula('~stratum'), data=rdf, nest=True)
 '''
-print("setup complete", )
+print('setup complete', )
 sys.stdout.flush()
 def test_fn(iter):
-    print("%d - run 1" % iter)
+    print('%d - run 1' % iter)
     sys.stdout.flush()
     print(fetch_stats(yrbsdes, 'qn8', True, ['race7', 'sex']))
-    print("%d - run 2" % iter)
+    print('%d - run 2' % iter)
     sys.stdout.flush()
 #    fetch_stats(yrbsdes, 'qn8', True, ['q2', 'q3', 'raceeth'])
-#    print("%d - run 3" % iter)
+#    print('%d - run 3' % iter)
 #    sys.stdout.flush()
 #    fetch_stats(yrbsdes, 'qn8', True, ['q2', 'raceeth'])
 
