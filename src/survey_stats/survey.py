@@ -44,7 +44,7 @@ def subset_survey(des, filt):
         #empty filter, return original design object
         return des
     filtered = rbase.Reduce( "&",
-        [filter_var_levels(des, k, v) for k,v in filt.items()])
+        [filter_survey_var(des, k, v) for k,v in filt.items()])
     return rsvy.subset_survey_design(des, filtered)
 
 
