@@ -108,12 +108,16 @@ def handle_invalid_usage(error):
 
 @app.route("/questions")
 @app.route("/questions/<year>")
-def fetch_questions(year=2015):
-    def get_meta(k, v, yr=year):
+def fetch_questions(year=None):
+    def get_meta(k, v, yr=2015):
         key = (2015,k.lower())
         res = dict(meta[key], **v) if key in meta else v
         return res
-    dset = yrbss.fetch_survey(combined=True, national=True, year=None)
+    combined = True
+    national = True
+    if year and year in range(1993, 2017, 2):
+        combined = False
+    dset = yrbss.fetch_survey(combined, national, year)
     res = {k: get_meta(k,v) for k, v in dset.vars.items()}
     return jsonify(res)
 
