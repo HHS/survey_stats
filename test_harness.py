@@ -168,22 +168,20 @@ def fetch_survey_stats(sitecode='XX', year='2015'):
 
     if not svy.sample_size > 1:
         raise EmptyFilterError('EmptyFilterError: %s' % (str(filt)))
-    try:
-        return jsonify({
-            'q': qn,
-            'question': svy.vars[qn]['question'],
-            'response': resp,
-            'vars': vars,
-            'var_levels': {v: svy.vars[v] for v in vars},
-            'results': svy.fetch_stats(qn, resp, vars)
-        })
+    #try:
+    return jsonify({
+        'q': qn,
+        'question': svy.vars[qn]['question'],
+        'response': resp,
+        'vars': vars,
+        'var_levels': {v: svy.vars[v] for v in vars},
+        'results': svy.fetch_stats(qn, resp, vars)
+    })
+    #except KeyError as  err:
+    #    raise InvalidUsage('KeyError: %s' % str(err))
+    #except Exception as err:
+    #    raise ComputationError('Error computing stats! %s' % str(err))
 
-'''
-    except KeyError as  err:
-        raise InvalidUsage('KeyError: %s' % str(err))
-    except Exception as err:
-        raise ComputationError('Error computing stats! %s' % str(err))
-'''
 
 if __name__=='__main__':
     app.run(host="0.0.0.0", port=7777, debug=True)
