@@ -100,7 +100,7 @@ def fetch_stats(des, qn, response=True, vars=[]):
     return res
 
 
-class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des'])):
+class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des', 'rdf'])):
     __slots__ = ()
 
     @property
@@ -130,7 +130,7 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des'])):
         logging.info('creating survey design from data and annotations')
         des = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
                              strata=Formula('~stratum'), data=rdf, nest=True)
-        return cls(des=des, vars=svy_vars)
+        return cls(des=des, vars=svy_vars, rdf=rdf)
 
 
     @classmethod
@@ -144,6 +144,6 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des'])):
         logging.info('creating survey design from data and annotations')
         des = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
                              strata=Formula('~stratum'), data=rdf, nest=True)
-        return cls(des=des, vars=svy_vars)
+        return cls(des=des, vars=svy_vars, rdf=rdf)
 
 
