@@ -1,0 +1,1100 @@
+* 
+This SPSS syntax reads ASCII format (text format) 2003 YRBS data and creates a formatted 
+and labeled SPSS data file that you can analyze in SPSS;
+
+*
+Change the file location specifications from "c:\yrbs2003" to the location where you have 
+stored the SPSS syntax and the YRBS ASCII data file before you run this syntax;  
+Change the location specification in three places - in the "data list" statement at the top 
+of the syntax and in the "save" and "get" statements at the end of the syntax;.
+
+DATA LIST FILE="c:\yrbs2003\yrbs2003.dat"/
+Q1 1-1 (A) Q2 2-2 (A) Q3 3-3 (A) Q4 4-5 (A)
+Q5 6-13 Q6 14-21 Q7 22-22 (A) Q8 23-23 (A)
+Q9 24-24 (A) Q10 25-25 (A) Q11 26-26 (A)
+Q12 27-27 (A) Q13 28-28 (A) Q14 29-29 (A)
+Q15 30-30 (A) Q16 31-31 (A) Q17 32-32 (A)
+Q18 33-33 (A) Q19 34-34 (A) Q20 35-35 (A)
+Q21 36-36 (A) Q22 37-37 (A) Q23 38-38 (A)
+Q24 39-39 (A) Q25 40-40 (A) Q26 41-41 (A)
+Q27 42-42 (A) Q28 43-43 (A) Q29 44-44 (A)
+Q30 45-45 (A) Q31 46-46 (A) Q32 47-47 (A)
+Q33 48-48 (A) Q34 49-49 (A) Q35 50-50 (A)
+Q36 51-51 (A) Q37 52-52 (A) Q38 53-53 (A)
+Q39 54-54 (A) Q40 55-55 (A) Q41 56-56 (A)
+Q42 57-57 (A) Q43 58-58 (A) Q44 59-59 (A)
+Q45 60-60 (A) Q46 61-61 (A) Q47 62-62 (A)
+Q48 63-63 (A) Q49 64-64 (A) Q50 65-65 (A)
+Q51 66-66 (A) Q52 67-67 (A) Q53 68-68 (A)
+Q54 69-69 (A) Q55 70-70 (A) Q56 71-71 (A)
+Q57 72-72 (A) Q58 73-73 (A) Q59 74-74 (A)
+Q60 75-75 (A) Q61 76-76 (A) Q62 77-77 (A)
+Q63 78-78 (A) Q64 79-79 (A) Q65 80-80 (A)
+Q66 81-81 (A) Q67 82-82 (A) Q68 83-83 (A)
+Q69 84-84 (A) Q70 85-85 (A) Q71 86-86 (A)
+Q72 87-87 (A) Q73 88-88 (A) Q74 89-89 (A)
+Q75 90-90 (A) Q76 91-91 (A) Q77 92-92 (A)
+Q78 93-93 (A) Q79 94-94 (A) Q80 95-95 (A)
+Q81 96-96 (A) Q82 97-97 (A) Q83 98-98 (A)
+Q84 99-99 (A) Q85 100-100 (A) Q86 101-101 (A)
+Q87 102-102 (A) Q88 103-103 (A) Q89 104-104 (A)
+Q90 105-105 (A) Q91 106-106 (A) Q92 107-107 (A)
+Q93 108-108 (A) Q94 109-109 (A) Q95 110-110 (A)
+Q96 111-111 (A) Q97 112-112 (A)
+QN7 113-113 QN8 114-114 QN9 115-115 
+QN10 116-116 QN11 117-117 QN12 118-118 
+QN13 119-119 QN14 120-120 QN15 121-121 
+QN16 122-122 QN17 123-123 QN18 124-124 
+QN19 125-125 QN20 126-126 QN21 127-127 
+QN22 128-128 QN23 129-129 QN24 130-130 
+QN25 131-131 QN26 132-132 QN27 133-133
+QN28 134-134 QN29 135-135 QN30 136-136
+QN31 137-137 QN32 138-138 QN33 139-139
+QN34 140-140 QN35 141-141 QN36 142-142
+QN37 143-143 QN38 144-144 QN39 145-145
+QN40 146-146 QN41 147-147 QN42 148-148
+QN43 149-149 QN44 150-150 QN45 151-151
+QN46 152-152 QN47 153-153 QN48 154-154
+QN49 155-155 QN50 156-156 QN51 157-157
+QN52 158-158 QN53 159-159 QN54 160-160
+QN55 161-161 QN56 162-162 QN57 163-163
+QN58 164-164 QN59 165-165 QN60 166-166
+QN61 167-167 QN62 168-168 QN63 169-169
+QN64 170-170 QN65 171-171 QN66 172-172
+QN67 173-173 QN68 174-174 QN69 175-175
+QN70 176-176 QN71 177-177 QN72 178-178
+QN73 179-179 QN74 180-180 QN75 181-181
+QN76 182-182 QN77 183-183 QN78 184-184
+QN79 185-185 QN80 186-186 QN81 187-187
+QN82 188-188 QN83 189-189 QN84 190-190
+QN85 191-191 QN86 192-192 QN87 193-193
+QN88 194-194 QN89 195-195 QN90 196-196
+QN91 197-197 QN92 198-198 QN93 199-199
+QN94 200-200 QN95 201-201 QN96 202-202
+QN97 203-203 QNFRCIG 204-204 QNSTORE 205-205
+QNABSTSX 206-206 QNRESPSX 207-207 QNFRVG 208-208
+QNDLYPE 209-209 QNROVWGT 210-210 QNOVWGT 211-211
+QNTENCIG 212-212 QNANYTOB 213-213 QNMINPA 214-214
+QNNOPA 215-215 Weight 216-223 PSU 224-229 Stratum 230-232
+GREG 233-233 (A) METROST 234-234 (A).
+EXECUTE.
+
+VARIABLE LABELS
+Q1 "How old are you"
+Q2 "What is your sex"
+Q3 "In what grade are you"
+Q4 "How do you describe yourself"
+Q5 "How tall are you"
+Q6 "How much do you weigh"
+Q7 "How were your grades past 12 months"
+Q8 "How often wear bicycle helmet"
+Q9 "How often wore  a seat belt"
+Q10 "How often ride w/drinking driver 30 days"
+Q11 "How often drive while drinking 30 days"
+Q12 "Carried weapon 30 days"
+Q13 "Carried gun 30 days"
+Q14 "Carried weapon at school  30 days"
+Q15 "How many days feel unsafe@school 30 days"
+Q16 "How  many times threatened@school 12 mos"
+Q17 "Property stolen at school"
+Q18 "How many times in fight 12 mos"
+Q19 "How many times injured in fight 12 mos"
+Q20 "How many times in fight @ school  12 mos"
+Q21 "Did  boyfriend/girlfriend hit/slap 12 mo"
+Q22 "Have you been forced to have sex"
+Q23 "Ever feel sad or hopeless 12 mos"
+Q24 "Ever considered suicide 12 mos"
+Q25 "Ever make suicide plan 12 mos"
+Q26 "Ever attempt suicide 12 mos"
+Q27 "Ever injured from suicide attempt 12 mos"
+Q28 "Ever smoked"
+Q29 "How old when first smoked"
+Q30 "How many days smoked 30 days"
+Q31 "How many cigarettes/day 30 days"
+Q32 "How did you get cigarettes past 30 days"
+Q33 "How many days smoke @ school 30 days"
+Q34 "Have you ever smoked daily"
+Q35 "Tried to quit smoking past 12 months"
+Q36 "How many days use snuff past 30 days"
+Q37 "Days use snuff school property 30 days"
+Q38 "How many days smoke cigars 30 days"
+Q39 "How many days drink alcohol"
+Q40 "How old when first drank alcohol"
+Q41 "How many days drink alcohol 30 days"
+Q42 "How many days have 5+ drinks 30 days"
+Q43 "How many days drink @ school 30 days"
+Q44 "How many times smoke marijuana"
+Q45 "How old when first tried marijuana"
+Q46 "How many times use marijuana 30 days"
+Q47 "How many times marijuana@school 30 days"
+Q48 "How many times use cocaine"
+Q49 "How many times use cocaine 30 days"
+Q50 "How many times sniffed glue"
+Q51 "How many times sniffed glue 30 days"
+Q52 "How many times used heroin"
+Q53 "How many times used methamphetamines"
+Q54 "Ecstacy one or more time"
+Q55 "How many times used steroids"
+Q56 "How many times injected drugs"
+Q57 "Offered drugs @ school 12 mos"
+Q58 "Ever had sex"
+Q59 "How old at first sex"
+Q60 "How many sex partners"
+Q61 "How many sex partners 3 mos"
+Q62 "Did you use alcohol/drugs @ last sex"
+Q63 "Did you use condom @ last sex"
+Q64 "What birth control @ last sex"
+Q65 "Ever been/gotten someone pregnant"
+Q66 "How do you describe your weight"
+Q67 "What are you trying to do about weight"
+Q68 "Did you exercise to lose weight 30 days"
+Q69 "Did you eat less to lose weight 30 days"
+Q70 "Did you fast to lose weight 30 days"
+Q71 "Did you take pill to lose weight 30 days"
+Q72 "Did you vomit to lose weight 30 days"
+Q73 "How many times fruit juice 7 days"
+Q74 "How many times fruit 7 days"
+Q75 "How many time green salad 7 days"
+Q76 "How many times potatoes 7 days"
+Q77 "How many times carrots 7 days"
+Q78 "How many times other vegetables 7 days"
+Q79 "How many glass of milk 7 days"
+Q80 "Did you do vigorous exercise 7 days"
+Q81 "Did you do moderate exercise 7 days"
+Q82 "Did you do toning exercise 7 days"
+Q83 "How many hours watch TV"
+Q84 "How many days go to PE class"
+Q85 "How many minutes exercise in PE class"
+Q86 "On how many sports team 12 mos"
+Q87 "Ever taught about AIDS/HIV @ school"
+Q88 "Wear seat belt while driving"
+Q89 "Show age proof buying cigarettes 30 days"
+Q90 "No usual brand"
+Q91 "Ever used LSD"
+Q92 "Play video games 3+ hours"
+Q93 "Injured while playing sports"
+Q94 "Last time saw dentist"
+Q95 "Wear sunscreen on sunny day"
+Q96 "Ever been told you have asthma"
+Q97 "Had asthma attack past 12 months"
+qn7 "Grades mostly Ds and Fs past 12 months"
+qn8 "Rarely or never wore bicycle helmets"
+qn9 "Rarely or never wore seatbelts"
+qn10 "Rode with a driver who had been drinking alcohol"
+qn11 "Drove after drinking alcohol"
+qn12 "Carried a weapon"
+qn13 "Carried a gun"
+qn14 "Carried a weapon on school property"
+qn15 "Felt too unsafe to go to school"
+qn16 "Threatened or injured with a weapon on school property"
+qn17 "Property stolen or damaged on school property"
+qn18 "In a physical fight"
+qn19 "Injured in a physical fight"
+qn20 "Engaged in a physical fight on school property"
+qn21 "Hit by boyfriend or girlfriend"
+qn22 "Forced to have sexual intercourse"
+qn23 "Felt sad and hopeless in past 12 months"
+qn24 "Seriously considered attempting suicide"
+qn25 "Made a suicide plan"
+qn26 "Attempted suicide"
+qn27 "Injured in attempted suicide"
+qn28 "Lifetime cigarette use"
+qn29 "Smoked cigarettes before age 13 years"
+qn30 "Current cigarette use"
+qn31 "Smokes 2+ cigs per day in past 30 days"
+qn32 "Got cigarettes in a store"
+qn33 "Cigarette use on school property"
+qn34 "Smoked cigarettes daily ever"
+qn35 "Of current smokers, tried to quit"
+qn36 "Current smokeless tobacco use"
+qn37 "Smokeless tobacco use on school property"
+qn38 "Current cigar use"
+qn39 "Lifetime alcohol use"
+qn40 "Alcohol used before age 13 years"
+qn41 "Current alcohol use"
+qn42 "Episodic heavy drinking"
+qn43 "Alcohol use on school property"
+qn44 "Lifetime marijuana use"
+qn45 "Used before age 13 years"
+qn46 "Current marijuana use"
+qn47 "Marijuana use on school property"
+qn48 "Lifetime cocaine use"
+qn49 "Current cocaine use"
+qn50 "Lifetime inhalant use"
+qn51 "Current inhalant use"
+qn52 "Lifetime heroin use"
+qn53 "Lifetime methamphetamines use"
+qn54 "Lifetime ecstasy use"
+qn55 "Lifeitme illegal steroid use"
+qn56 "Lifetime injected illegal drug use"
+qn57 "Illegal drugs offered or sold on school property"
+qn58 "Ever had sexual intercourse"
+qn59 "Sexual intercourse before age 13 years"
+qn60 "Had 4 or more sexual partners during lifetime"
+qn61 "Currently sexually active"
+qn62 "Alcohol or drug use at last sexual intercourse"
+qn63 "Condom use at last sexual intercourse"
+qn64 "Birth control pill use at last sexual intercourse"
+qn65 "Ever been or gotten someone pregnant"
+qn66 "Thought they were overweight"
+qn67 "Were trying to lose weight"
+qn68 "Exercised to lose weight or to avoid gaining weight"
+qn69 "Ate less to lose weight or to avoid gaining weight"
+qn70 "Fasted to lose weight or to avoid gaining weight"
+qn71 "Took diet pills to lose weight or to avoid gaining weight"
+qn72 "Vomited or took laxatives to lose weight or to avoid gaining weight"
+qn73 "Fruit juice 1+ times in past 7 days"
+qn74 "Fruit 1+ times in past 7 days"
+qn75 "Salad 1+ times in past 7 days"
+qn76 "Potatoes 1+ times in past 7 days"
+qn77 "Carrots 1+ times in past 7 days"
+qn78 "Other veggie 1+ times in past 7 days"
+qn79 "Drank 3+ glasses milk per day"
+qn80 "Participated in sufficient vigorous activity"
+qn81 "Participated in sufficient moderate activity"
+qn82 "Participated in strengthening exercises"
+qn83 "Watched TV more than 2 hours/day"
+qn84 "Enrolled in a physical education class"
+qn85 "Exercised 20+ minutes while in PE class"
+qn86 "Played on at least 1 sports team"
+qn87 "Taught abouts AIDS/HIV in school"
+qn88 "Never or rarely wore a seatbelt when driving"
+qn89 "Were not asked to show proof of age when buying cigarettes"
+qn90 "Did not have a usual brand of cigarettes"
+qn91 "Lifetime hallucinogenic drug use"
+qn92 "Used a computer for 3+ hours per day"
+qn93 "Injured while exercising or playing a sport"
+qn94 "Saw a dentist within the last 12 months"
+qn95 "Never or rarely wore sunscreen"
+qn96 "Told by a doctor they have asthma"
+qn97 "Had asthma attack during the past 12 months"
+qnfrcig "Current frequent cigarette use"
+qnstore "Bought cigarettes in a store"
+qnabstsx "Sexual abstinence among ever sex"
+qnrespsx "HIV indcator (abstain/condom)"
+qnfrvg "Ate 5+ fruits and veggies/day"
+qndlype "Attended a physical education class daily"
+qnrovwgt "At risk for overweight"
+qnovwgt "Overweight"
+qntencig "Smoked 10+ cigarettes per day"
+qnanytob "Current tobacco use"
+qnminpa "Insufficient physical activity in past 7 days"
+qnnopa "No physical activity in past 7 days"
+weight "Analysis weight"
+stratum "Stratum"
+psu "PSU"
+greg "Geographic Region"
+metrost "Metropolitan Status"
+.
+ 
+VALUE LABELS
+Q1
+1 "12 years old or younger"
+2 "13 years old"
+3 "14 years old"
+4 "15 years old"
+5 "16 years old"
+6 "17 years old"
+7 "18 years old or older"
+/
+Q2
+1 "Female"
+2 "Male"
+/
+Q3
+1 "9th grade"
+2 "10th grade"
+3 "11th grade"
+4 "12th grade"
+5 "Ungraded or other grade"
+/
+Q4
+1 "Am Indian / Alaska Native"
+2 "Asian"
+3 "Black or African American"
+4 "Hispanic or Latino"
+5 "Native Hawaiian/other PI"
+6 "White"
+7 "Multiple - Hispanic"
+8 "Multiple - Non-hispanic"
+/
+Q7
+1 "Mostly A's"
+2 "Mostly B's"
+3 "Mostly C's"
+4 "Mostly D's"
+5 "Mostly F's"
+6 "None of these grades"
+7 "Not sure"
+/
+Q8
+1 "Did not ride a bicycle"
+2 "Never wore a helmet"
+3 "Rarely wore a helmet"
+4 "Sometimes wore a helmet"
+5 "Most of the time wore a helmet"
+6 "Always wore a helmet"
+/
+Q9
+1 "Never"
+2 "Rarely"
+3 "Sometimes"
+4 "Most of the time"
+5 "Always"
+/
+Q10
+1 "0 times"
+2 "1 time"
+3 "2 or 3 times"
+4 "4 or 5 times"
+5 "6 or more times"
+/
+Q11
+1 "0 times"
+2 "1 time"
+3 "2 or 3 times"
+4 "4 or 5 times"
+5 "6 or more times"
+/
+Q12
+1 "0 days"
+2 "1 day"
+3 "2 or 3 days"
+4 "4 or 5 days"
+5 "6 or more days"
+/
+Q13
+1 "0 days"
+2 "1 day"
+3 "2 or 3 days"
+4 "4 or 5 days"
+5 "6 or more days"
+/
+Q14
+1 "0 days"
+2 "1 day"
+3 "2 or 3 days"
+4 "4 or 5 days"
+5 "6 or more days"
+/
+Q15
+1 "0 days"
+2 "1 day"
+3 "2 or 3 days"
+4 "4 or 5 days"
+5 "6 or more days"
+/
+Q16
+1 "0 times"
+2 "1 time"
+3 "2 or 3 times"
+4 "4 or 5 times"
+5 "6 or 7 times"
+6 "8 or 9 times"
+7 "10 or 11 times"
+8 "12 or more times"
+/
+Q17
+1 "0 times"
+2 "1 time"
+3 "2 or 3 times"
+4 "4 or 5 times"
+5 "6 or 7 times"
+6 "8 or 9 times"
+7 "10 or 11 times"
+8 "12 or more times"
+/
+Q18
+1 "0 times"
+2 "1 time"
+3 "2 or 3 times"
+4 "4 or 5 times"
+5 "6 or 7 times"
+6 "8 or 9 times"
+7 "10 or 11 times"
+8 "12 or more times"
+/
+Q19
+1 "0 times"
+2 "1 time"
+3 "2 or 3 times"
+4 "4 or 5 times"
+5 "6 or more times"
+/
+Q20
+1 "0 times"
+2 "1 time"
+3 "2 or 3 times"
+4 "4 or 5 times"
+5 "6 or 7 times"
+6 "8 or 9 times"
+7 "10 or 11 times"
+8 "12 or more times"
+/
+Q21
+1 "Yes"
+2 "No"
+/
+Q22
+1 "Yes"
+2 "No"
+/
+Q23
+1 "Yes"
+2 "No"
+/
+Q24
+1 "Yes"
+2 "No"
+/
+Q25
+1 "Yes"
+2 "No"
+/
+Q26
+1 "0 times"
+2 "1 time"
+3 "2 or 3 times"
+4 "4 or 5 times"
+5 "6 or more times"
+/
+Q27
+1 "Did not attempt suicide"
+2 "Yes"
+3 "No"
+/
+Q28
+1 "Yes"
+2 "No"
+/
+Q29
+1 "Never smoked a cigarette"
+2 "8 years old or younger"
+3 "9 or 10 years old"
+4 "11 or 12 years old"
+5 "13 or 14 years old"
+6 "15 or 16 years old"
+7 "17 years old or older"
+/
+Q30
+1 "0 days"
+2 "1 or 2 days"
+3 "3 to 5 days"
+4 "6 to 9 days"
+5 "10 to 19 days"
+6 "20 to 29 days"
+7 "All 30 days"
+/
+Q31
+1 "Did not smoke cigarettes"
+2 "Less than 1 cigarette"
+3 "1 cigarette"
+4 "2 to 5 cigarettes"
+5 "6 to 10 cigarettes"
+6 "11 to 20 cigarettes"
+7 "More than 20 cigarettes"
+/
+Q32
+1 "Did not smoke cigarettes"
+2 "Store or gas station"
+3 "Vending machine"
+4 "Someone else bought them"
+5 "Borrowed/bummed them"
+6 "A person 18 or older"
+7 "Took them from store/family "
+8 "Some other way"
+/
+Q33
+1 "0 days"
+2 "1 or 2 days"
+3 "3 to 5 days"
+4 "6 to 9 days"
+5 "10 to 19 days"
+6 "20 to 29 days"
+7 "All 30 days"
+/
+Q34
+1 "Yes"
+2 "No"
+/
+Q35
+1 "Did not smoke in past 12 mos."
+2 "Yes"
+3 "No"
+/
+Q36
+1 "0 days"
+2 "1 or 2 days"
+3 "3 to 5 days"
+4 "6 to 9 days"
+5 "10 to 19 days"
+6 "20 to 29 days"
+7 "All 30 days"
+/
+Q37
+1 "0 days"
+2 "1 or 2 days"
+3 "3 to 5 days"
+4 "6 to 9 days"
+5 "10 to 19 days"
+6 "20 to 29 days"
+7 "All 30 days"
+/
+Q38
+1 "0 days"
+2 "1 or 2 days"
+3 "3 to 5 days"
+4 "6 to 9 days"
+5 "10 to 19 days"
+6 "20 to 29 days"
+7 "All 30 days"
+/
+Q39
+1 "0 days"
+2 "1 or 2 days"
+3 "3 to 9 days"
+4 "10 to 19 days"
+5 "20 to 39 days"
+6 "40 to 99 days"
+7 "100 or more days"
+/
+Q40
+1 "Never drank alcohol"
+2 "8 years old or younger"
+3 "9 or 10 years old"
+4 "11 or 12 years old"
+5 "13 or 14 years old"
+6 "15 or 16 years old"
+7 "17 years old or older"
+/
+Q41
+1 "0 days"
+2 "1 or 2 days"
+3 "3 to 5 days"
+4 "6 to 9 days"
+5 "10 to 19 days"
+6 "20 to 29 days"
+7 "All 30 days"
+/
+Q42
+1 "0 days"
+2 "1 day"
+3 "2 days"
+4 "3 to 5 days"
+5 "6 to 9 days"
+6 "10 to 19 days"
+7 "20 or more days"
+/
+Q43
+1 "0 days"
+2 "1 or 2 days"
+3 "3 to 5 days"
+4 "6 to 9 days"
+5 "10 to 19 days"
+6 "20 to 29 days"
+7 "All 30 days"
+/
+Q44
+1 "0 times"
+2 "1 or 2 times"
+3 "3 to 9 times"
+4 "10 to 19 times"
+5 "20 to 39 times"
+6 "40 to 99 times"
+7 "100 or more times"
+/
+Q45
+1 "Never tried marijuana"
+2 "8 years old or younger"
+3 "9 or 10 years old"
+4 "11 or 12 years old"
+5 "13 or 14 years old"
+6 "15 or 16 years old"
+7 "17 years old or older"
+/
+Q46
+1 "0 times"
+2 "1 or 2 times"
+3 "3 to 9 times"
+4 "10 to 19 times"
+5 "20 to 39 times"
+6 "40 or more times"
+/
+Q47
+1 "0 times"
+2 "1 or 2 times"
+3 "3 to 9 times"
+4 "10 to 19 times"
+5 "20 to 39 times"
+6 "40 or more times"
+/
+Q48
+1 "0 times"
+2 "1 or 2 times"
+3 "3 to 9 times"
+4 "10 to 19 times"
+5 "20 to 39 times"
+6 "40 or more times"
+/
+Q49
+1 "0 times"
+2 "1 or 2 times"
+3 "3 to 9 times"
+4 "10 to 19 times"
+5 "20 to 39 times"
+6 "40 or more times"
+/
+Q50
+1 "0 times"
+2 "1 or 2 times"
+3 "3 to 9 times"
+4 "10 to 19 times"
+5 "20 to 39 times"
+6 "40 or more times"
+/
+Q51
+1 "0 times"
+2 "1 or 2 times"
+3 "3 to 9 times"
+4 "10 to 19 times"
+5 "20 to 39 times"
+6 "40 or more times"
+/
+Q52
+1 "0 times"
+2 "1 or 2 times"
+3 "3 to 9 times"
+4 "10 to 19 times"
+5 "20 to 39 times"
+6 "40 or more times"
+/
+Q53
+1 "0 times"
+2 "1 or 2 times"
+3 "3 to 9 times"
+4 "10 to 19 times"
+5 "20 to 39 times"
+6 "40 or more times"
+/
+Q54
+1 "0 times"
+2 "1 or 2 times"
+3 "3 to 9 times"
+4 "10 to 19 times"
+5 "20 to 39 times"
+6 "40 or more times"
+/
+Q55
+1 "0 times"
+2 "1 or 2 times"
+3 "3 to 9 times"
+4 "10 to 19 times"
+5 "20 to 39 times"
+6 "40 or more times"
+/
+Q56
+1 "0 times"
+2 "1 time"
+3 "2 or more times"
+/
+Q57
+1 "Yes"
+2 "No"
+/
+Q58
+1 "Yes"
+2 "No"
+/
+Q59
+1 "Never had sex"
+2 "11 years old or younger"
+3 "12 years old"
+4 "13 years old"
+5 "14 years old"
+6 "15 years old"
+7 "16 years old"
+8 "17 years old or older"
+/
+Q60
+1 "Never had sex"
+2 "1 person"
+3 "2 people"
+4 "3 people"
+5 "4 people"
+6 "5 people"
+7 "6 or more people"
+/
+Q61
+1 "Never had sex"
+2 "None during past 3 months"
+3 "1 person"
+4 "2 people"
+5 "3 people"
+6 "4 people"
+7 "5 people"
+8 "6 or more people"
+/
+Q62
+1 "Never had sex"
+2 "Yes"
+3 "No"
+/
+Q63
+1 "Never had sex"
+2 "Yes"
+3 "No"
+/
+Q64
+1 "Never had sex"
+2 "No method was used"
+3 "Birth control pills"
+4 "Condoms"
+5 "Depo-Provera"
+6 "Withdrawal"
+7 "Some other method"
+8 "Not sure"
+/
+Q65
+1 "0 times"
+2 "1 time"
+3 "2 or more times"
+4 "Not sure"
+/
+Q66
+1 "Very underweight"
+2 "Slightly underweight"
+3 "About the right weight"
+4 "Slightly overweight"
+5 "Very overweight"
+/
+Q67
+1 "Lose weight"
+2 "Gain weight"
+3 "Stay the same weight"
+4 "Not trying to do anything"
+/
+Q68
+1 "Yes"
+2 "No"
+/
+Q69
+1 "Yes"
+2 "No"
+/
+Q70
+1 "Yes"
+2 "No"
+/
+Q71
+1 "Yes"
+2 "No"
+/
+Q72
+1 "Yes"
+2 "No"
+/
+Q73
+1 "Did not drink fruit juice"
+2 "1 to 3 times"
+3 "4 to 6 times"
+4 "1 time per day"
+5 "2 times per day"
+6 "3 times per day"
+7 "4 or more times per day"
+/
+Q74
+1 "Did not eat fruit"
+2 "1 to 3 times"
+3 "4 to 6 times"
+4 "1 time per day"
+5 "2 times per day"
+6 "3 times per day"
+7 "4 or more times per day"
+/
+Q75
+1 "Did not eat green salad"
+2 "1 to 3 times"
+3 "4 to 6 times"
+4 "1 time per day"
+5 "2 times per day"
+6 "3 times per day"
+7 "4 or more times per day"
+/
+Q76
+1 "Did not eat potatoes"
+2 "1 to 3 times"
+3 "4 to 6 times"
+4 "1 time per day"
+5 "2 times per day"
+6 "3 times per day"
+7 "4 or more times per day"
+/
+Q77
+1 "Did not eat carrots"
+2 "1 to 3 times"
+3 "4 to 6 times"
+4 "1 time per day"
+5 "2 times per day"
+6 "3 times per day"
+7 "4 or more times per day"
+/
+Q78
+1 "Did not eat other vegetables "
+2 "1 to 3 times"
+3 "4 to 6 times"
+4 "1 time per day"
+5 "2 times per day"
+6 "3 times per day"
+7 "4 or more times per day"
+/
+Q79
+1 "Did not drink milk"
+2 "1 to 3 glasses past 7 days"
+3 "4 to 6 glasses past 7 days"
+4 "1 glass per day"
+5 "2 glasses per day"
+6 "3 glasses per day"
+7 "4 or more glasses per day"
+/
+Q80
+1 "0 days"
+2 "1 day"
+3 "2 days"
+4 "3 days"
+5 "4 days"
+6 "5 days"
+7 "6 days"
+8 "7 days"
+/
+Q81
+1 "0 days"
+2 "1 day"
+3 "2 days"
+4 "3 days"
+5 "4 days"
+6 "5 days"
+7 "6 days"
+8 "7 days"
+/
+Q82
+1 "0 days"
+2 "1 day"
+3 "2 days"
+4 "3 days"
+5 "4 days"
+6 "5 days"
+7 "6 days"
+8 "7 days"
+/
+Q83
+1 "No TV on average school day"
+2 "Less than 1 hour per day"
+3 "1 hour per day"
+4 "2 hours per day"
+5 "3 hours per day"
+6 "4 hours per day"
+7 "5 or more hours per day"
+/
+Q84
+1 "0 days"
+2 "1 day"
+3 "2 days"
+4 "3 days"
+5 "4 days"
+6 "5 days"
+/
+Q85
+1 "Do not take PE"
+2 "Less than 10 minutes"
+3 "10 to 20 minutes"
+4 "21 to 30 minutes"
+5 "31 to 40 minutes"
+6 "41 to 50 minutes"
+7 "51 to 60 minutes"
+8 "More than 60 minutes"
+/
+Q86
+1 "0 teams"
+2 "1 team"
+3 "2 teams"
+4 "3 or more teams"
+/
+Q87
+1 "Yes"
+2 "No"
+3 "Not sure"
+/
+Q88
+1 "I do not drive a car"
+2 "Never wear seatbelt"
+3 "Rarely wear a seatbelt"
+4 "Sometimes wear a seatbelt"
+5 "Most of the time wear"
+6 "Always wear a seatbelt"
+/
+Q89
+1 "Did not buy cigarettes"
+2 "Yes"
+3 "No"
+/
+Q90
+1 "Did not smoke cigarettes"
+2 "Do not have a usual brand"
+3 "Camel"
+4 "Marlboro"
+5 "Newport"
+6 "Virginia Slims"
+7 "GPC, Basic, or Doral"
+8 "Some other brand"
+/
+Q91
+1 "0 times"
+2 "1 or 2 times"
+3 "3 to 9 times"
+4 "10 to 19 times"
+5 "20 to 39 times"
+6 "40 or more times"
+/
+Q92
+1 "No playing video/computer game"
+2 "Less than 1 hour per day"
+3 "1 hour per day"
+4 "2 hours per day"
+5 "3 hours per day"
+6 "4 hours per day"
+7 "5 or more hours per day"
+/
+Q93
+1 "No exercise in past 30 days"
+2 "Yes"
+3 "No"
+/
+Q94
+1 "During the past 12 months"
+2 "Between 12 and 24 months ago"
+3 "More than 24 months ago"
+4 "Never"
+5 "Not sure"
+/
+Q95
+1 "Never"
+2 "Rarely"
+3 "Sometimes"
+4 "Most of the time"
+5 "Always"
+/
+Q96
+1 "Yes"
+2 "No"
+3 "Not sure"
+/
+Q97
+1 "I do not have asthma"
+2 "Have asthma/no episode 12 mos"
+3 "Had episode in the past 12 mos"
+4 "Not sure"
+/
+GREG
+1 "Northeast"
+2 "Midwest"
+3 "Sout"
+4 "West"
+/
+METROST
+1 "Urban"
+2 "Suburban"
+3 "Rural"
+/.
+
+MISSING VALUES
+Q1 (" ")
+Q2 (" ") Q3 (" ") Q4 ("  ")
+Q5 ("        ") Q6 ("        ") Q7 (" ")
+Q8 (" ") Q9 (" ") Q10 (" ")
+Q11 (" ") Q12 (" ") Q13 (" ")
+Q14 (" ") Q15 (" ") Q16 (" ")
+Q17 (" ") Q18 (" ") Q19 (" ")
+Q20 (" ") Q21 (" ") Q22 (" ")
+Q23 (" ") Q24 (" ") Q25 (" ")
+Q26 (" ") Q27 (" ") Q28 (" ")
+Q29 (" ") Q30 (" ") Q31 (" ")
+Q32 (" ") Q33 (" ") Q34 (" ")
+Q35 (" ") Q36 (" ") Q37 (" ")
+Q38 (" ") Q39 (" ") Q40 (" ")
+Q41 (" ") Q42 (" ") Q43 (" ")
+Q44 (" ") Q45 (" ") Q46 (" ")
+Q47 (" ") Q48 (" ") Q49 (" ")
+Q50 (" ") Q51 (" ") Q52 (" ")
+Q53 (" ") Q54 (" ") Q55 (" ")
+Q56 (" ") Q57 (" ") Q58 (" ")
+Q59 (" ") Q60 (" ") Q61 (" ")
+Q62 (" ") Q63 (" ") Q64 (" ")
+Q65 (" ") Q66 (" ") Q67 (" ")
+Q68 (" ") Q69 (" ") Q70 (" ")
+Q71 (" ") Q72 (" ") Q73 (" ")
+Q74 (" ") Q75 (" ") Q76 (" ")
+Q77 (" ") Q78 (" ") Q79 (" ")
+Q80 (" ") Q81 (" ") Q82 (" ")
+Q83 (" ") Q84 (" ") Q85 (" ")
+Q86 (" ") Q87 (" ") Q88 (" ")
+Q89 (" ") Q90 (" ") Q91 (" ")
+Q92 (" ") Q93 (" ") Q94 (" ")
+Q95 (" ") Q96 (" ") Q97 (" ")
+QN8 (" ") QN9 (" ") QN10 (" ")
+QN11 (" ") QN12 (" ") QN13 (" ")
+QN14 (" ") QN15 (" ") QN16 (" ")
+QN17 (" ") QN18 (" ") QN19 (" ")
+QN20 (" ") QN21 (" ") QN22 (" ")
+QN23 (" ") QN24 (" ") QN25 (" ")
+QN26 (" ") QN27 (" ") QN28 (" ")
+QN29 (" ") QN30 (" ") QN31 (" ")
+QN32 (" ") QN33 (" ") QN34 (" ")
+QN35 (" ") QN36 (" ") QN37 (" ")
+QN38 (" ") QN39 (" ") QN40 (" ")
+QN41 (" ") QN42 (" ") QN43 (" ")
+QN44 (" ") QN45 (" ") QN46 (" ")
+QN47 (" ") QN48 (" ") QN49 (" ")
+QN50 (" ") QN51 (" ") QN52 (" ")
+QN53 (" ") QN54 (" ") QN55 (" ")
+QN56 (" ") QN57 (" ") QN58 (" ")
+QN59 (" ") QN60 (" ") QN61 (" ")
+QN62 (" ") QN63 (" ") QN64 (" ")
+QN65 (" ") QN66 (" ") QN67 (" ")
+QN68 (" ") QN69 (" ") QN70 (" ")
+QN71 (" ") QN72 (" ") QN73 (" ")
+QN74 (" ") QN75 (" ") QN76 (" ")
+QN77 (" ") QN78 (" ") QN79 (" ")
+QN80 (" ") QN81 (" ") QN82 (" ")
+QN83 (" ") QN84 (" ") QN85 (" ")
+QN86 (" ") QN87 (" ") QN88 (" ")
+QN89 (" ") QN90 (" ") QN91 (" ")
+QN92 (" ") QN93 (" ") QN94 (" ")
+QN95 (" ") QN96 (" ") QN97 (" ")
+qnfrcig (" ")
+qnstore (" ")
+qnabstsx (" ")
+qnrespsx (" ")
+qnfrvg (" ")
+qndlype (" ")
+qnrovwgt (" ")
+qnovwgt (" ")
+qntencig (" ")
+qnanytob (" ")
+qnminpa (" ")
+qnnopa (" ")
+weight ("        ")
+stratum ("   ")
+psu ("      ")
+greg (" ")
+metrost (" ").
+
+Formats q5 q6 (F8.2) weight (F8.4).
+
+EXECUTE.
+
+SAVE OUTFILE='c:\yrbs2003\yrbs2003.sav'
+/COMPRESSED.
+EXECUTE.
+
+GET FILE='c:\yrbs2003\yrbs2003.sav'.
+EXECUTE.

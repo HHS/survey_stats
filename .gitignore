@@ -64,5 +64,3 @@ docs/_build
 .appveyor.token
 *.bak
 
-data/
-cache/

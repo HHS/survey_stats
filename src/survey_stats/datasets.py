@@ -29,9 +29,8 @@ class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
             print(config)
         svys = {}
         for k,v in config.items():
-            print(k)
             print(v)
-            svys[k] = AnnotatedSurvey.load_cdc_survey(v['spss'], v['data'])
+            svys[k] = self.fetch_or_load_dataset(k, v['spss'], v['data'])
         return cls(config=config, surveys=svys)
 
     def fetch_or_load_dataset(id, spss_f, data_f):
@@ -40,11 +39,11 @@ class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
         try:
             rdf = rfther.read_feather(f)
             ret = AnnotatedSurvey.from_rdf(spss_f, rdf)
-            logging.info('loaded survey data from feather cache')
+            logging.info('loaded survey data from feather cache: %s' % f)
         except:
             logging.info('could not find feather cache, loading raw data')
             ret = AnnotatedSurvey.load_cdc_survey(spss_f, data_f)
-            logging.info('saving data to feather cache')
+            logging.info('saving data to feather cache: %s' % f)
             rfther.write_feather(rdf, f)
         return ret
 

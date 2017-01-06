@@ -1,0 +1,6 @@
+*.sps filter=lfs diff=lfs merge=lfs -text
+*.dat filter=lfs diff=lfs merge=lfs -text
+*.feather filter=lfs diff=lfs merge=lfs -text
+cache/*.feather filter=lfs diff=lfs merge=lfs -text
+data/yrbss/*.dat filter=lfs diff=lfs merge=lfs -text
+data/yrbss/*.sps filter=lfs diff=lfs merge=lfs -text
