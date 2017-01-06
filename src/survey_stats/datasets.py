@@ -49,7 +49,7 @@ class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
         return ret
 
 
-    def fetch_survey(combined=True, national=True, year=None):
+    def fetch_survey(self, combined=True, national=True, year=None):
         pred = lambda v: v['is_combined'] == combined and \
                 v['is_national'] == national and \
                 (v['year'] == year if year else True)
