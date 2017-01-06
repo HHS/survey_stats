@@ -109,7 +109,7 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des', 'rdf'])):
         return rbase.dim(subs[subs.names.index('variables')])[0]
 
     def subset(self, filter):
-        return self._replace(des=subset_survey_design(self.des, filter))
+        return self._replace(des=subset_survey(self.des, filter))
 
 
     def fetch_stats(self, qn, response=True, vars=[]):

@@ -107,7 +107,7 @@ def handle_invalid_usage(error):
     return response
 
 @app.route("/questions")
-@app.route("/questions/<year>")
+@app.route("/questions/<int:year>")
 def fetch_questions(year=None):
     def get_meta(k, v, yr=2015):
         key = (2015,k.lower())
@@ -123,7 +123,7 @@ def fetch_questions(year=None):
 
 @app.route('/stats')
 @app.route('/stats/<sitecode>')
-@app.route('/stats/<sitecode>/<year>')
+@app.route('/stats/<sitecode>/<int:year>')
 def fetch_survey_stats(sitecode='XX', year='2015'):
     """TODO: reformat for swagger
     Computes survey stats for given binary response variable, breakout
@@ -166,22 +166,24 @@ def fetch_survey_stats(sitecode='XX', year='2015'):
     svy = yrbss.fetch_survey(combined, national, year)
     svy = svy.subset(filt)
 
-    if not svy.sample_size() > 1:
+    if not svy.sample_size > 1:
         raise EmptyFilterError('EmptyFilterError: %s' % (str(filt)))
     try:
         return jsonify({
             'q': qn,
-            'question': svy_vars[qn]['question'],
+            'question': svy.vars[qn]['question'],
             'response': resp,
             'vars': vars,
             'var_levels': {v: svy.vars[v] for v in vars},
             'results': svy.fetch_stats(qn, resp, vars)
         })
+
+'''
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err))
     except Exception as err:
         raise ComputationError('Error computing stats! %s' % str(err))
-
+'''
 
 if __name__=='__main__':
     app.run(host="0.0.0.0", port=7777, debug=True)
