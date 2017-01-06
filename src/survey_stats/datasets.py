@@ -25,9 +25,12 @@ class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
     def load_dataset(cls, yml_f):
         config = None
         with open(yml_f, 'r') as fh:
-            config = yaml.load(fh1)
+            config = yaml.load(fh)['surveys']
+            print(config)
         svys = {}
-        for k,v in config.iteritems():
+        for k,v in config.items():
+            print(k)
+            print(v)
             svys[k] = AnnotatedSurvey.load_cdc_survey(v['spss'], v['data'])
         return cls(config=config, surveys=svys)
 
