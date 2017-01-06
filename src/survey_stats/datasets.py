@@ -53,7 +53,7 @@ class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
         pred = lambda v: v['is_combined'] == combined and \
                 v['is_national'] == national and \
                 (v['year'] == year if year else True)
-        k = next(k for (k,v) in self.config.iteritems() if pred(v))
+        k = next(k for (k,v) in self.config.items() if pred(v))
         return self.surveys[k]
 
 
