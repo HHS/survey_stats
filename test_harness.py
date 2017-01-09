@@ -154,24 +154,30 @@ def fetch_survey_stats(national, year):
     logging.info((k, cfg))
     replace_f = lambda x: cfg['pop_vars'][x] if x in cfg['pop_vars'] else x
     logging.info(vars)
-    vars = list(map(replace_f, vars))
-    filt = {replace_f(k): v for k,v in filt.items()}
-    logging.info(vars)
     logging.info(filt)
-
+    m_vars = list(map(replace_f, vars))
+    m_filt = {replace_f(k): v for k,v in filt.items()}
     svy = yrbss.surveys[k]
-    svy = svy.subset(filt)
+    svy = svy.subset(m_filt)
 
     if not svy.sample_size > 1:
-        raise EmptyFilterError('EmptyFilterError: %s' % (str(filt)))
+        raise EmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
+    ivd = {v: k for k, v in cfg['pop_vars'].items()}
+
+    #setup functions to reverse map keys for stats
+    inverse_f = lambda x: ivd[x] if x in ivd else x
+    replkeys_f = lambda d: {inverse_f(k): v for k,v in d.items()}
+
     try:
+        stats = svy.fetch_stats(qn, resp, m_vars)
+        stats = list(map(replkeys_f, stats))
         return jsonify({
             'q': qn,
             'question': svy.vars[qn]['question'],
             'response': resp,
             'vars': vars,
-            'var_levels': {v: svy.vars[v] for v in vars},
-            'results': svy.fetch_stats(qn, resp, vars)
+            'var_levels': {inverse_f(v): svy.vars[v] for v in m_vars},
+            'results': stats
         })
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err))
