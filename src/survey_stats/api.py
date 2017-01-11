@@ -1,34 +1,14 @@
-from __future__ import print_function
-import sys
 import backtracepython as bt
-import numpy as np
 import pandas as pd
 import logging
-from collections import namedtuple
-from collections import OrderedDict
-#from cachetools import cached, LRUCache
-from threading import RLock
-import gc
-import rpy2
-import rpy2.robjects as robjects
-from rpy2.robjects import pandas2ri
-from rpy2.robjects.packages import importr
-from rpy2.robjects.functions import SignatureTranslatedFunction
-from rpy2.robjects import IntVector, FactorVector, ListVector, StrVector
-from rpy2.robjects import Formula
-import pandas.rpy.common as com
-
-pandas2ri.activate()
+import hug
+from survey import AnnotatedSurvey
+from datasets import SurveyDataset
 
 bt.initialize(
   endpoint="https://rootedinsights.sp.backtrace.io:6098",
   token="768367df71e2be15321e851494b6dcc7152bf8f48fe5cc85a2deac80b94a31e9"
 )
-
-sys.path.append('src/survey_stats')
-
-from survey import AnnotatedSurvey
-from datasets import SurveyDataset
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -45,11 +25,6 @@ def fetch_qn_meta():
 	del m['count_1']
 	m.set_index('questioncode', inplace=True, drop=False)
 	return m.to_dict(orient="index")
-
-#app = Sanic(__name__)
-from flask import Flask
-from flask import request as req
-from flask.json import jsonify
 
 class InvalidUsage(Exception):
 
@@ -92,24 +67,26 @@ class ComputationError(Exception):
         return rv
 
 
-app = Flask(__name__)
+#fetch the metadata from Socrata
 meta = fetch_qn_meta()
+#load survey datasets
 yrbss = SurveyDataset.load_dataset('data/yrbss.yaml')
+valid_years = {v['year']: int(v['year']) for v in yrbss.config.values()}
+'''
+@hug.type(extend=hug.types.number)
+def valid_year(value):
+    """Verify selected year is available."""
+	valid = [v['year'] for v in yrbss.config.values()]:
+    if not value in valid:
+        raise ValueError('Data for selected year is not available!' + \
+			'Choose from: %s' % ','.join(valid))
+'''
 
-
-@app.errorhandler(InvalidUsage)
-@app.errorhandler(EmptyFilterError)
-@app.errorhandler(ComputationError)
-def handle_invalid_usage(error):
-    bt.send_last_exception()
-    response = jsonify(error.to_dict())
-    response.status_code = error.status_code
-    return response
-
-
-@app.route("/questions")
-@app.route("/questions/<int:year>")
-def fetch_questions(year=None):
+@hug.local()
+@hug.get(('/questions/{year}', '/questions'),
+         examples=('/questions/2011','/questions'))
+@hug.cli()
+def fetch_questions(year:hug.types.mapping(valid_years)):
     def get_meta(k, v):
         key = k.lower()
         res = dict(meta[key], **v) if key in meta else v
@@ -122,15 +99,17 @@ def fetch_questions(year=None):
     res = {k: get_meta(k,v) for k, v in dset.vars.items()}
     return jsonify(res)
 
-
-@app.route('/stats/national')
-@app.route('/stats/national/<int:year>')
-def fetch_national_stats(year=None):
+@hug.local()
+@hug.get(('/stats/year/{year}', '/stats/year'),
+         examples=('/stats/year/2011','/stats/year'))
+@hug.cli()
+def fetch_national_stats(year:hug.types.mapping(valid_years)):
     return fetch_survey_stats(national=True, year=year)
 
-
-@app.route('/stats/state')
-def fetch_state_stats(year=None):
+@hug.local()
+@hug.get('/stats/state', examples='')
+@hug.cli()
+def fetch_state_stats():
     return fetch_survey_stats(national=False, year=None)
 
 
@@ -169,14 +148,19 @@ def fetch_survey_stats(national, year):
     replkeys_f = lambda d: {inverse_f(k): v for k,v in d.items()}
 
     try:
+        question = svy.vars[qn]['question']
+        var_levels = {inverse_f(v): svy.vars[v] for v in m_vars}
+    except KeyError as  err:
+        raise InvalidUsage('KeyError: %s' % str(err))
+    try:
         stats = svy.fetch_stats(qn, resp, m_vars)
         stats = list(map(replkeys_f, stats))
         return jsonify({
             'q': qn,
-            'question': svy.vars[qn]['question'],
+            'question': question,
             'response': resp,
             'vars': vars,
-            'var_levels': {inverse_f(v): svy.vars[v] for v in m_vars},
+            'var_levels': var_levels,
             'results': stats
         })
     except KeyError as  err:
