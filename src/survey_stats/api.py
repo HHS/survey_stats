@@ -3,7 +3,9 @@ import pandas as pd
 import logging
 import hug
 from survey import AnnotatedSurvey
-from datasets import SurveyDataset
+from datasets import YRBSSDataset
+from meta import fetch_yrbss_meta
+from error import *
 
 bt.initialize(
   endpoint="https://rootedinsights.sp.backtrace.io:6098",
@@ -12,81 +14,36 @@ bt.initialize(
 
 logging.basicConfig(level=logging.DEBUG)
 
-META_COLS = ['questioncode','shortquestiontext','description',
-			 'greater_risk_question','lesser_risk_question','topic','subtopic']
-
-META_URL = 'https://chronicdata.cdc.gov/resource/6ay3-nik2.json'
-META_URL += '?$select={0},count(1)&$group={0}'.format(','.join(META_COLS))
-
-def fetch_qn_meta():
-	query = (META_URL)
-	m = pd.read_json(query).fillna('')
-	m['questioncode'] = m.questioncode.apply( lambda k: k.replace('H','qn') if k[0]=='H' else k.lower() )
-	del m['count_1']
-	m.set_index('questioncode', inplace=True, drop=False)
-	return m.to_dict(orient="index")
-
-class InvalidUsage(Exception):
-
-    def __init__(self, message, status_code=400, payload=None):
-        Exception.__init__(self)
-        self.message = message
-        self.status_code = status_code
-        self.payload = payload
-
-    def to_dict(self):
-        rv = dict(self.payload or ())
-        rv['message'] = self.message
-        return rv
-
-class EmptyFilterError(Exception):
-
-    def __init__(self, message, status_code=400, payload=None):
-        Exception.__init__(self)
-        self.message = message
-        self.status_code = status_code
-        self.payload = payload
-
-    def to_dict(self):
-        rv = dict(self.payload or ())
-        rv['message'] = self.message
-        return rv
-
-class ComputationError(Exception):
-
-    def __init__(self, message, status_code=500, payload=None):
-        Exception.__init__(self)
-        self.message = message
-        self.status_code = status_code
-        self.payload = payload
-
-    def to_dict(self):
-        rv = dict(self.payload or ())
-        rv['message'] = self.message
-        rv['status_code'] = self.status_code
-        return rv
-
 
 #fetch the metadata from Socrata
 meta = fetch_qn_meta()
 #load survey datasets
-yrbss = SurveyDataset.load_dataset('data/yrbss.yaml')
-valid_years = {v['year']: int(v['year']) for v in yrbss.config.values()}
-'''
+yrbss = YRBSSDataset.load_dataset('data/yrbss.yaml')
+#enumerate the
+
 @hug.type(extend=hug.types.number)
 def valid_year(value):
     """Verify selected year is available."""
-	valid = [v['year'] for v in yrbss.config.values()]:
-    if not value in valid:
+    if not value in yrbss.survey_years:
         raise ValueError('Data for selected year is not available!' + \
-			'Choose from: %s' % ','.join(valid))
-'''
+			'Choose one of: %s' % ','.join(valid))
+
+
+"""
+    qn = req.args.get('q')
+    vars = [] if not 'v' in req.args else req.args.get('v').split(',')
+    resp = True if not 'r' in req.args else int(req.args.get('r')) > 0
+    filt = {} if not 'f' in req.args else dict(map(lambda fv:
+                                                   (fv.split(':')[0],
+                                                    fv.split(':')[1].split(',')),
+                                                    req.args.get('f').split(';')))
+"""
 
 @hug.local()
 @hug.get(('/questions/{year}', '/questions'),
          examples=('/questions/2011','/questions'))
 @hug.cli()
-def fetch_questions(year:hug.types.mapping(valid_years)):
+def fetch_questions(year:valid_year):
     def get_meta(k, v):
         key = k.lower()
         res = dict(meta[key], **v) if key in meta else v
@@ -103,7 +60,7 @@ def fetch_questions(year:hug.types.mapping(valid_years)):
 @hug.get(('/stats/year/{year}', '/stats/year'),
          examples=('/stats/year/2011','/stats/year'))
 @hug.cli()
-def fetch_national_stats(year:hug.types.mapping(valid_years)):
+def fetch_national_stats(year:valid_year):
     return fetch_survey_stats(national=True, year=year)
 
 @hug.local()

@@ -47,6 +47,9 @@ class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
         return ret
 
 
+class YRBSSDataset(SurveyDataset):
+    __slots__ = ()
+
     def fetch_survey(self, combined=True, national=True, year=None):
         pred = lambda v: v['is_combined'] == combined and \
                 v['is_national'] == national and \
@@ -61,3 +64,6 @@ class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
         return next(((k,v) for k,v in self.config.items() if
                      pred(v)), None)
 
+    @property
+    def survey_years(self):
+        return sorted([int(v['year']) for v in yrbss.config.values()])
