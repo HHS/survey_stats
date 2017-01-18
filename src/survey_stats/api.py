@@ -1,32 +1,36 @@
 import backtracepython as bt
-import pandas as pd
 import logging
-import hug
-from survey import AnnotatedSurvey
-from datasets import YRBSSDataset
-from meta import fetch_yrbss_meta
-from error import *
+from flask import Flask
+from flask import request as req
+from flask.json import jsonify
+from survey_stats.survey import AnnotatedSurvey
+from survey_stats.datasets import YRBSSDataset
+from survey_stats.meta import fetch_yrbss_meta
+from survey_stats.error import InvalidUsage, EmptyFilterError, ComputationError
+from survey_stats import settings
 
-bt.initialize(
-  endpoint="https://rootedinsights.sp.backtrace.io:6098",
-  token="768367df71e2be15321e851494b6dcc7152bf8f48fe5cc85a2deac80b94a31e9"
-)
-
-logging.basicConfig(level=logging.DEBUG)
+meta = None
+yrbss = None
+app = Flask(__name__)
 
 
-#fetch the metadata from Socrata
-meta = fetch_qn_meta()
-#load survey datasets
-yrbss = YRBSSDataset.load_dataset('data/yrbss.yaml')
-#enumerate the
+def boot_when_ready(server=None):
+    global meta
+    global yrbss
+    logging.basicConfig(level=logging.DEBUG)
+    bt.initialize(endpoint=settings.BACKTRACE_URL,
+                  token=settings.BACKTRACE_TKN)
+    #fetch the metadata from Socrata
+    meta = fetch_yrbss_meta()
+    #load survey datasets
+    yrbss = YRBSSDataset.load_dataset('data/yrbss.yaml')
 
-@hug.type(extend=hug.types.number)
+
 def valid_year(value):
-    """Verify selected year is available."""
+    """year(int) for which survey data is available."""
     if not value in yrbss.survey_years:
         raise ValueError('Data for selected year is not available!' + \
-			'Choose one of: %s' % ','.join(valid))
+            'Choose one of: %s' % ','.join(valid))
 
 
 """
@@ -39,11 +43,20 @@ def valid_year(value):
                                                     req.args.get('f').split(';')))
 """
 
-@hug.local()
-@hug.get(('/questions/{year}', '/questions'),
-         examples=('/questions/2011','/questions'))
-@hug.cli()
-def fetch_questions(year:valid_year):
+
+@app.errorhandler(InvalidUsage)
+@app.errorhandler(EmptyFilterError)
+@app.errorhandler(ComputationError)
+def handle_invalid_usage(error):
+    bt.send_last_exception()
+    response = jsonify(error.to_dict())
+    response.status_code = error.status_code
+    return response
+
+
+@app.route("/questions")
+@app.route("/questions/<int:year>")
+def fetch_questions(year=None):
     def get_meta(k, v):
         key = k.lower()
         res = dict(meta[key], **v) if key in meta else v
@@ -56,16 +69,14 @@ def fetch_questions(year:valid_year):
     res = {k: get_meta(k,v) for k, v in dset.vars.items()}
     return jsonify(res)
 
-@hug.local()
-@hug.get(('/stats/year/{year}', '/stats/year'),
-         examples=('/stats/year/2011','/stats/year'))
-@hug.cli()
-def fetch_national_stats(year:valid_year):
+
+@app.route('/stats/national')
+@app.route('/stats/national/<int:year>')
+def fetch_national_stats(year=None):
     return fetch_survey_stats(national=True, year=year)
 
-@hug.local()
-@hug.get('/stats/state', examples='')
-@hug.cli()
+
+@app.route('/stats/state')
 def fetch_state_stats():
     return fetch_survey_stats(national=False, year=None)
 
@@ -122,10 +133,10 @@ def fetch_survey_stats(national, year):
         })
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err))
-    except Exception as err:
-        raise ComputationError('Error computing stats! %s' % str(err))
+    #except Exception as err:
+    #    raise ComputationError('Error computing stats! %s' % str(err))
 
-
-if __name__=='__main__':
-    app.run(host="0.0.0.0", port=7777, debug=True)
+if __name__ == '__main__':
+    boot_when_ready()
+    app.run(host='0.0.0.0', port=7777, debug=True)
 
