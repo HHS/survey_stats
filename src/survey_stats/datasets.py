@@ -7,7 +7,7 @@ import rpy2
 from rpy2 import robjects
 from rpy2.robjects.packages import importr
 from collections import namedtuple
-from survey import AnnotatedSurvey
+from survey_stats.survey import AnnotatedSurvey
 
 #TODO: install from remote yaml
 #import appdirs

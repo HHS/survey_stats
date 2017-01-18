@@ -8,7 +8,7 @@ from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
 import pandas.rpy.common as com
 
-import helpr
+from survey_stats import helpr
 
 pandas2ri.activate()
 

@@ -14,8 +14,8 @@ from rpy2.robjects import ListVector
 from rpy2.robjects import Formula
 import pandas.rpy.common as com
 
-from parsers import *
-from helpr import *
+from survey_stats.parsers import *
+from survey_stats.helpr import *
 
 pandas2ri.activate()
 
