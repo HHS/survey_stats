@@ -9,13 +9,17 @@ from rpy2.robjects.packages import importr
 from collections import namedtuple
 from survey_stats.survey import AnnotatedSurvey
 
+from walrus import Database, Cache
 #TODO: install from remote yaml
 #import appdirs
 
 rfther = importr('feather', on_conflict='warn')
+rutils = importr('utils')
 
 cache_dir = os.path.join(os.getcwd(), 'cache')
 
+redis = Database()
+cache = redis.cache()
 
 class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
     __slots__ = ()
@@ -44,6 +48,7 @@ class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
             ret = AnnotatedSurvey.load_cdc_survey(spss_f, data_f)
             logging.info('saving data to feather cache: %s' % f)
             rfther.write_feather(ret.rdf, f)
+            rutils.write_csv(ret.rdf, file=f+'.csv')
         return ret
 
 
@@ -66,4 +71,4 @@ class YRBSSDataset(SurveyDataset):
 
     @property
     def survey_years(self):
-        return sorted([int(v['year']) for v in yrbss.config.values()])
+        return set(sorted([int(v['year']) for v in self.config.values()]))

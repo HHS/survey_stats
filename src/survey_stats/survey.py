@@ -17,8 +17,6 @@ import pandas.rpy.common as com
 from survey_stats.parsers import *
 from survey_stats.helpr import *
 
-pandas2ri.activate()
-
 rbase = importr('base')
 rsvy = importr('survey')
 rprll = importr('parallel')

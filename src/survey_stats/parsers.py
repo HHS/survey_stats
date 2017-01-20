@@ -10,8 +10,6 @@ import pandas.rpy.common as com
 
 from survey_stats import helpr
 
-pandas2ri.activate()
-
 rbase = importr('base')
 
 
