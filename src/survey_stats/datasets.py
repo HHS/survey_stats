@@ -1,15 +1,13 @@
 import os
 import logging
 import yaml
-import feather
 
 import rpy2
 from rpy2 import robjects
 from rpy2.robjects.packages import importr
 from collections import namedtuple
 from survey_stats.survey import AnnotatedSurvey
-
-from walrus import Database, Cache
+from survey_stats.feathers import has_feather, load_feather
 #TODO: install from remote yaml
 #import appdirs
 
@@ -18,8 +16,6 @@ rutils = importr('utils')
 
 cache_dir = os.path.join(os.getcwd(), 'cache')
 
-redis = Database()
-cache = redis.cache()
 
 class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
     __slots__ = ()

@@ -1,7 +1,7 @@
 import logging
 import backtracepython as bt
 
-from flask import Flask
+from flask import Flask, redirect
 from flask import request as req
 from flask.json import jsonify
 from werkzeug.routing import BaseConverter
@@ -12,31 +12,32 @@ from flasgger import Swagger
 import survey_stats
 from survey_stats.survey import AnnotatedSurvey
 from survey_stats.datasets import YRBSSDataset
-from survey_stats.meta import fetch_yrbss_meta
+from survey_stats.meta import SurveyMetadata
 from survey_stats.error import InvalidUsage, EmptyFilterError, ComputationError
 from survey_stats import settings
 from survey_stats import state
 
 app = Flask(__name__)
 Swagger(app)
+apst = {}
 
 def boot_when_ready(server=None):
     logging.basicConfig(level=logging.DEBUG)
     bt.initialize(endpoint=settings.BACKTRACE_URL,
                   token=settings.BACKTRACE_TKN)
     #fetch the state.metadata from Socrata
-    appstate.meta = fetch_yrbss_meta()
+    apst['meta'] = SurveyMetadata.load_metadata('data/yrbss.yaml')
     #load survey datasets
-    appstate.yrbss = YRBSSDataset.load_dataset('data/yrbss.yaml')
+    apst['yrbss'] = YRBSSDataset.load_dataset('data/yrbss.yaml')
 
 
 class SurveyYearValidator(BaseConverter):
     """year(int) for which survey data is available."""
 
     def to_python(self, value):
-        if not int(value) in appstate.yrbss.survey_years:
+        if not int(value) in apst['yrbss'].survey_years:
             raise ValueError('Selected year is not available!' + \
-                             ' Choose from: %s' % str(appstate.yrbss.survey_years))
+                             ' Choose from: %s' % str(apst['yrbss'].survey_years))
         return int(value)
 
 
@@ -66,7 +67,6 @@ def handle_invalid_usage(error):
 
 
 @app.errorhandler(404)
-@app.route("/")
 def fetch(err=None):
     return redirect('/apidocs/index.html')
 
@@ -115,11 +115,12 @@ def fetch_questions(year=None):
     """
     def get_meta(k, v):
         key = k.lower()
-        res = dict(appstate.meta[key], **v, id=k) if key in appstate.meta else v
+        res = dict(apst['meta'].qnmeta_dict[key], **v, id=k) if key in \
+            apst['meta'].qnmeta_dict else v
         return res
     national = True
     combined = False if year else True
-    dset = appstate.yrbss.fetch_survey(combined, national, year)
+    dset = apst['yrbss'].fetch_survey(combined, national, year)
     res = [get_meta(k,v) for k, v in dset.vars.items()]
     return jsonify(res)
 
@@ -233,14 +234,14 @@ def fetch_survey_stats(national, year):
         combined = False
 
     # update vars and filt column names according to pop_vars
-    (k, cfg) = appstate.yrbss.fetch_config(combined, national, year)
+    (k, cfg) = apst['yrbss'].fetch_config(combined, national, year)
     logging.info((k, cfg))
     replace_f = lambda x: cfg['pop_vars'][x] if x in cfg['pop_vars'] else x
     logging.info(vars)
     logging.info(filt)
     m_vars = list(map(replace_f, vars))
     m_filt = {replace_f(k): v for k,v in filt.items()}
-    svy = appstate.yrbss.surveys[k]
+    svy = apst['yrbss'].surveys[k]
     svy = svy.subset(m_filt)
 
     if not svy.sample_size > 1:
