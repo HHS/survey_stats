@@ -48,7 +48,6 @@ class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
             ret = AnnotatedSurvey.load_cdc_survey(spss_f, data_f)
             logging.info('saving data to feather cache: %s' % f)
             rfther.write_feather(ret.rdf, f)
-            rutils.write_csv(ret.rdf, file=f+'.csv')
         return ret
 
 

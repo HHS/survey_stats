@@ -25,18 +25,18 @@ def boot_when_ready(server=None):
     bt.initialize(endpoint=settings.BACKTRACE_URL,
                   token=settings.BACKTRACE_TKN)
     #fetch the state.metadata from Socrata
-    state.meta = fetch_yrbss_meta()
+    appstate.meta = fetch_yrbss_meta()
     #load survey datasets
-    state.yrbss = YRBSSDataset.load_dataset('data/yrbss.yaml')
+    appstate.yrbss = YRBSSDataset.load_dataset('data/yrbss.yaml')
 
 
 class SurveyYearValidator(BaseConverter):
     """year(int) for which survey data is available."""
 
     def to_python(self, value):
-        if not int(value) in state.yrbss.survey_years:
+        if not int(value) in appstate.yrbss.survey_years:
             raise ValueError('Selected year is not available!' + \
-                             ' Choose from: %s' % str(state.yrbss.survey_years))
+                             ' Choose from: %s' % str(appstate.yrbss.survey_years))
         return int(value)
 
 
@@ -63,6 +63,7 @@ def handle_invalid_usage(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
     return response
+
 
 @app.errorhandler(404)
 @app.route("/")
@@ -114,11 +115,11 @@ def fetch_questions(year=None):
     """
     def get_meta(k, v):
         key = k.lower()
-        res = dict(state.meta[key], **v, id=k) if key in state.meta else v
+        res = dict(appstate.meta[key], **v, id=k) if key in appstate.meta else v
         return res
     national = True
     combined = False if year else True
-    dset = state.yrbss.fetch_survey(combined, national, year)
+    dset = appstate.yrbss.fetch_survey(combined, national, year)
     res = [get_meta(k,v) for k, v in dset.vars.items()]
     return jsonify(res)
 
@@ -232,14 +233,14 @@ def fetch_survey_stats(national, year):
         combined = False
 
     # update vars and filt column names according to pop_vars
-    (k, cfg) = state.yrbss.fetch_config(combined, national, year)
+    (k, cfg) = appstate.yrbss.fetch_config(combined, national, year)
     logging.info((k, cfg))
     replace_f = lambda x: cfg['pop_vars'][x] if x in cfg['pop_vars'] else x
     logging.info(vars)
     logging.info(filt)
     m_vars = list(map(replace_f, vars))
     m_filt = {replace_f(k): v for k,v in filt.items()}
-    svy = state.yrbss.surveys[k]
+    svy = appstate.yrbss.surveys[k]
     svy = svy.subset(m_filt)
 
     if not svy.sample_size > 1:
