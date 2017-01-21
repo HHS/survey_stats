@@ -5,11 +5,10 @@ from flask import Flask, redirect
 from flask import request as req
 from flask.json import jsonify
 from werkzeug.routing import BaseConverter
-from webargs import fields
-#from webargs import use_args, use_kwargs
+from webargs import fields, ValidationError
+from webargs.flaskparser import use_args, use_kwargs
 from flasgger import Swagger
 
-import survey_stats
 from survey_stats.survey import AnnotatedSurvey
 from survey_stats.datasets import YRBSSDataset
 from survey_stats.meta import SurveyMetadata
@@ -134,7 +133,7 @@ def fetch_national_stats(year=None):
     segment from either the combined or individual yearly datasets.
     ---
     tags:
-      - national
+      - stats/national
     parameters:
       - name: year
         in: path
@@ -215,6 +214,84 @@ def fetch_national_stats(year=None):
 
 @app.route('/stats/state')
 def fetch_state_stats():
+    """
+    State API
+    Returns mean, CI and unweighted count for a state survey
+    segment from either the combined or individual yearly datasets.
+    ---
+    tags:
+      - stats/state
+    parameters:
+      - name: q
+        in: query
+        type: string
+        required: true
+        description: question id
+      - name: v
+        in: query
+        type: string
+        required: false
+        description: variables to break out/facet the population by
+      - name: f
+        in: query
+        type: string
+        required: false
+        description: variable/value pairs to filter the population by
+      - name: r
+        in: query
+        type: boolean
+        default: true
+        required: true
+        description: responded true to the question prompt
+    responses:
+      200:
+        description: list of available questions/columns in survey
+        schema:
+          id: StatsList
+          type: array
+          items:
+            schema:
+              id: Stats
+              type: object
+              properties:
+                q:
+                  type: string
+                  description: question id
+                question:
+                  type: string
+                  description: question text/prompt
+                response:
+                  type: boolean
+                  description: responded true to the question prompt
+                vars:
+                  type: array
+                  description: variables used to break out/facet the population
+                  items:
+                    type: string
+                var_levels:
+                  type: array
+                  descriptions: levels/responses for each of the facet variables
+                  items:
+              id: Question
+              type: object
+              properties:
+                id:
+                  type: string
+                  description: question id
+                is_integer:
+                  type: boolean
+                  description: column contains integer codings
+                question:
+                  type: string
+                  description: question text/prompt
+                responses:
+                  id: ResponseList
+                  type: array
+                  items:
+                    type: string
+
+
+    """
     return fetch_survey_stats(national=False, year=None)
 
 
@@ -230,7 +307,7 @@ def fetch_survey_stats(national, year):
 
     logging.info(filt)
     combined = True
-    if year and year in range(1993, 2017, 2):
+    if year:
         combined = False
 
     # update vars and filt column names according to pop_vars
@@ -277,25 +354,3 @@ if __name__ == '__main__':
     boot_when_ready()
     app.run(host='0.0.0.0', port=7777, debug=True)
 
-"""
-    responses:
-      200:
-        description: an associative array with question ids/column names
-        schema:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-                description: question id or column name
-              is_integer:
-                type: bool
-                description: data in column was of integer type
-              question:
-                type: string
-                description: question text
-            required:
-            - is_integer
-            - question
-"""
