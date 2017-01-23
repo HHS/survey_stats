@@ -1,5 +1,7 @@
-import logging
+import socket
 import backtracepython as bt
+import logging
+from logging.handlers import SysLogHandler
 
 from flask import Flask, redirect
 from flask import request as req
@@ -20,8 +22,30 @@ app = Flask(__name__)
 Swagger(app)
 apst = {}
 
+
+class ContextFilter(logging.Filter):
+  hostname = socket.gethostname()
+
+  def filter(self, record):
+    record.hostname = ContextFilter.hostname
+    return True
+
+
 def boot_when_ready(server=None):
     logging.basicConfig(level=logging.DEBUG)
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+
+    f = ContextFilter()
+    logger.addFilter(f)
+
+    syslog = SysLogHandler(address=('logs5.papertrailapp.com', 16468))
+    formatter = logging.Formatter('%(asctime)s %(hostname)s STATS: %(message)s', datefmt='%b %d %H:%M:%S')
+
+    syslog.setFormatter(formatter)
+    logger.addHandler(syslog)
+
+    logger.info("This is a message")
     bt.initialize(endpoint=settings.BACKTRACE_URL,
                   token=settings.BACKTRACE_TKN)
     #fetch the state.metadata from Socrata
@@ -351,8 +375,8 @@ def fetch_survey_stats(national, year):
         })
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err))
-    #except Exception as err:
-    #    raise ComputationError('Error computing stats! %s' % str(err))
+    except Exception as err:
+        raise ComputationError('Error computing stats! %s' % str(err))
 
 if __name__ == '__main__':
     boot_when_ready()
