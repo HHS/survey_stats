@@ -19,6 +19,7 @@ import os
 import argparse
 from survey_stats.server import APIServer, number_of_workers
 from survey_stats.api import app as api
+from survey_stats.api import boot_when_ready
 
 parser = argparse.ArgumentParser(description='Unified Survey Stats Repository')
 subparsers = parser.add_subparsers()

@@ -318,6 +318,10 @@ def fetch_survey_stats(national, year):
     logging.info(filt)
     m_vars = list(map(replace_f, vars))
     m_filt = {replace_f(k): v for k,v in filt.items()}
+    in_both = set(m_vars).intersect(m_filt)
+    if (len(in_both) > 0):
+        raise InvalidUsage('Cannot have the same columns in filter and '+
+                           'breakout variables! %s' % str(in_both))
     svy = apst['yrbss'].surveys[k]
     svy = svy.subset(m_filt)
 

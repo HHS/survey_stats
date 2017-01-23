@@ -8,7 +8,7 @@ from gunicorn.six import iteritems
 
 
 def number_of_workers():
-    return multiprocessing.cpu_count()
+    return multiprocessing.cpu_count()/2
 
 class APIServer(gunicorn.app.base.BaseApplication):
 
