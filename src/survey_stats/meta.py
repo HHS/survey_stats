@@ -23,6 +23,7 @@ class SurveyMetadata(namedtuple('Metadata', ['config','qnmeta', 'precomp'])):
         (qn,df) = (load_feather('qnmeta'), load_feather('precomp')) if \
                 has_feather('qnmeta') and has_feather('precomp') else \
                 cls.load_rawmeta(config)
+        qn = qn.set_index(config['qnkey'])
         return cls(config=config, qnmeta=qn, precomp=df)
 
 
@@ -56,7 +57,7 @@ class SurveyMetadata(namedtuple('Metadata', ['config','qnmeta', 'precomp'])):
                 df[col] = df[col].astype('category')
         logging.info(df.dtypes)
         logging.info('deduplicating question metadata and saving')
-        qnm = df[ [k]+cfg['metadata'] ].drop_duplicates().set_index(k)
+        qnm = df[ [k]+cfg['metadata'] ].drop_duplicates()
         logging.info('extracting precomputed table and saving')
         pre = df[[k] + list(chain.from_iterable(map(lambda x: cfg[x],
                                        ['facets','strata','stats'] )))]
