@@ -2,7 +2,7 @@ import socket
 import backtracepython as bt
 import logging
 from logging.handlers import SysLogHandler
-
+from collections import OrderedDict
 from flask import Flask, redirect
 from flask import request as req
 from flask.json import jsonify
@@ -125,7 +125,7 @@ def fetch_questions(year=None):
           id: QuestionList
           type: object
           additionalProperties:
-			$ref: '#/definitions/Question'
+            type: string
     """
     def get_meta(k, v):
         key = k.lower()
@@ -135,7 +135,8 @@ def fetch_questions(year=None):
     national = True
     combined = False if year else True
     dset = apst['yrbss'].fetch_survey(combined, national, year)
-    res = [get_meta(k,v) for k, v in dset.vars.items()]
+    res = [(k,get_meta(k,v)) for k, v in dset.vars.items()]
+    res = OrderedDict(res)
     return jsonify(res)
 
 
@@ -203,8 +204,6 @@ def fetch_national_stats(year=None):
                 var_levels:
                   type: array
                   descriptions: levels/responses for each of the facet variables
-                  items:
-                    $ref: '#/definitions/Question'
 
     """
     return fetch_survey_stats(national=True, year=year)
@@ -269,24 +268,6 @@ def fetch_state_stats():
                 var_levels:
                   description: levels/responses for each of the facet variables
                   type: array
-                  items:
-					schema:
-                      id: Question
-                      type: object
-                      properties:
-                        is_integer:
-                          type: boolean
-                          description: column contains integer codings
-                        question:
-                          type: string
-                          description: question text/prompt
-                        responses:
-                          type: array
-                          items:
-                            type:
-                              - type: string
-                              - type: string
-
     """
     return fetch_survey_stats(national=False, year=None)
 
