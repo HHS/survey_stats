@@ -68,7 +68,16 @@ class SurveyYearValidator(BaseConverter):
         return BaseConverter.to_url(str(value))
 
 app.url_map.converters['survey_year'] = SurveyYearValidator
+'''
+def validated_facet(f):
+    if not User.query.get(val):
+        # Optionally pass a status_code
+        raise ValidationError('User does not exist')
 
+argmap = {
+    'id': fields.Int(validate=must_exist_in_db)
+}
+'''
 """
     qn = req.args.get('q')
     vars = [] if not 'v' in req.args else req.args.get('v').split(',')
@@ -114,38 +123,40 @@ def fetch_questions(year=None):
         description: list of available questions/columns in survey
         schema:
           id: QuestionList
-          type: array
-          items:
-            schema:
-              id: Question
-              type: object
-              properties:
-                id:
-                  type: string
-                  description: question id
-                is_integer:
-                  type: boolean
-                  description: column contains integer codings
-                question:
-                  type: string
-                  description: question text/prompt
-                responses:
-                  id: ResponseList
-                  type: array
-                  items:
-                    type: string
-
+          type: object
+          additionalProperties: Question
     """
     def get_meta(k, v):
         key = k.lower()
         res = dict(apst['meta'].qnmeta_dict[key], **v, id=k) if key in \
-            apst['meta'].qnmeta_dict else v
+            apst['meta'].qnmeta_dict else dict(v, id=k)
         return res
     national = True
     combined = False if year else True
     dset = apst['yrbss'].fetch_survey(combined, national, year)
-    res = [get_meta(k,v) for k, v in dset.vars.items()]
+    res = {k: get_meta(k,v) for k, v in dset.vars.items()}
     return jsonify(res)
+"""
+schema:
+id: Question
+type: object
+properties:
+id:
+  type: string
+  description: question id
+is_integer:
+  type: boolean
+  description: column contains integer codings
+question:
+  type: string
+  description: question text/prompt
+responses:
+  id: ResponseList
+  type: array
+  items:
+    type: string
+
+ """
 
 
 @app.route('/stats/national')
