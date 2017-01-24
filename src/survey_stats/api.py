@@ -124,7 +124,8 @@ def fetch_questions(year=None):
         schema:
           id: QuestionList
           type: object
-          additionalProperties: Question
+          additionalProperties:
+			$ref: '#/definitions/Question'
     """
     def get_meta(k, v):
         key = k.lower()
@@ -134,29 +135,8 @@ def fetch_questions(year=None):
     national = True
     combined = False if year else True
     dset = apst['yrbss'].fetch_survey(combined, national, year)
-    res = {k: get_meta(k,v) for k, v in dset.vars.items()}
+    res = [get_meta(k,v) for k, v in dset.vars.items()]
     return jsonify(res)
-"""
-schema:
-id: Question
-type: object
-properties:
-id:
-  type: string
-  description: question id
-is_integer:
-  type: boolean
-  description: column contains integer codings
-question:
-  type: string
-  description: question text/prompt
-responses:
-  id: ResponseList
-  type: array
-  items:
-    type: string
-
- """
 
 
 @app.route('/stats/national')
@@ -224,24 +204,7 @@ def fetch_national_stats(year=None):
                   type: array
                   descriptions: levels/responses for each of the facet variables
                   items:
-              id: Question
-              type: object
-              properties:
-                id:
-                  type: string
-                  description: question id
-                is_integer:
-                  type: boolean
-                  description: column contains integer codings
-                question:
-                  type: string
-                  description: question text/prompt
-                responses:
-                  id: ResponseList
-                  type: array
-                  items:
-                    type: string
-
+                    $ref: '#/definitions/Question'
 
     """
     return fetch_survey_stats(national=True, year=year)
@@ -304,27 +267,25 @@ def fetch_state_stats():
                   items:
                     type: string
                 var_levels:
-                  type: array
-                  descriptions: levels/responses for each of the facet variables
-                  items:
-              id: Question
-              type: object
-              properties:
-                id:
-                  type: string
-                  description: question id
-                is_integer:
-                  type: boolean
-                  description: column contains integer codings
-                question:
-                  type: string
-                  description: question text/prompt
-                responses:
-                  id: ResponseList
+                  description: levels/responses for each of the facet variables
                   type: array
                   items:
-                    type: string
-
+					schema:
+                      id: Question
+                      type: object
+                      properties:
+                        is_integer:
+                          type: boolean
+                          description: column contains integer codings
+                        question:
+                          type: string
+                          description: question text/prompt
+                        responses:
+                          type: array
+                          items:
+                            type:
+                              - type: string
+                              - type: string
 
     """
     return fetch_survey_stats(national=False, year=None)
