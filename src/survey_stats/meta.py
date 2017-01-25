@@ -4,14 +4,15 @@ import feather
 import logging
 import numpy as np
 import yaml
+import threading
 from collections import namedtuple
 from functools import reduce
 from itertools import chain
+from cached_property import cached_property, threaded_cached_property
 from survey_stats.cache import rcache
 from survey_stats.feathers import has_feather, load_feather, save_feather
 
 class SurveyMetadata(namedtuple('Metadata', ['config','qnmeta', 'precomp'])):
-    __slots__ = ()
 
 
     @classmethod
@@ -65,6 +66,6 @@ class SurveyMetadata(namedtuple('Metadata', ['config','qnmeta', 'precomp'])):
         save_feather('precomp', pre)
         return (qnm, pre)
 
-    @property
+    @threaded_cached_property
     def qnmeta_dict(self):
         return self.qnmeta.to_dict(orient='index')

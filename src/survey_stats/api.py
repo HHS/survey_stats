@@ -102,7 +102,6 @@ def handle_invalid_usage(error):
 def fetch(err=None):
     return redirect('/apidocs/index.html')
 
-
 @app.route("/questions")
 @app.route("/questions/<survey_year:year>")
 def fetch_questions(year=None):
@@ -136,9 +135,8 @@ def fetch_questions(year=None):
     combined = False if year else True
     dset = apst['yrbss'].fetch_survey(combined, national, year)
     res = [(k,get_meta(k,v)) for k, v in dset.vars.items()]
-    res = OrderedDict(res)
-    return jsonify(res)
-
+    #res = OrderedDict(res)
+    return jsonify(dict(res))
 
 @app.route('/stats/national')
 @app.route('/stats/national/<survey_year:year>')
@@ -207,7 +205,6 @@ def fetch_national_stats(year=None):
 
     """
     return fetch_survey_stats(national=True, year=year)
-
 
 @app.route('/stats/state')
 def fetch_state_stats():
