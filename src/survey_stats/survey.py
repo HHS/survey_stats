@@ -1,37 +1,21 @@
 import logging
 import gc
+import json
 
 from collections import namedtuple
-
-import numpy as np
-import pandas as pd
 
 import rpy2
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
-from rpy2.robjects import ListVector
 from rpy2.robjects import Formula
-import pandas.rpy.common as com
 
-from survey_stats.parsers import *
-from survey_stats.helpr import *
+from survey_stats.parsers import parse_fwfcols_spss, parse_surveyvars_spss
+from survey_stats.helpr import svyciprop_yrbs, svybyci_yrbs, filter_survey_var
+from survey_stats import pdutil
 
 rbase = importr('base')
 rsvy = importr('survey')
-rprll = importr('parallel')
-rbase.options(robjects.vectors.ListVector({'mc.cores':rprll.detectCores()}))
-
-
-#extend Series with fill_none method
-# to take care of json/mysql conversion
-def fill_none(self):
-    return self.where(pd.notnull(self),None)
-pd.Series.fill_none = fill_none
-
-
-def guard_nan(val):
-    return None if np.isnan(val) else val
 
 
 def subset_survey(des, filt):
@@ -46,7 +30,7 @@ def subset_survey(des, filt):
     return rsvy.subset_survey_design(des, filtered)
 
 
-def fetch_stats(des, qn, response=True, vars=[]):
+def fetch_stats(des, qn, response=True, vars=[], filt={}):
     DECIMALS = {
         'mean': 4, 'se': 4, 'ci_l': 4, 'ci_u': 4, 'count':0
     }
@@ -56,7 +40,7 @@ def fetch_stats(des, qn, response=True, vars=[]):
         merged = pandas2ri.ri2py(rbase.merge(
             svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs),
             rsvy.svyby(qn_f, lvl_f, des, rsvy.unwtd_count, na_rm=True,
-                       na_rm_by=True, na_rm_all=True, multicore=True)
+                       na_rm_by=True, na_rm_all=True, multicore=False)
         ))
         del merged['se']
         merged.columns = vars + ['mean', 'se', 'ci_l', 'ci_u', 'count']
@@ -64,24 +48,25 @@ def fetch_stats(des, qn, response=True, vars=[]):
         merged['q'] = qn
         merged['q_resp'] = response
         merged = merged.round(DECIMALS)
-        return merged.apply(lambda r: r.fill_none().to_dict(), axis=1)
+        logging.info(merged.to_json(orient='records'))
+        return json.loads(merged.to_json(orient='records'))
     # create formula for selected question and risk profile
     # ex: ~qn8, ~!qn8
     qn_f = Formula('~%s%s' % ('' if response else '!', qn))
     count = rbase.as_numeric(rsvy.unwtd_count(qn_f, des, na_rm=True,
-                                              multicore=True))[0]
+                                              multicore=False))[0]
     total_ci = None
     if count > 0:
-        total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
+        total_ci = svyciprop_yrbs(qn_f, des, multicore=False)
     #extract stats
     res = { 'level': 0,
-           'mean': guard_nan(
+           'mean': pdutil.guard_nan(
                rbase.as_numeric(total_ci)[0]) if total_ci else None,
-           'se': guard_nan(
+           'se': pdutil.guard_nan(
                rsvy.SE(total_ci)[0]) if total_ci else None,
-           'ci_l': guard_nan(
+           'ci_l': pdutil.guard_nan(
                rbase.attr(total_ci,'ci')[0]) if total_ci else None,
-           'ci_u': guard_nan(
+           'ci_u': pdutil.guard_nan(
                rbase.attr(total_ci,'ci')[1]) if total_ci else None,
            'count': count }
     #round as appropriate
@@ -110,8 +95,14 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des', 'rdf'])):
         return self._replace(des=subset_survey(self.des, filter))
 
 
-    def fetch_stats(self, qn, response=True, vars=[]):
-        return fetch_stats(self.des, qn, response, vars)
+    def fetch_stats(self, qn, response=True, vars=[], filt={}):
+        return fetch_stats(self.des, qn, response, vars, filt)
+
+    def var_in_svy(self, var):
+        return self.vars.has_key(var)
+
+    def var_lvl_in_svy(self, var, lvl):
+        return self.var_in_svy(var)
 
 
     @classmethod

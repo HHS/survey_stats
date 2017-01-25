@@ -1,5 +1,6 @@
 import socket
 import backtracepython as bt
+import traceback
 import logging
 from logging.handlers import SysLogHandler
 from collections import OrderedDict
@@ -92,7 +93,7 @@ argmap = {
 @app.errorhandler(EmptyFilterError)
 @app.errorhandler(ComputationError)
 def handle_invalid_usage(error):
-    bt.send_last_exception()
+    bt.send_last_exception(attributes=error.to_dict())
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
     return response
@@ -273,7 +274,7 @@ def fetch_survey_stats(national, year):
     logging.info("requested uri: %s" % req.url)
     qn = req.args.get('q')
     vars = [] if not 'v' in req.args else req.args.get('v').split(',')
-    resp = True if not 'r' in req.args else req.args.get('r')
+    resp = True if not 'r' in req.args else not 0 ** int(req.args.get('r'),2)
     filt = {} if not 'f' in req.args else dict(map(lambda fv:
                                                    (fv.split(':')[0],
                                                     fv.split(':')[1].split(',')),
@@ -293,9 +294,9 @@ def fetch_survey_stats(national, year):
     m_vars = list(map(replace_f, vars))
     m_filt = {replace_f(k): v for k,v in filt.items()}
     in_both = set(m_vars).intersection(m_filt)
-    if (len(in_both) > 0):
-        raise InvalidUsage('Cannot have the same columns in filter and '+
-                           'breakout variables! %s' % str(in_both))
+    #if (len(in_both) > 0):
+    #    raise InvalidUsage('Cannot have the same columns in filter and '+
+    #                       'breakout variables! %s' % str(in_both))
     svy = apst['yrbss'].surveys[k]
     svy = svy.subset(m_filt)
 
@@ -310,13 +311,22 @@ def fetch_survey_stats(national, year):
     try:
         question = svy.vars[qn]['question']
         var_levels = {inverse_f(v): svy.vars[v] for v in m_vars}
-    except KeyError as  err:
-        raise InvalidUsage('KeyError: %s' % str(err))
+    except KeyError as err:
+        raise InvalidUsage('KeyError: %s' % str(err), payload={
+            'traceback': traceback.format_exc().splitlines(),
+            'request': req.args.to_dict(),
+            'state': {
+                'q': qn,
+                'svy_vars': svy.vars,
+                'm_vars': m_vars
+            }})
     try:
-        stats = svy.fetch_stats(qn, resp, m_vars)
+        stats = svy.fetch_stats(qn, resp, m_vars, m_filt)
+        logging.info(stats)
         stats = list(map(replkeys_f, stats))
         return jsonify({
             'q': qn,
+            'filter': filt,
             'question': question,
             'response': resp,
             'vars': vars,
@@ -324,9 +334,32 @@ def fetch_survey_stats(national, year):
             'results': stats
         })
     except KeyError as  err:
-        raise InvalidUsage('KeyError: %s' % str(err))
-    except Exception as err:
-        raise ComputationError('Error computing stats! %s' % str(err))
+        raise InvalidUsage('KeyError: %s' % str(err), payload={
+            'traceback': traceback.format_exc().splitlines(),
+            'request': req.args.to_dict(),
+            'state': {
+                'q': qn,
+                'svy_vars': svy.vars,
+                'm_vars': m_vars,
+                'filter': filt,
+                'response': resp,
+                'var_levels': var_levels
+            }})
+'''    except Exception as err:
+        raise ComputationError(type(err).__name__ + ': %s' % str(err), payload={
+            'traceback': traceback.format_exc().splitlines(),
+            'request': req.args.to_dict(),
+            'state': {
+                'q': qn,
+                'svy_vars': svy.vars,
+                'm_vars': m_vars,
+                'filter': filt,
+                'response': resp,
+                'var_levels': var_levels
+            }})
+'''
+
+
 
 if __name__ == '__main__':
     boot_when_ready()
