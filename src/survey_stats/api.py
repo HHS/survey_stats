@@ -135,8 +135,8 @@ def fetch_questions(year=None):
     combined = False if year else True
     dset = apst['yrbss'].fetch_survey(combined, national, year)
     res = [(k,get_meta(k,v)) for k, v in dset.vars.items()]
-    #res = OrderedDict(res)
-    return jsonify(dict(res))
+    res = OrderedDict(res)
+    return jsonify(res)
 
 @app.route('/stats/national')
 @app.route('/stats/national/<survey_year:year>')
