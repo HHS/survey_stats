@@ -9,7 +9,6 @@ from collections import namedtuple
 from functools import reduce
 from itertools import chain
 from cached_property import cached_property, threaded_cached_property
-from survey_stats.cache import rcache
 from survey_stats.feathers import has_feather, load_feather, save_feather
 
 class SurveyMetadata(namedtuple('Metadata', ['config','qnmeta', 'precomp'])):
