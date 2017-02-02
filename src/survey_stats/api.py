@@ -4,7 +4,7 @@ import traceback
 import logging
 from logging.handlers import SysLogHandler
 from collections import OrderedDict
-from flask import Flask, redirect
+from flask import Flask, redirect, g, render_template
 from flask import request as req
 from flask.json import jsonify
 from werkzeug.routing import BaseConverter
@@ -69,6 +69,7 @@ class SurveyYearValidator(BaseConverter):
         return BaseConverter.to_url(str(value))
 
 app.url_map.converters['survey_year'] = SurveyYearValidator
+
 '''
 def validated_facet(f):
     if not User.query.get(val):
@@ -102,6 +103,11 @@ def handle_invalid_usage(error):
 @app.errorhandler(404)
 def fetch(err=None):
     return redirect('/apidocs/index.html')
+
+@app.before_request
+def before_request():
+    g.request_start_time = time.time()
+    g.request_time = lambda: "%.5fs" % (time.time() - g.request_start_time)
 
 @app.route("/questions")
 @app.route("/questions/<survey_year:year>")
@@ -322,7 +328,8 @@ def fetch_survey_stats(national, year):
             }})
     try:
         stats = svy.fetch_stats(qn, resp, m_vars, m_filt)
-        logging.info(stats)
+        g_time = g.request_time()
+        logging.info('elapsed_time', g_time)
         stats = list(map(replkeys_f, stats))
         return jsonify({
             'q': qn,
@@ -331,7 +338,8 @@ def fetch_survey_stats(national, year):
             'response': resp,
             'vars': vars,
             'var_levels': var_levels,
-            'results': stats
+            'results': stats,
+			'_elapsed_time': g_time
         })
     except KeyError as  err:
         raise InvalidUsage('KeyError: %s' % str(err), payload={
