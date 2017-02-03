@@ -1,8 +1,9 @@
 import socket
+import time
 import backtracepython as bt
 import traceback
 import logging
-from logging.handlers import SysLogHandler
+#from logging.handlers import SysLogHandler
 from collections import OrderedDict
 from flask import Flask, redirect, g, render_template
 from flask import request as req
@@ -10,7 +11,7 @@ from flask.json import jsonify
 from werkzeug.routing import BaseConverter
 from webargs import fields, ValidationError
 from webargs.flaskparser import use_args, use_kwargs
-from flasgger import Swagger
+#from flasgger import Swagger
 
 from survey_stats.survey import AnnotatedSurvey
 from survey_stats.datasets import YRBSSDataset
@@ -20,16 +21,16 @@ from survey_stats import settings
 from survey_stats import state
 
 app = Flask(__name__)
-Swagger(app)
+#Swagger(app)
 apst = {}
 
 
-class ContextFilter(logging.Filter):
-  hostname = socket.gethostname()
-
-  def filter(self, record):
-    record.hostname = ContextFilter.hostname
-    return True
+#class ContextFilter(logging.Filter):
+#  hostname = socket.gethostname()
+#
+#  def filter(self, record):
+#    record.hostname = ContextFilter.hostname
+#    return True
 
 
 def boot_when_ready(server=None):
@@ -37,14 +38,14 @@ def boot_when_ready(server=None):
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
-    f = ContextFilter()
-    logger.addFilter(f)
+    #f = ContextFilter()
+    #logger.addFilter(f)
 
-    syslog = SysLogHandler(address=('logs5.papertrailapp.com', 16468))
-    formatter = logging.Formatter('%(asctime)s %(hostname)s STATS: %(message)s', datefmt='%b %d %H:%M:%S')
+    #syslog = SysLogHandler(address=('logs5.papertrailapp.com', 16468))
+    #formatter = logging.Formatter('%(asctime)s %(hostname)s STATS: %(message)s', datefmt='%b %d %H:%M:%S')
 
-    syslog.setFormatter(formatter)
-    logger.addHandler(syslog)
+    #syslog.setFormatter(formatter)
+    #logger.addHandler(syslog)
 
     logger.info("This is a message")
     bt.initialize(endpoint=settings.BACKTRACE_URL,
@@ -327,6 +328,7 @@ def fetch_survey_stats(national, year):
                 'm_vars': m_vars
             }})
     try:
+        logging.info("Ready to fetch!")
         stats = svy.fetch_stats(qn, resp, m_vars, m_filt)
         g_time = g.request_time()
         logging.info('elapsed_time', g_time)

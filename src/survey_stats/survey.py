@@ -1,10 +1,12 @@
 import logging
 import gc
 import json
-from toolz.itertools import concat, concatv, mapcat
-from toolz.functoolz import thread_last
+from toolz.itertoolz import concat, concatv, mapcat
+from toolz.functoolz import thread_last, thread_first, flip, do, compose
+from toolz.curried import map, filter, reduce
+from toolz import curry
 from collections import namedtuple
-
+import pandas as pd
 import rpy2
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
@@ -12,7 +14,8 @@ from rpy2.robjects.packages import importr
 from rpy2.robjects import Formula
 
 from survey_stats.parsers import parse_fwfcols_spss, parse_surveyvars_spss
-from survey_stats.helpr import svyciprop_yrbs, svybyci_yrbs, filter_survey_var
+from survey_stats.helpr import svyciprop_yrbs, svybyci_yrbs, subset_des_wexpr
+from survey_stats.helpr import filter_survey_var
 from survey_stats import pdutil
 
 rbase = importr('base')
@@ -96,10 +99,6 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des', 'rdf'])):
     def subset(self, filter):
         return self._replace(des=subset_survey(self.des, filter))
 
-    def filter_formula(self, filt, ignore_missing=False):
-
-    filtered = rbase.Reduce( "&",
-        [filter_survey_var(des, k, v) for k,v in filt.items()])
     def fetch_stats(self, qn, response=True, vars=[], filt={}):
 
         # 'var', ['lv11','lvl2']
@@ -110,34 +109,39 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des', 'rdf'])):
                 lvls=','.join(
                     map(lambda x:'"%s"' %x, v)
                 )
-            )
+            ) for k,v in filt.items()
         ])
-        subs = rsvy.subset_survey_design(
-            self.des,
-            eval(parse(text=filt_fmla))
-        )
+        logging.info(filt_fmla)
+        subs = self.des
+        if len(filt.keys()) > 0:
+            subs = subset_des_wexpr( self.des, filt_fmla)
 
+        loggfn = lambda x: do(logging.info, x)
+
+        lvl_f =  Formula('~%s' % ' + '.join(vars)) if len(vars) > 0 else None
+        xtab_row_fn = lambda z: thread_last(
+                z.to_dict().items(),
+                loggfn,
+                map(lambda x: '%s == "%s"' % x),
+                loggfn,
+                list,
+                lambda x: [x[:i+1] for i in range(len(x))],
+                loggfn,
+                map(lambda y: ' & '.join(y))
+            )
         calls = thread_first(
-            vars,
-            lambda x: '~%s' % ' + '.join(x),
-            Formula,
-            flip(rstats.xtabs, subs),
-            rbase.as_data_frame
+            rstats.xtabs(lvl_f, self.rdf),
+            rbase.as_data_frame,
             pandas2ri.ri2py,
             (pd.DataFrame.query, "Freq > 0"),
-            (pd.DataFrame.apply,
-             lambda z: thread_last(
-                z,
-                (zip, df.columns[:-1], z),
-                (map, lambda x: '%s == "%s"' % x),
-                lambda x: [x[:i+1] for i in range(len(x))],
-                lambda y: ' & '.join(y)
-            )),
-            pd.DataFrame.tolist,
+            (pd.DataFrame.get, vars),
+            loggfn,
+            lambda df: df.apply(xtab_row_fn, axis=1),
+            pd.Series.tolist,
             concat,
-            flip(map, lamba x: x + ' & ' + filt_fmla)
-        )
-        logging.info("generated calls:\n" + calls)
+            map(lambda x: x + ' & ' + filt_fmla if len(filt.keys()) > 0 else x),
+        ) if len(vars) > 0 else []
+        logging.info("generated calls:\n" + "\n".join(calls))
         return fetch_stats(self.des, qn, response, vars, filt)
 
     def var_in_svy(self, var):
