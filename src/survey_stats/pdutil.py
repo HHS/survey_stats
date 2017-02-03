@@ -9,6 +9,4 @@ def fill_none(self):
 def guard_nan(val):
     return None if np.isnan(val) else val
 
-def join_qw(strlist):
-    return map(lambda x: '"%s"' % x, strlist)
 

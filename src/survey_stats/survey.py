@@ -99,8 +99,10 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des', 'rdf'])):
     def subset(self, filter):
         return self._replace(des=subset_survey(self.des, filter))
 
-    def fetch_stats(self, qn, response=True, vars=[], filt={}):
+    def get_xtab_for_dataset(self):
 
+
+    def generate_calls(self, qn, response, vars=[], filt={}):
         # 'var', ['lv11','lvl2']
         #   => 'var %in% c("lvl1","lvl2")'
         filt_fmla = ' & '.join([
@@ -142,6 +144,10 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des', 'rdf'])):
             map(lambda x: x + ' & ' + filt_fmla if len(filt.keys()) > 0 else x),
         ) if len(vars) > 0 else []
         logging.info("generated calls:\n" + "\n".join(calls))
+
+
+    def fetch_stats(self, qn, response=True, vars=[], filt={}):
+
         return fetch_stats(self.des, qn, response, vars, filt)
 
     def var_in_svy(self, var):
