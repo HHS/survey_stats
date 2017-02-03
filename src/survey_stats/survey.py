@@ -1,7 +1,8 @@
 import logging
 import gc
 import json
-
+from toolz.itertools import concat, concatv, mapcat
+from toolz.functoolz import thread_last
 from collections import namedtuple
 
 import rpy2
@@ -15,6 +16,7 @@ from survey_stats.helpr import svyciprop_yrbs, svybyci_yrbs, filter_survey_var
 from survey_stats import pdutil
 
 rbase = importr('base')
+rstats = importr('stats')
 rsvy = importr('survey')
 
 
@@ -94,8 +96,48 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des', 'rdf'])):
     def subset(self, filter):
         return self._replace(des=subset_survey(self.des, filter))
 
+    def filter_formula(self, filt, ignore_missing=False):
 
+    filtered = rbase.Reduce( "&",
+        [filter_survey_var(des, k, v) for k,v in filt.items()])
     def fetch_stats(self, qn, response=True, vars=[], filt={}):
+
+        # 'var', ['lv11','lvl2']
+        #   => 'var %in% c("lvl1","lvl2")'
+        filt_fmla = ' & '.join([
+            '{var} %in% c({lvls})'.format(
+                var=k,
+                lvls=','.join(
+                    map(lambda x:'"%s"' %x, v)
+                )
+            )
+        ])
+        subs = rsvy.subset_survey_design(
+            self.des,
+            eval(parse(text=filt_fmla))
+        )
+
+        calls = thread_first(
+            vars,
+            lambda x: '~%s' % ' + '.join(x),
+            Formula,
+            flip(rstats.xtabs, subs),
+            rbase.as_data_frame
+            pandas2ri.ri2py,
+            (pd.DataFrame.query, "Freq > 0"),
+            (pd.DataFrame.apply,
+             lambda z: thread_last(
+                z,
+                (zip, df.columns[:-1], z),
+                (map, lambda x: '%s == "%s"' % x),
+                lambda x: [x[:i+1] for i in range(len(x))],
+                lambda y: ' & '.join(y)
+            )),
+            pd.DataFrame.tolist,
+            concat,
+            flip(map, lamba x: x + ' & ' + filt_fmla)
+        )
+        logging.info("generated calls:\n" + calls)
         return fetch_stats(self.des, qn, response, vars, filt)
 
     def var_in_svy(self, var):
