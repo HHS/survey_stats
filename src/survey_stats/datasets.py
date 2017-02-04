@@ -8,7 +8,7 @@ from rpy2.robjects.packages import importr
 from collections import namedtuple
 from survey_stats.survey import AnnotatedSurvey
 from survey_stats.feathers import has_feather, load_feather
-#TODO: install from remote yaml
+# TODO: install from remote yaml
 #import appdirs
 
 rfther = importr('feather', on_conflict='warn')
@@ -17,9 +17,8 @@ rutils = importr('utils')
 cache_dir = os.path.join(os.getcwd(), 'cache')
 
 
-class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
+class SurveyDataset(namedtuple('Dataset', ['config', 'surveys'])):
     __slots__ = ()
-
 
     @classmethod
     def load_dataset(cls, yml_f):
@@ -27,7 +26,7 @@ class SurveyDataset(namedtuple('Dataset', ['config','surveys'])):
         with open(yml_f, 'r') as fh:
             config = yaml.load(fh)['surveys']
         svys = {}
-        for k,v in config.items():
+        for k, v in config.items():
             svys[k] = cls.fetch_or_load_dataset(k, v['spss'], v['data'])
         return cls(config=config, surveys=svys)
 
@@ -52,17 +51,16 @@ class YRBSSDataset(SurveyDataset):
 
     def fetch_survey(self, combined=True, national=True, year=None):
         pred = lambda v: v['is_combined'] == combined and \
-                v['is_national'] == national and \
-                (v['year'] == year if year else True)
-        return next((self.surveys[k] for k,v in self.config.items() if
-                     pred(v)), None)
+            v['is_national'] == national and \
+            (v['year'] == year if year else True)
+        return next((self.surveys[k] for k, v in self.config.items()
+                     if pred(v)), None)
 
     def fetch_config(self, combined=True, national=True, year=None):
         pred = lambda v: v['is_combined'] == combined and \
-                v['is_national'] == national and \
-                (v['year'] == year if year else True)
-        return next(((k,v) for k,v in self.config.items() if
-                     pred(v)), None)
+            v['is_national'] == national and \
+            (v['year'] == year if year else True)
+        return next(((k, v) for k, v in self.config.items() if pred(v)), None)
 
     @property
     def survey_years(self):
