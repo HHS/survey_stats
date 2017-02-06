@@ -1,6 +1,4 @@
-
 class InvalidUsage(Exception):
-
     def __init__(self, message, status_code=400, payload=None):
         Exception.__init__(self)
         self.message = message
@@ -12,9 +10,9 @@ class InvalidUsage(Exception):
         rv['message'] = self.message
         rv['status_code'] = self.status_code
         return rv
+
 
 class EmptyFilterError(Exception):
-
     def __init__(self, message, status_code=400, payload=None):
         Exception.__init__(self)
         self.message = message
@@ -27,8 +25,8 @@ class EmptyFilterError(Exception):
         rv['status_code'] = self.status_code
         return rv
 
-class ComputationError(Exception):
 
+class ComputationError(Exception):
     def __init__(self, message, status_code=500, payload=None):
         Exception.__init__(self)
         self.message = message
@@ -40,4 +38,3 @@ class ComputationError(Exception):
         rv['message'] = self.message
         rv['status_code'] = self.status_code
         return rv
-
