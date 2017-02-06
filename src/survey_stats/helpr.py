@@ -35,7 +35,7 @@ function(v) {
 
 subset_des_wexpr = robjects.r('''
 function(des,expr) {
-    subset(
-    des, eval(parse(text=expr)))
+    subset( des,
+            eval(parse(text=expr)))
 }''')
 

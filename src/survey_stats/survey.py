@@ -16,7 +16,7 @@ from rpy2.robjects import Formula
 from survey_stats.parsers import parse_fwfcols_spss, parse_surveyvars_spss
 from survey_stats.helpr import svyciprop_yrbs, svybyci_yrbs, subset_des_wexpr
 from survey_stats.helpr import filter_survey_var
-from survey_stats import pdutil
+from survey_stats import pdutil as u
 
 rbase = importr('base')
 rstats = importr('stats')
@@ -31,7 +31,7 @@ def subset_survey(des, filt):
         #empty filter, return original design object
         return des
     filtered = rbase.Reduce( "&",
-        [filter_survey_var(des, k, v) for k,v in filt.items()])
+                            [filter_survey_var(des, k, v) for k,v in filt.items()])
     return rsvy.subset_survey_design(des, filtered)
 
 
@@ -63,29 +63,30 @@ def fetch_stats(des, qn, response=True, vars=[], filt={}):
     total_ci = None
     if count > 0:
         total_ci = svyciprop_yrbs(qn_f, des, multicore=False)
-    #extract stats
-    res = { 'level': 0,
-           'mean': pdutil.guard_nan(
-               rbase.as_numeric(total_ci)[0]) if total_ci else None,
-           'se': pdutil.guard_nan(
-               rsvy.SE(total_ci)[0]) if total_ci else None,
-           'ci_l': pdutil.guard_nan(
-               rbase.attr(total_ci,'ci')[0]) if total_ci else None,
-           'ci_u': pdutil.guard_nan(
-               rbase.attr(total_ci,'ci')[1]) if total_ci else None,
-           'count': count }
-    #round as appropriate
-    res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k,v in
-           res.items()}
-    #setup the result list
-    res = [res]
-    vstack = vars[:]
-    while len(vstack) > 0:
-        #get stats for each level of interactions in vars
-        #using svyby to compute across combinations of loadings
-        res.extend(fetch_stats_by(des, qn_f, vstack))
-        vstack.pop()
-    return res
+        #extract stats
+        res = { 'level': 0,
+               'mean': u.guard_nan(
+                   rbase.as_numeric(total_ci)[0]) if total_ci else None,
+               'se': u.guard_nan(
+                   rsvy.SE(total_ci)[0]) if total_ci else None,
+               'ci_l': u.guard_nan(
+                   rbase.attr(total_ci,'ci')[0]) if total_ci else None,
+               'ci_u': u.guard_nan(
+                   rbase.attr(total_ci,'ci')[1]) if total_ci else None,
+               'count': count }
+        #round as appropriate
+        res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k,v in
+               res.items()}
+        #setup the result list
+        res = [res]
+        vstack = vars[:]
+        while len(vstack) > 0:
+            #get stats for each level of interactions in vars
+            #using svyby to compute across combinations of loadings
+            res.extend(fetch_stats_by(des, qn_f, vstack))
+            vstack.pop()
+            return res
+
 
 
 class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des', 'rdf'])):
@@ -99,55 +100,68 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des', 'rdf'])):
     def subset(self, filter):
         return self._replace(des=subset_survey(self.des, filter))
 
-    def get_xtab_for_dataset(self):
-
-
-    def generate_calls(self, qn, response, vars=[], filt={}):
-        # 'var', ['lv11','lvl2']
-        #   => 'var %in% c("lvl1","lvl2")'
-        filt_fmla = ' & '.join([
-            '{var} %in% c({lvls})'.format(
-                var=k,
-                lvls=','.join(
-                    map(lambda x:'"%s"' %x, v)
-                )
-            ) for k,v in filt.items()
-        ])
-        logging.info(filt_fmla)
-        subs = self.des
-        if len(filt.keys()) > 0:
-            subs = subset_des_wexpr( self.des, filt_fmla)
-
-        loggfn = lambda x: do(logging.info, x)
-
+    def generate_slices(self, qn, response, vars=[], filt={}):
+        # create the overall filter
+        filt_fmla = u.fmla_for_filt(filt)
+        # subset the rdf as necessary
+        subs = subset_des_wexpr(self.rdf, filt_fmla) if len(filt) > 0 else self.rdf
+        # create a formula for generating the cross-tabs/breakouts across
+        #   the selected vars
         lvl_f =  Formula('~%s' % ' + '.join(vars)) if len(vars) > 0 else None
-        xtab_row_fn = lambda z: thread_last(
-                z.to_dict().items(),
-                loggfn,
-                map(lambda x: '%s == "%s"' % x),
-                loggfn,
-                list,
-                lambda x: [x[:i+1] for i in range(len(x))],
-                loggfn,
-                map(lambda y: ' & '.join(y))
-            )
+        # generate the crosstab/breakouts for the selected vars,
+        #   turn them into R selector expressions and concatenate
+        #   each non-empty selector with the R selector for the outer filter
         calls = thread_first(
-            rstats.xtabs(lvl_f, self.rdf),
+            rstats.xtabs(lvl_f, subs),
             rbase.as_data_frame,
             pandas2ri.ri2py,
             (pd.DataFrame.query, "Freq > 0"),
             (pd.DataFrame.get, vars),
-            loggfn,
-            lambda df: df.apply(xtab_row_fn, axis=1),
+            u.tee_logfn,
+            lambda df: df.apply(fmla_for_xtab_row, axis=1),
             pd.Series.tolist,
-            concat,
-            map(lambda x: x + ' & ' + filt_fmla if len(filt.keys()) > 0 else x),
+            concat
         ) if len(vars) > 0 else []
-        logging.info("generated calls:\n" + "\n".join(calls))
+        # setup the formula based on the qn and response
+        qn_f = '~%s%s' % ('' if response else '!', qn)
+        # add the base case with empty slice filter
+        #   and dicts of qn/resp fmla, slice selector fmla, filt fmla
+        return [{'qn_f': qn_f,
+                 'filt_f': filt_fmla,
+                 'slice_f': f} for f in ['', *calls]]
 
 
-    def fetch_stats(self, qn, response=True, vars=[], filt={}):
+    def fetch_stats_for_slice(self, qn_f, filt_f, slice_f):
+        # create formula for selected question and risk profile
+        qn_f = Formula(qn_f)
+        subs_f = (filt_f + ' & ' + slice_f
+                  if len(subs_f) > 0 and len(subs_f) > 0
+                  else filt_f + slice_f)
+        # subset the design using the slice fmla
+        des = subset_des_wexpr(self.des, subs_f) if len(subs_f > 0 else self.des
+        count = rbase.as_numeric(rsvy.unwtd_count(qn_f, des, na_rm=True,
+                                                  multicore=False))[0]
+        total_ci = None
+        if count > 0:
+            total_ci = svyciprop_yrbs(qn_f, des, multicore=False)
+            #extract stats
+            res = { 'level': slice_f.count('&') + 1 if len(slice_f) > 0 else 0,
+                   'mean': u.guard_nan(
+                       rbase.as_numeric(total_ci)[0]) if total_ci else None,
+                   'se': u.guard_nan(
+                       rsvy.SE(total_ci)[0]) if total_ci else None,
+                   'ci_l': u.guard_nan(
+                       rbase.attr(total_ci,'ci')[0]) if total_ci else None,
+                   'ci_u': u.guard_nan(
+                       rbase.attr(total_ci,'ci')[1]) if total_ci else None,
+                   'count': count }
+            #round as appropriate
+            res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k,v in
+                   res.items()}
+            return res
 
+
+    def fetch_stats_linear(self, qn, response=True, vars=[], filt={}):
         return fetch_stats(self.des, qn, response, vars, filt)
 
     def var_in_svy(self, var):

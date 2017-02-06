@@ -11,8 +11,11 @@ from survey_stats import settings
 from survey_stats import state
 from survey_stats.validate import (SurveyYearValidator, validated_facet,
                                    handle_invalid_usage, fetch, before_request)
+from survey_stats.tasks import (run_task, task_get_questions)
+
 
 app = None
+
 
 def boot_when_ready(server=None):
     app = Flask(__name__)
@@ -22,6 +25,8 @@ def boot_when_ready(server=None):
 @app.route("/questions")
 @app.route("/questions/<survey_year:year>")
 def fetch_questions(year=None):
+    result = await run_task(task_get_questions)
+    return jsonify(result)
 
 
 @app.route('/stats/national')

@@ -37,7 +37,7 @@ async def run_task(task, *args, loop=None, **kwargs):
 
 
 @job('high', connection=redis_conn, timeout=20)
-def get_questions(year=None):
+def task_get_questions(year=None):
     def get_meta(k, v):
         key = k.lower()
         res = dict(meta.qnmeta_dict[key], **v, id=k) if
