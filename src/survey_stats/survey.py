@@ -6,13 +6,13 @@ from toolz.functoolz import thread_last, thread_first, flip, do, compose
 from toolz.curried import map, filter, reduce
 from toolz import curry
 from collections import namedtuple
+from collections import abc
 import pandas as pd
 import rpy2
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
 from rpy2.robjects import Formula
-
 from survey_stats.parsers import parse_fwfcols_spss, parse_surveyvars_spss
 from survey_stats.helpr import svyciprop_yrbs, svybyci_yrbs, subset_des_wexpr
 from survey_stats.helpr import filter_survey_var
@@ -138,7 +138,7 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des', 'rdf'])):
                   if len(subs_f) > 0 and len(subs_f) > 0
                   else filt_f + slice_f)
         # subset the design using the slice fmla
-        des = subset_des_wexpr(self.des, subs_f) if len(subs_f > 0 else self.des
+        des = subset_des_wexpr(self.des, subs_f) if len(subs_f) > 0 else self.des
         count = rbase.as_numeric(rsvy.unwtd_count(qn_f, des, na_rm=True,
                                                   multicore=False))[0]
         total_ci = None
@@ -169,6 +169,9 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars','des', 'rdf'])):
 
     def var_lvl_in_svy(self, var, lvl):
         return self.var_in_svy(var)
+
+
+
 
 
     @classmethod

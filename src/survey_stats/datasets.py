@@ -8,8 +8,6 @@ from rpy2.robjects.packages import importr
 from collections import namedtuple
 from survey_stats.survey import AnnotatedSurvey
 from survey_stats.feathers import has_feather, load_feather
-# TODO: install from remote yaml
-#import appdirs
 
 rfther = importr('feather', on_conflict='warn')
 rutils = importr('utils')
@@ -56,11 +54,13 @@ class YRBSSDataset(SurveyDataset):
         return next((self.surveys[k] for k, v in self.config.items()
                      if pred(v)), None)
 
-    def fetch_config(self, combined=True, national=True, year=None):
-        pred = lambda v: v['is_combined'] == combined and \
-            v['is_national'] == national and \
-            (v['year'] == year if year else True)
+    def fetch_config(self, national=True, year=None):
+        combined = not year # if year is present, get ind year, else combined
+        pred = (lambda v: v['is_combined'] == combined and
+                v['is_national'] == national and
+                (v['year'] == year if year else True))
         return next(((k, v) for k, v in self.config.items() if pred(v)), None)
+
 
     @property
     def survey_years(self):
