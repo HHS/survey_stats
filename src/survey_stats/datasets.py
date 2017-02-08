@@ -1,6 +1,7 @@
 import os
 import logging
 import yaml
+import json
 
 import rpy2
 from rpy2 import robjects
@@ -23,9 +24,11 @@ class SurveyDataset(namedtuple('Dataset', ['config', 'surveys'])):
         config = None
         with open(yml_f, 'r') as fh:
             config = yaml.load(fh)['surveys']
+
         svys = {}
         for k, v in config.items():
             svys[k] = cls.fetch_or_load_dataset(k, v['spss'], v['data'])
+
         return cls(config=config, surveys=svys)
 
     def fetch_or_load_dataset(id, spss_f, data_f):
@@ -41,19 +44,26 @@ class SurveyDataset(namedtuple('Dataset', ['config', 'surveys'])):
             ret = AnnotatedSurvey.load_cdc_survey(spss_f, data_f)
             logging.info('saving data to feather cache: %s' % f)
             rfther.write_feather(ret.rdf, f)
-        return ret
+            return ret
 
 
 class YRBSSDataset(SurveyDataset):
     __slots__ = ()
 
     def fetch_survey(self, combined=True, national=True, year=None):
-        logging.info(self.config)
-        pred = lambda v: v['is_combined'] == combined and \
-            v['is_national'] == national and \
-            (v['year'] == year if year else True)
-        return next((self.surveys[k] for k, v in self.config.items()
-                     if pred(v)), None)
+        logging.info(json.dumps(self.config, indent=4))
+        logging.info(combined)
+        logging.info(national)
+        logging.info(year)
+        pred = (lambda v: v['is_combined'] == combined and
+                v['is_national'] == national and
+                (v['year'] == year if year else True))
+        ks = [k for k,v in self.config.items() if
+                v['is_combined'] == combined and
+                v['is_national'] == national and
+                (v['year'] == year if year else True)]
+        logging.info(ks)
+        return self.surveys[k[0]]
 
     def fetch_config(self, national=True, year=None):
         logging.info(self.config)
