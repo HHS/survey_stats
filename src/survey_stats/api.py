@@ -89,7 +89,7 @@ def remap_vars(cfg, coll, into=True):
 
 
 async def fetch_survey_stats(req, national, year):
-    logging.info("requested uri: %s" % req.url)
+    logging.info("requested uri: %s" % req)
     logging.info(year)
     (k, cfg) = st.dset['yrbss'].fetch_config(national, year)
     logging.info((k, cfg))
