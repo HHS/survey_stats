@@ -43,7 +43,8 @@ def fetch_questions(req, year=None):
     combined = False if year else True
     svy = st.dset[dset_id].fetch_survey(combined, national, year)
     res = [(k, get_meta(k, v)) for k, v in svy.vars.items()]
-    return res
+    res = OrderedDict(res)
+    return json(res)
 
 
 @app.route('/stats/national')
