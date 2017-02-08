@@ -43,7 +43,6 @@ def fetch_questions(req, year=None):
     combined = False if year else True
     svy = st.dset[dset_id].fetch_survey(combined, national, year)
     res = [(k, get_meta(k, v)) for k, v in svy.vars.items()]
-    res = OrderedDict(res)
     return res
 
 
