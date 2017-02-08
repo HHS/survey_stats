@@ -44,29 +44,19 @@ class SurveyDataset(namedtuple('Dataset', ['config', 'surveys'])):
             ret = AnnotatedSurvey.load_cdc_survey(spss_f, data_f)
             logging.info('saving data to feather cache: %s' % f)
             rfther.write_feather(ret.rdf, f)
-            return ret
+        return ret
 
 
 class YRBSSDataset(SurveyDataset):
     __slots__ = ()
 
     def fetch_survey(self, combined=True, national=True, year=None):
-        logging.info(json.dumps(self.config, indent=4))
-        logging.info(combined)
-        logging.info(national)
-        logging.info(year)
         pred = (lambda v: v['is_combined'] == combined and
                 v['is_national'] == national and
                 (v['year'] == year if year else True))
-        ks = [k for k,v in self.config.items() if
-                v['is_combined'] == combined and
-                v['is_national'] == national and
-                (v['year'] == year if year else True)]
-        logging.info(ks)
-        return self.surveys[k[0]]
+        return next(( self.surveys[k] for k, v in self.config.items() if pred(v)), None)
 
     def fetch_config(self, national=True, year=None):
-        logging.info(self.config)
         combined = not year # if year is present, get ind year, else combined
         pred = (lambda v: v['is_combined'] == combined and
                 v['is_national'] == national and
