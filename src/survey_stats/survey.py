@@ -68,29 +68,31 @@ def fetch_stats(des, qn, response=True, vars=[], filt={}):
     total_ci = None
     if count > 0:
         total_ci = svyciprop_yrbs(qn_f, des, multicore=False)
-        # extract stats
-        res = {'level': 0,
-               'mean': u.guard_nan(
-                   rbase.as_numeric(total_ci)[0]) if total_ci else None,
-               'se': u.guard_nan(
-                   rsvy.SE(total_ci)[0]) if total_ci else None,
-               'ci_l': u.guard_nan(
-                   rbase.attr(total_ci, 'ci')[0]) if total_ci else None,
-               'ci_u': u.guard_nan(
-                   rbase.attr(total_ci, 'ci')[1]) if total_ci else None,
-               'count': count}
-        # round as appropriate
-        res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k, v in
-               res.items()}
-        # setup the result list
-        res = [res]
-        vstack = vars[:]
-        while len(vstack) > 0:
-            # get stats for each level of interactions in vars
-            # using svyby to compute across combinations of loadings
-            res.extend(fetch_stats_by(des, qn_f, vstack))
-            vstack.pop()
-            return res
+
+    # extract stats
+    res = {'level': 0,
+           'mean': u.guard_nan(
+               rbase.as_numeric(total_ci)[0]) if total_ci else None,
+           'se': u.guard_nan(
+               rsvy.SE(total_ci)[0]) if total_ci else None,
+           'ci_l': u.guard_nan(
+               rbase.attr(total_ci, 'ci')[0]) if total_ci else None,
+           'ci_u': u.guard_nan(
+               rbase.attr(total_ci, 'ci')[1]) if total_ci else None,
+           'count': count}
+    # round as appropriate
+    res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k, v in
+           res.items()}
+    # setup the result list
+    res = [res]
+    vstack = vars[:]
+    while len(vstack) > 0:
+        # get stats for each level of interactions in vars
+        # using svyby to compute across combinations of loadings
+        res.extend(fetch_stats_by(des, qn_f, vstack))
+        vstack.pop()
+
+    return res
 
 
 class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
@@ -166,25 +168,26 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
         total_ci = None
         if count > 0:
             total_ci = svyciprop_yrbs(qn_f, des, multicore=False)
-            # extract stats
-            res = {'level': slice_f.count('&') + 1 if len(slice_f) > 0 else 0,
-                   'mean': u.guard_nan(
-                rbase.as_numeric(total_ci)[0]) if total_ci else None,
-                'se': u.guard_nan(
-                rsvy.SE(total_ci)[0]) if total_ci else None,
-                'ci_l': u.guard_nan(
-                rbase.attr(total_ci, 'ci')[0]) if total_ci else None,
-                'ci_u': u.guard_nan(
-                rbase.attr(total_ci, 'ci')[1]) if total_ci else None,
-                'count': count,
-                'filter': f,
-                'q_resp': bool(r),
-                'q': q}
-            res.update(s)
-            # round as appropriate
-            res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k, v in
-                   res.items()}
-            return res
+
+        # extract stats
+        res = {'level': slice_f.count('&') + 1 if len(slice_f) > 0 else 0,
+               'mean': u.guard_nan(
+            rbase.as_numeric(total_ci)[0]) if total_ci else None,
+            'se': u.guard_nan(
+            rsvy.SE(total_ci)[0]) if total_ci else None,
+            'ci_l': u.guard_nan(
+            rbase.attr(total_ci, 'ci')[0]) if total_ci else None,
+            'ci_u': u.guard_nan(
+            rbase.attr(total_ci, 'ci')[1]) if total_ci else None,
+            'count': count,
+            'filter': f,
+            'q_resp': bool(r),
+            'q': q}
+        res.update(s)
+        # round as appropriate
+        res = {k: round(v, DECIMALS[k]) if k in DECIMALS and v != None else v for k, v in
+               res.items()}
+        return res
 
     def fetch_stats_linear(self, qn, response=True, vars=[], filt={}):
         return fetch_stats(self.des, qn, response, vars, filt)

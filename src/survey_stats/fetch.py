@@ -32,5 +32,4 @@ async def fetch_all(slices):
 			tasks.append(task)
 
 		responses = await asyncio.gather(*tasks)
-		print(responses)
 		return [r for r in responses]

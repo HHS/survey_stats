@@ -1,3 +1,4 @@
+from survey_stats import log
 from survey_stats.meta import SurveyMetadata
 from survey_stats.datasets import YRBSSDataset
 

@@ -48,6 +48,7 @@ class YRBSSDataset(SurveyDataset):
     __slots__ = ()
 
     def fetch_survey(self, combined=True, national=True, year=None):
+        logging.info(self.config)
         pred = lambda v: v['is_combined'] == combined and \
             v['is_national'] == national and \
             (v['year'] == year if year else True)
@@ -55,6 +56,7 @@ class YRBSSDataset(SurveyDataset):
                      if pred(v)), None)
 
     def fetch_config(self, national=True, year=None):
+        logging.info(self.config)
         combined = not year # if year is present, get ind year, else combined
         pred = (lambda v: v['is_combined'] == combined and
                 v['is_national'] == national and
