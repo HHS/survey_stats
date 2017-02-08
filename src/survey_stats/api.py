@@ -37,7 +37,7 @@ def fetch_questions(req, year=None):
     def get_meta(k, v):
         key = k.lower()
         res = (dict(meta.qnmeta_dict[key], **v, id=k) if key in
-               meta.qnmeta_dict else dict(v, id=k))
+               st.meta[dset_id].qnmeta_dict else dict(v, id=k))
         return res
     national = True
     combined = False if year else True
