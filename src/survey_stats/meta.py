@@ -76,27 +76,17 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
             else ['mean_no', 'ci_h_no', 'ci_l_no','sample_size'])
         s_vars = self.config['facets']
         df = self.dash
-        logging.info('INIT')
-        logging.info(df.shape)
         df = df[df['questioncode'] == qn]
-        logging.info('QNCODE')
-        logging.info(df.shape)
         if is_national:
             df = df[df['stratificationtype'] == 'National']
         else:
             df = df[df['stratificationtype'] == 'State']
             if 'sitecode' in filt.keys():
                 df = df[df['sitecode'] == filt['sitecode']]
-        logging.info('STRAT')
-        logging.info(df.shape)
         if 'year' in filt.keys():
             df = df[df['year'].isin(map( int, filt['year']))]
-        logging.info('YEAR1')
-        logging.info(df.shape)
         if year:
             df = df[df['year'] == year]
-        logging.info('YEAR2')
-        logging.info(df.shape)
         for v in s_vars:
             if not v in vars and not v == 'year':
                 logging.info(v)
@@ -107,11 +97,9 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         if not 'sitecode' in vars:
             vars.append('sitecode')
         df = df[vars + cols]
-        logging.info(df.shape)
-        df.columns = vars + ['pre_mean','pre_ci_h','pre_ci_l','pre_count']
+        df.columns = vars + ['mean','ci_h','ci_l','count']
         df['q'] = qn
         df['q_resp'] = response
-        logging.info(df.shape)
         return df.to_dict(orient='records')
 
     @threaded_cached_property
