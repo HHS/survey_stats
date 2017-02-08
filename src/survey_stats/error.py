@@ -1,6 +1,6 @@
+from sanic.exceptions import InvalidUsage, ServerError, NotFound
 
-
-class InvalidUsage(Exception):
+class SSInvalidUsage(InvalidUsage):
     def __init__(self, message, status_code=400, payload=None):
         Exception.__init__(self)
         self.message = message
@@ -14,7 +14,7 @@ class InvalidUsage(Exception):
         return rv
 
 
-class EmptyFilterError(Exception):
+class SSEmptyFilterError(NotFound):
     def __init__(self, message, status_code=400, payload=None):
         Exception.__init__(self)
         self.message = message
@@ -28,7 +28,7 @@ class EmptyFilterError(Exception):
         return rv
 
 
-class ComputationError(Exception):
+class SSComputationError(ServerError):
     def __init__(self, message, status_code=500, payload=None):
         Exception.__init__(self)
         self.message = message

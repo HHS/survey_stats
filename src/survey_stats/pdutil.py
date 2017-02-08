@@ -1,5 +1,10 @@
 import pandas as pd
 import numpy as np
+import logging
+from toolz.functoolz import thread_last, thread_first, flip, do, compose
+from toolz.itertoolz import concat, concatv, mapcat
+from toolz.curried import map, filter, reduce
+from toolz import curry
 
 #extend Series with fill_none method
 # to take care of json/mysql conversion
@@ -21,30 +26,22 @@ def fmla_for_filt(filt):
     return ' & '.join([
         '{var} %in% c({lvls})'.format(
             var=k,
-            lvls=','.join(
-                map(lambda x:'"%s"' %x, v)
-            )
+            lvls=','.join(map(lambda x:'"%s"' %x, v))
         ) for k,v in filt.items()
     ])
 
 
-def fmla_for_xtab_row(z):
+def fmla_for_slice(z):
     """
     convert from column selector row (in dataframe) like
-        'varX','lvl1','varY','lvl3','varZ','lvl0'...
+        ('varX','lvl1'),('varY','lvl3'),('varZ','lvl0')...
     to a set of R selector expression like
         'varX == "lvl1"'
         'varX == "lvl1" & varY == "lvl3"'
         'varX == "lvl1" & varY == "lvl3" & varZ == "lvl0"'
     """
-    return thread_last(
-        z.to_dict().items(),
-        map(lambda x: '%s == "%s"' % x),
-        list,
-        lambda x: [x[:i+1] for i in range(len(x))],
-        map(lambda y: ' & '.join(y))
-    )
-
+    logging.warn(z)
+    return ' & '.join(['%s == "%s"' % (k,v) for k,v in z.items()])
 
 def tee_logfn(x):
     """

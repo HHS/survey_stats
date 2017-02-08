@@ -1,22 +1,31 @@
 import time
 import logging
+import traceback
+
 from collections import OrderedDict
-#from collections.abc import Collection, Mapping
+from toolz.dicttoolz import merge
+
 from sanic import Sanic
 from sanic.response import text, json
 
-from survey_stats import settings
-from survey_stats import state as st
-from survey_stats.tasks import run_task, task_fetch_slice_stats
-import survey_stats.state as st
-from survey_stats import validate
-import survey_stats.logging
 import asyncio
 import uvloop
+import aiohttp
+from aiohttp import ClientSession
 
+from survey_stats import log
+from survey_stats import error as sserr
+from survey_stats import settings
+from survey_stats import fetch
+from survey_stats import state as st
+
+
+# ensure that sanic and asyncio share the same event loop
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
 app = Sanic(__name__)
 #app.url_map.converters['survey_year'] = validate.SurveyYearValidator
+
 
 @app.route("/questions")
 @app.route("/questions/<survey_year:year>")
@@ -29,7 +38,7 @@ def fetch_questions(req, year=None, dset_id='yrbss'):
     national = True
     combined = False if year else True
     svy = st.dset[dset_id].fetch_survey(national, year)
-    res = [(k,get_meta(k,v)) for k, v in svy.vars.items()]
+    res = [(k, get_meta(k, v)) for k, v in svy.vars.items()]
     res = OrderedDict(res)
     return res
 
@@ -55,29 +64,23 @@ def fetch_state_stats(req):
     return fetch_survey_stats(req, national=False, year=None)
 
 
-
-
-def remap_vars(cfg, items, into=True):
-	pv = ({v: k for k, v in cfg['pop_vars'].items()} if into
-		  else cfg['pop_vars'])
-	res = None
-	typ = type(items)
-	# if missing a mapping, should throw KeyError!
-	# cheap validation
-	logging.info(pv)
-	logging.info(items)
-	if isinstance(items, list):
-		res = [pv[k] for k in items]
-	elif isinstance(items, dict):
-		res = {pv[k]: v for k,v in items}
-	else:
-		raise TypeError("items must be a Collection or Mapping, found %s" %
-						typ)
-	return res
-
-
-async def await_slice(slice_args, svy_id, dset_id='yrbss'):
-    await run_task(task_fetch_slice_stats, *slice_args, svy_id=svy_id, dset_id=dset_id)
+def remap_vars(cfg, coll, into=True):
+    pv = ({v: k for k, v in cfg['pop_vars'].items()} if not into
+          else cfg['pop_vars'])
+    res = None
+    typ = type(coll)
+    # if missing a mapping, should throw KeyError!
+    # cheap validation
+    logging.info(pv)
+    logging.info(coll)
+    if isinstance(coll, list):
+        res = [pv[k] for k in coll]
+    elif isinstance(coll, dict):
+        res = {pv[k]: v for k, v in coll.items()}
+    else:
+        raise TypeError("items must be a Collection or Mapping, found %s" %
+                        typ)
+    return res
 
 
 async def fetch_survey_stats(req, national, year):
@@ -86,7 +89,7 @@ async def fetch_survey_stats(req, national, year):
     logging.info((k, cfg))
     qn = req.args.get('q')
     vars = [] if not 'v' in req.args else req.args.get('v').split(',')
-    resp = True if not 'r' in req.args else not 0 ** int(req.args.get('r'),2)
+    resp = True if not 'r' in req.args else not 0 ** int(req.args.get('r'), 2)
     filt = {} if not 'f' in req.args else dict(
         map(lambda fv: (fv.split(':')[0],
                         fv.split(':')[1].split(',')),
@@ -99,11 +102,12 @@ async def fetch_survey_stats(req, national, year):
         raise EmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
     try:
         question = svy.vars[qn]['question']
-        var_levels = remap_vars(cfg, {v:svy_vars[v] for v in m_vars}, into=False)
+        var_levels = remap_vars(
+            cfg, {v: svy.vars[v] for v in m_vars}, into=False)
     except KeyError as err:
-        raise InvalidUsage('KeyError: %s' % str(err), payload={
+        raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
             'traceback': traceback.format_exc().splitlines(),
-            'request': req.args.to_dict(),
+            'request': req.args,
             'state': {
                 'q': qn,
                 'svy_vars': svy.vars,
@@ -111,9 +115,10 @@ async def fetch_survey_stats(req, national, year):
             }})
     try:
         logging.info("Ready to fetch!")
-        stats = svy.generate_slices(qn, resp, m_vars, m_filt)
-        results = await asyncio.wait([ await_slice(s, k) for s in stats ],
-                                     return_when=asyncio.FIRST_EXCEPTION)
+        loc = {'svy_id': k, 'dset_id': 'yrbss'}
+        slices = [merge(loc, s)
+                  for s in svy.generate_slices(qn, resp, m_vars, m_filt)]
+        results = await fetch.fetch_all(slices)
         return json({
             'q': qn,
             'filter': filt,
@@ -123,10 +128,10 @@ async def fetch_survey_stats(req, national, year):
             'var_levels': var_levels,
             'results': results
         })
-    except KeyError as  err:
-        raise InvalidUsage('KeyError: %s' % str(err), payload={
+    except KeyError as err:
+        raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
             'traceback': traceback.format_exc().splitlines(),
-            'request': req.args.to_dict(),
+            'request': req.args,
             'state': {
                 'q': qn,
                 'svy_vars': svy.vars,
@@ -136,11 +141,12 @@ async def fetch_survey_stats(req, national, year):
                 'var_levels': var_levels
             }})
 
-def fetch_survey_stats_linear(national, year):
+
+async def fetch_survey_stats_linear(national, year):
     logging.info("requested uri: %s" % req.url)
     qn = req.args.get('q')
     vars = [] if not 'v' in req.args else req.args.get('v').split(',')
-    resp = True if not 'r' in req.args else not 0 ** int(req.args.get('r'),2)
+    resp = True if not 'r' in req.args else not 0 ** int(req.args.get('r'), 2)
     filt = {} if not 'f' in req.args else dict(
         map(lambda fv: (fv.split(':')[0],
                         fv.split(':')[1].split(',')),
@@ -149,34 +155,35 @@ def fetch_survey_stats_linear(national, year):
     combined = True
     if year:
         combined = False
-    # update vars and filt column names according to pop_vars
-    (k, cfg) = apst['yrbss'].fetch_config(combined, national, year)
-    logging.info((k, cfg))
-    replace_f = lambda x: cfg['pop_vars'][x] if x in cfg['pop_vars'] else x
-    logging.info(vars)
-    logging.info(filt)
-    m_vars = list(map(replace_f, vars))
-    m_filt = {replace_f(k): v for k,v in filt.items()}
-    in_both = set(m_vars).intersection(m_filt)
-    svy = apst['yrbss'].surveys[k]
-    svy = svy.subset(m_filt)
+        # update vars and filt column names according to pop_vars
+        (k, cfg) = apst['yrbss'].fetch_config(combined, national, year)
+        logging.info((k, cfg))
+        replace_f = lambda x: cfg['pop_vars'][x] if x in cfg['pop_vars'] else x
+        logging.info(vars)
+        logging.info(filt)
+        m_vars = list(map(replace_f, vars))
+        m_filt = {replace_f(k): v for k, v in filt.items()}
+        in_both = set(m_vars).intersection(m_filt)
+        svy = apst['yrbss'].surveys[k]
+        svy = svy.subset(m_filt)
 
     if not svy.sample_size > 1:
         raise EmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
     ivd = {v: k for k, v in cfg['pop_vars'].items()}
 
-    #setup functions to reverse map keys for stats
+    # setup functions to reverse map keys for stats
     inverse_f = lambda x: ivd[x] if x in ivd else x
-    replkeys_f = lambda d: {inverse_f(k): v for k,v in d.items()}
+    replkeys_f = lambda d: {inverse_f(k): v for k, v in d.items()}
 
     try:
         question = svy.vars[qn]['question']
         var_levels = {inverse_f(v): svy.vars[v] for v in m_vars}
     except KeyError as err:
-        raise InvalidUsage('KeyError: %s' % str(err), payload={
+        raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
             'traceback': traceback.format_exc().splitlines(),
             'request': req.args.to_dict(),
-            'state': { 'q': qn, 'svy_vars': svy.vars, 'm_vars': m_vars }})
+            'state': {'q': qn, 'svy_vars': svy.vars, 'm_vars': m_vars
+                      }})
     try:
         logging.info("Ready to fetch!")
         stats = svy.fetch_stats(qn, resp, m_vars, m_filt)
@@ -187,18 +194,17 @@ def fetch_survey_stats_linear(national, year):
             'response': resp, 'vars': vars, 'var_levels': var_levels,
             'results': stats, '_elapsed_time': g_time
         })
-    except KeyError as  err:
-        raise InvalidUsage('KeyError: %s' % str(err), payload={
+    except KeyError as err:
+        raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
             'traceback': traceback.format_exc().splitlines(),
             'request': req.args.to_dict(),
-            'state': { 'q': qn, 'svy_vars': svy.vars, 'm_vars': m_vars,
-                'filter': filt, 'response': resp, 'var_levels': var_levels
-            }})
+            'state': {'q': qn, 'svy_vars': svy.vars, 'm_vars': m_vars,
+                      'filter': filt, 'response': resp, 'var_levels': var_levels
+                      }})
+
 
 def serve_app(host, port, workers, debug):
-	loop = asyncio.get_event_loop()
-	app.run(host=host, port=port, workers=workers, debug=debug, loop=loop)
+    app.run(host=host, port=port, workers=workers, debug=debug)
 
 if __name__ == '__main__':
     serve_app(host='0.0.0.0', port=7777, workers=1, debug=True)
-
