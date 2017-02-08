@@ -105,7 +105,7 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         if not 'year' in vars:
             vars.append('year')
         if not 'sitecode' in vars:
-            vars.append('year')
+            vars.append('sitecode')
         df = df[vars + cols]
         logging.info(df.shape)
         df.columns = vars + ['pre_mean','pre_ci_h','pre_ci_l','pre_count']
