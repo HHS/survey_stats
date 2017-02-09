@@ -32,8 +32,7 @@ app = Sanic(__name__)
 dset_id = 'yrbss'
 
 @app.route("/questions")
-@app.route("/questions/<year>")
-def fetch_questions(req, year=None):
+def fetch_questions(req):
     def get_meta(k, v):
         key = k.lower()
         res = (dict(st.meta[dset_id].qnmeta_dict[key], **v, id=k) if key in
@@ -41,21 +40,20 @@ def fetch_questions(req, year=None):
         return res
     national = True
     combined = False if year else True
-    svy = st.dset[dset_id].fetch_survey(combined, national, year)
+    svy = st.dset[dset_id].fetch_survey(combined, national, year=None)
     res = [(k, get_meta(k, v)) for k, v in svy.vars.items()]
     res = OrderedDict(res)
     return json(res)
 
 
 @app.route('/stats/national')
-@app.route('/stats/national/<year>')
-def fetch_national_stats(req, year=None):
+def fetch_national_stats(req):
     """
     National API
     Returns mean, CI and unweighted count for a national survey
     segment from either the combined or individual yearly datasets.
     """
-    return fetch_survey_stats(req, national=True, year=year)
+    return fetch_survey_stats(req, national=True, year=None)
 
 
 @app.route('/stats/state')
@@ -125,7 +123,7 @@ async def fetch_survey_stats(req, national, year):
         loc = {'svy_id': k, 'dset_id': 'yrbss'}
         slices = [merge(loc, s)
                   for s in svy.generate_slices(qn, resp, m_vars, m_filt)]
-        results = await fetch.fetch_all(slices)
+        results =  await fetch.fetch_all(slices)
         #results = await fetch.fetch_all([])
         precomp = []
         if len(set(filt.keys()) - set(['sitecode','year'])) == 0:

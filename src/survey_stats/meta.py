@@ -72,6 +72,15 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
 
 
     def fetch_dash(self, qn, response, vars, filt = {}, is_national=True, year=None):
+        fn_site = lambda x: 'sitecode' if x == 'state' else x
+        vars = [fn_site(x) for x in vars]
+        filt = {fn_site(k): v for k,v in filt.items()}
+        if not 'year' in vars:
+            return [] #only available for indvividual years
+        if year:
+            return [] #only available for combined data
+        if not is_national and not 'sitecode' in vars:
+            return [] #only available for individual states
         cols = (['mean_yes', 'ci_h_yes', 'ci_l_yes','sample_size'] if response
             else ['mean_no', 'ci_h_no', 'ci_l_no','sample_size'])
         s_vars = self.config['facets']
@@ -85,17 +94,9 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
                 df = df[df['sitecode'] == filt['sitecode']]
         if 'year' in filt.keys():
             df = df[df['year'].isin(map( int, filt['year']))]
-        if year:
-            df = df[df['year'] == year]
         for v in s_vars:
             if not v in vars and not v == 'year':
-                logging.info(v)
-                logging.info(df.shape)
                 df = df[(df[v] == 'Total')]
-        if not 'year' in vars:
-            vars.append('year')
-        if not 'sitecode' in vars:
-            vars.append('sitecode')
         df = df[vars + cols]
         df.columns = vars + ['mean','ci_h','ci_l','count']
         df['q'] = qn

@@ -123,9 +123,7 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
             rbase.as_data_frame,
             pandas2ri.ri2py,
             (pd.DataFrame.query, "Freq > 0"),
-            u.tee_logfn,
             (pd.DataFrame.get, vars),
-            u.tee_logfn,
             lambda df: df.apply(
                 lambda z: thread_last(
                     z.to_dict(),
@@ -135,7 +133,6 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
                         tuple(x[:i + 1]) for
                         i in range(len(x))],
                 ), axis=1),
-            u.tee_logfn,
             (pd.DataFrame.to_records, False),
             list,
             concat,
@@ -150,9 +147,6 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
 
     def fetch_stats_for_slice(self, q, r, f, s):
         # create formula for selected question and risk profile
-        logging.info(q)
-        logging.info(f)
-        logging.info(s)
         # create the overall filter
         filt_f = u.fmla_for_filt(f) if len(f.keys()) > 0 else ''
         slice_f = u.fmla_for_slice(s) if len(s.keys()) > 0 else ''

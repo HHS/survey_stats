@@ -12,6 +12,7 @@ from survey_stats.feathers import has_feather, load_feather
 
 rfther = importr('feather', on_conflict='warn')
 rutils = importr('utils')
+rbase = importr('base')
 
 cache_dir = os.path.join(os.getcwd(), 'cache')
 
@@ -44,6 +45,8 @@ class SurveyDataset(namedtuple('Dataset', ['config', 'surveys'])):
             ret = AnnotatedSurvey.load_cdc_survey(spss_f, data_f)
             logging.info('saving data to feather cache: %s' % f)
             rfther.write_feather(ret.rdf, f)
+
+        rbase.gc()
         return ret
 
 
