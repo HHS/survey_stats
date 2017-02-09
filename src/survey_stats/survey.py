@@ -58,7 +58,7 @@ def fetch_stats(des, qn, response=True, vars=[], filt={}):
         merged['q'] = qn
         merged['q_resp'] = response
         merged = merged.round(DECIMALS)
-        logging.info(merged.to_json(orient='records'))
+        #logging.info(merged.to_json(orient='records'))
         return json.loads(merged.to_json(orient='records'))
     # create formula for selected question and risk profile
     # ex: ~qn8, ~!qn8

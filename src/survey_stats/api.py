@@ -67,15 +67,15 @@ def fetch_state_stats(req):
 
 
 def remap_vars(cfg, coll, into=True):
-    logging.info(cfg)
+    #logging.info(cfg)
     pv = ({v: k for k, v in cfg['pop_vars'].items()} if not into
           else cfg['pop_vars'])
     res = None
     typ = type(coll)
     # if missing a mapping, should throw KeyError!
     # cheap validation
-    logging.info(pv)
-    logging.info(coll)
+    #logging.info(pv)
+    #logging.info(coll)
     if isinstance(coll, list):
         res = [pv[k] for k in coll]
     elif isinstance(coll, dict):

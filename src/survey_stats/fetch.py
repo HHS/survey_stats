@@ -26,7 +26,7 @@ async def fetch_all(slices):
 	# per each request.
 	async with ClientSession() as session:
 		for s in slices:
-			logging.info(s)
+			#logging.info(s)
 			# pass Semaphore and session to every GET request
 			task = asyncio.ensure_future(fetch(rqurl, s, session))
 			tasks.append(task)

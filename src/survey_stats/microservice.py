@@ -18,7 +18,6 @@ def fetch_slice_stats():
 	svy_id = rgs.pop('svy_id')
 	svy = st.dset[dset_id].surveys[svy_id]
 	res = svy.fetch_stats_for_slice(**rgs)
-	logging.info(res)
 	return jsonify(res)
 
 
