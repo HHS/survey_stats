@@ -5,8 +5,7 @@ from survey_stats import log
 from survey_stats import cache
 from survey_stats import settings
 from survey_stats import state as st
-from threading import RLock
-from functools import partial
+from survey_stats.processify import processify
 
 def check_media_type(req, resp, params):
     if req.client_accepts_json:
@@ -17,6 +16,7 @@ def check_media_type(req, resp, params):
         'http://docs.examples.com/api/json')
 
 @cache.memoize
+@processify
 def fetch_svy_stats_for_slice(dset_id, svy_id, q, r, f, s ):
     ds = st.dset[dset_id]
     svy = ds.surveys[svy_id]

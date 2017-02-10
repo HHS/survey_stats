@@ -18,6 +18,7 @@ from survey_stats import error as sserr
 from survey_stats import settings
 from survey_stats import fetch
 from survey_stats import state as st
+from survey_stats.processify import processify
 
 Config.REQUEST_TIMEOUT = 50000000
 
@@ -79,6 +80,11 @@ def remap_vars(cfg, coll, into=True):
         res = coll
     return res
 
+def gen_slices(k, svy, qn, resp, m_vars, m_filt):
+    loc = {'svy_id': k, 'dset_id': 'yrbss'}
+    slices = [merge(loc, s)
+              for s in svy.generate_slices(qn, resp, m_vars, m_filt)]
+    return slices
 
 async def fetch_survey_stats(req, national, year):
     (k, cfg) = st.dset['yrbss'].fetch_config(national, year)
@@ -110,9 +116,7 @@ async def fetch_survey_stats(req, national, year):
             }})
     try:
         logging.info("Ready to fetch!")
-        loc = {'svy_id': k, 'dset_id': 'yrbss'}
-        slices = [merge(loc, s)
-                  for s in svy.generate_slices(qn, resp, m_vars, m_filt)]
+        slices = gen_slices(k, svy, qn, resp, m_vars, m_filt)
         results = await fetch.fetch_all(slices)
         results = [remap_vars(cfg, x, into=False) for x in results]
         # results = await fetch.fetch_all([])
