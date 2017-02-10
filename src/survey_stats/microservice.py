@@ -5,7 +5,14 @@ from survey_stats import log
 from survey_stats import cache
 from survey_stats import settings
 from survey_stats import state as st
+from threading import RLock
+from functools import partial
+from cachetools import cached, keys, LRUCache
 
+cache = LRUCache(maxsize=65536)
+lock = RLock
+
+@cached(cache, lock=lock)
 def check_media_type(req, resp, params):
     if req.client_accepts_json:
         return
@@ -14,6 +21,7 @@ def check_media_type(req, resp, params):
         'This API only supports the JSON media type.',
         'http://docs.examples.com/api/json')
 
+@cache.memoize
 def fetch_svy_stats_for_slice(dset_id, svy_id, q, r, f, s ):
     ds = st.dset[dset_id]
     svy = ds.surveys[svy_id]
@@ -77,6 +85,8 @@ app.add_route('/stats', StatsResource())
                                    "Sorry, couldn't write your thing to the "
                                    'database. It worked on my machine.')
 '''
+with lock:
+    cache.clear()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=7788, debug=True)

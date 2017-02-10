@@ -8,10 +8,8 @@ from werkzeug.routing import BaseConverter
 from survey_stats import settings
 
 class ContextFilter(logging.Filter):
-  hostname = socket.gethostname()
 
   def filter(self, record):
-    record.hostname = self.hostname
     return True
 
 def getLogger(name='survey_stat_deflog'):
@@ -26,7 +24,7 @@ def getLogger(name='survey_stat_deflog'):
 bt.initialize(endpoint=settings.BACKTRACE_URL,
               token=settings.BACKTRACE_TKN)
 formatter = logging.Formatter(
-    '%(asctime)s %(host)s STATS: %(message)s',
+    '%(asctime)s - STATS: %(message)s',
     datefmt='%b %d %H:%M:%S'
 )
 errlog = logging.StreamHandler()

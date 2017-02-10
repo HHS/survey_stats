@@ -24,7 +24,6 @@ def key_from_data(*args, **kwargs):
 		return keys.hashkey(args[1])
 	return keys.hashkey(*args, **kwargs)
 
-@cache.memoize(key_fn=key_from_data)
 async def fetch(url, data, session):
 	async with session.post(url, data=data, headers=headers) as response:
 		delay = response.headers.get('DELAY')
