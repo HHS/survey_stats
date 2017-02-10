@@ -68,10 +68,10 @@ def remap_vars(cfg, coll, into=True):
           not into else cfg['pop_vars'])
     res = None
     typ = type(coll)
-    if isinstance(coll, Sequence):
-        res = [map_if(pv, k) for k in coll]
-    elif isinstance(coll, str):
+    if isinstance(coll, str):
         res = coll
+    elif isinstance(coll, Sequence):
+        res = [map_if(pv, k) for k in coll]
     elif isinstance(coll, Mapping):
         res = {map_if(pv, k): remap_vars(cfg, v, into) for
                k, v in coll.items()}
