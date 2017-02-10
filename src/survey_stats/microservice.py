@@ -10,7 +10,7 @@ from functools import partial
 from cachetools import cached, keys, LRUCache
 
 cache = LRUCache(maxsize=65536)
-lock = RLock
+lock = RLock()
 
 def check_media_type(req, resp, params):
     if req.client_accepts_json:
