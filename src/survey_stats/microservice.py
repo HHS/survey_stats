@@ -15,7 +15,6 @@ def check_media_type(req, resp, params):
         'This API only supports the JSON media type.',
         'http://docs.examples.com/api/json')
 
-@cache.memoize
 @processify
 def fetch_svy_stats_for_slice(dset_id, svy_id, q, r, f, s ):
     ds = st.dset[dset_id]
