@@ -143,7 +143,9 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
         # setup the formula based on the qn and response
         # add the base case with empty slice filter
         #   and dicts of qn/resp fmla, slice selector fmla, filt fmla
-        return [{'q': qn, 'r': int(response), 'f': filt, 's': s} for s in [{}, *calls]]
+        res = [{'q': qn, 'r': int(response), 'f': filt, 's': s} for s in [{}, *calls]]
+        rbase.gc()
+		return res
 
     def fetch_stats_for_slice(self, q, r, f, s):
         # create formula for selected question and risk profile
@@ -181,6 +183,7 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
         # round as appropriate
         res = {k: round(v, DECIMALS[k]) if k in DECIMALS and v != None else v for k, v in
                res.items()}
+        rbase.gc()
         return res
 
     def fetch_stats_linear(self, qn, response=True, vars=[], filt={}):
