@@ -145,7 +145,7 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
         #   and dicts of qn/resp fmla, slice selector fmla, filt fmla
         res = [{'q': qn, 'r': int(response), 'f': filt, 's': s} for s in [{}, *calls]]
         rbase.gc()
-		return res
+        return res
 
     def fetch_stats_for_slice(self, q, r, f, s):
         # create formula for selected question and risk profile
