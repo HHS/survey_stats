@@ -4,7 +4,7 @@ import feather
 import logging
 import numpy as np
 import yaml
-import json
+import ujson as json
 import threading
 from collections import namedtuple
 from functools import reduce
@@ -60,7 +60,6 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
             if df[col].dtype == np.dtype('O'):
                 df[col] = df[col].astype('category')
 
-        logging.info(df.dtypes)
         logging.info('deduplicating question metadata and saving')
         qnm = df[[k] + cfg['metadata']].drop_duplicates()
         logging.info('extracting dash table and saving')
@@ -75,6 +74,8 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         fn_site = lambda x: 'sitecode' if x == 'state' else x
         vars = [fn_site(x) for x in vars]
         filt = {fn_site(k): v for k,v in filt.items()}
+        logging.info(vars)
+        logging.info(filt)
         if not 'year' in vars:
             return [] #only available for indvividual years
         if year:

@@ -1,20 +1,17 @@
 import time
 import logging
 import traceback
-from sanic.config import Config
-import json as js
 import pandas as pd
 import numpy as np
+
 from collections import OrderedDict
+from collections.abc import Sequence
+from collections.abc import Mapping
 from toolz.dicttoolz import merge
 
 from sanic import Sanic
+from sanic.config import Config
 from sanic.response import text, json
-
-import asyncio
-import uvloop
-import aiohttp
-from aiohttp import ClientSession
 
 from survey_stats import log
 from survey_stats import error as sserr
@@ -23,13 +20,11 @@ from survey_stats import fetch
 from survey_stats import state as st
 
 Config.REQUEST_TIMEOUT = 50000000
-# ensure that sanic and asyncio share the same event loop
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 app = Sanic(__name__)
-#app.url_map.converters['survey_year'] = validate.SurveyYearValidator
 
 dset_id = 'yrbss'
+
 
 @app.route("/questions")
 def fetch_questions(req):
@@ -67,30 +62,26 @@ def fetch_state_stats(req):
 
 
 def remap_vars(cfg, coll, into=True):
-    #logging.info(cfg)
-    pv = ({v: k for k, v in cfg['pop_vars'].items()} if not into
-          else cfg['pop_vars'])
+    def map_if(pv, k):
+        return pv[k] if k in pv else k
+    pv = ({v: k for k, v in cfg['pop_vars'].items()} if
+          not into else cfg['pop_vars'])
     res = None
     typ = type(coll)
-    # if missing a mapping, should throw KeyError!
-    # cheap validation
-    #logging.info(pv)
-    #logging.info(coll)
-    if isinstance(coll, list):
-        res = [pv[k] for k in coll]
-    elif isinstance(coll, dict):
-        res = {pv[k]: v for k, v in coll.items()}
+    if isinstance(coll, Sequence):
+        res = [map_if(pv, k) for k in coll]
+    elif isinstance(coll, str):
+        res = coll
+    elif isinstance(coll, Mapping):
+        res = {map_if(pv, k): remap_vars(cfg, v, into) for
+               k, v in coll.items()}
     else:
-        raise TypeError("items must be a Collection or Mapping, found %s" %
-                        typ)
+        res = coll
     return res
 
 
 async def fetch_survey_stats(req, national, year):
-    logging.info("requested uri: %s" % req)
-    logging.info(year)
     (k, cfg) = st.dset['yrbss'].fetch_config(national, year)
-    logging.info((k, cfg))
     qn = req.args.get('q')
     vars = [] if not 'v' in req.args else req.args.get('v').split(',')
     resp = True if not 'r' in req.args else not 0 ** int(req.args.get('r'), 2)
@@ -98,7 +89,6 @@ async def fetch_survey_stats(req, national, year):
         map(lambda fv: (fv.split(':')[0],
                         fv.split(':')[1].split(',')),
             req.args.get('f').split(';')))
-    logging.info(filt)
     svy = st.dset['yrbss'].surveys[k]
     meta = st.meta['yrbss']
     m_filt = remap_vars(cfg, filt, into=True)
@@ -123,13 +113,11 @@ async def fetch_survey_stats(req, national, year):
         loc = {'svy_id': k, 'dset_id': 'yrbss'}
         slices = [merge(loc, s)
                   for s in svy.generate_slices(qn, resp, m_vars, m_filt)]
-        results =  await fetch.fetch_all(slices)
-        #results = await fetch.fetch_all([])
-        precomp = []
-        if len(set(filt.keys()) - set(['sitecode','year'])) == 0:
-            precomp = meta.fetch_dash(qn, resp, vars, filt, national, year)
-            precomp = pd.DataFrame(precomp).fillna(0).to_dict(orient='records')
-            #logging.info(precomp)
+        results = await fetch.fetch_all(slices)
+        results = [remap_vars(cfg, x, into=False) for x in results]
+        # results = await fetch.fetch_all([])
+        precomp = meta.fetch_dash(qn, resp, vars, filt, national, year)
+        precomp = pd.DataFrame(precomp).fillna(-1).to_dict(orient='records')
         return json({
             'q': qn,
             'filter': filt,

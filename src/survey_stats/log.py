@@ -14,19 +14,24 @@ class ContextFilter(logging.Filter):
     record.hostname = self.hostname
     return True
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger()
-'''
-syslog = SysLogHandler(address=('logs5.papertrailapp.com', 16468))
-formatter = logging.Formatter('%(asctime)s %(host)s STATS: %(message)s', datefmt='%b %d %H:%M:%S')
-syslog.setFormatter(formatter)
+def getLogger(name='survey_stat_deflog'):
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(syslog)
+    logger.addHandler(errlog)
+    f = ContextFilter()
+    logger.addFilter(f)
+    return logger
 
-logger.setLevel(logging.INFO)
-logger.addHandler(syslog)
-f = ContextFilter()
-logger.addFilter(f)
-'''
-logger.info("starting survey_stats service")
 bt.initialize(endpoint=settings.BACKTRACE_URL,
               token=settings.BACKTRACE_TKN)
-logger.info("connected to backtrace, logging exceptions...")
+formatter = logging.Formatter(
+    '%(asctime)s %(host)s STATS: %(message)s',
+    datefmt='%b %d %H:%M:%S'
+)
+errlog = logging.StreamHandler()
+errlog.setFormatter(formatter)
+syslog = SysLogHandler(address=('logs5.papertrailapp.com', 16468))
+syslog.setFormatter(formatter)
+
+logger = getLogger()

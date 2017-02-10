@@ -1,12 +1,12 @@
 import os
-import logging
 import yaml
-import json
-
+import ujson as json
 import rpy2
 from rpy2 import robjects
 from rpy2.robjects.packages import importr
 from collections import namedtuple
+
+from survey_stats.log import logger
 from survey_stats.survey import AnnotatedSurvey
 from survey_stats.feathers import has_feather, load_feather
 
@@ -39,11 +39,11 @@ class SurveyDataset(namedtuple('Dataset', ['config', 'surveys'])):
         try:
             rdf = rfther.read_feather(f)
             ret = AnnotatedSurvey.from_rdf(spss_f, rdf)
-            logging.info('loaded survey data from feather cache: %s' % f)
+            logger.info('loaded survey data from feather cache: %s' % f)
         except:
-            logging.info('could not find feather cache, loading raw data')
+            logger.info('could not find feather cache, loading raw data')
             ret = AnnotatedSurvey.load_cdc_survey(spss_f, data_f)
-            logging.info('saving data to feather cache: %s' % f)
+            logger.info('saving data to feather cache: %s' % f)
             rfther.write_feather(ret.rdf, f)
 
         rbase.gc()
