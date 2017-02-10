@@ -34,7 +34,7 @@ def fetch_questions(req):
                st.meta[dset_id].qnmeta_dict else dict(v, id=k))
         return res
     national = True
-    combined = False if year else True
+    combined = True
     svy = st.dset[dset_id].fetch_survey(combined, national, year=None)
     res = [(k, get_meta(k, v)) for k, v in svy.vars.items()]
     res = OrderedDict(res)
