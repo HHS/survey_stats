@@ -5,9 +5,6 @@ import ujson as json
 from aiohttp import ClientSession
 from survey_stats import cache
 from survey_stats.log import logger
-from threading import RLock
-from functools import partial
-from cachetools import cached, keys, LRUCache
 
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())

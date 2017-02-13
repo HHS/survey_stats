@@ -1,11 +1,14 @@
 import logging
 import falcon
 import ujson as json
+import traceback
 from survey_stats import log
 from survey_stats import cache
 from survey_stats import settings
 from survey_stats import state as st
+from survey_stats import error as sserr
 from survey_stats.processify import processify
+
 
 def check_media_type(req, resp, params):
     if req.client_accepts_json:
@@ -15,11 +18,30 @@ def check_media_type(req, resp, params):
         'This API only supports the JSON media type.',
         'http://docs.examples.com/api/json')
 
-@processify
+
 def fetch_svy_stats_for_slice(dset_id, svy_id, q, r, f, s ):
     ds = st.dset[dset_id]
     svy = ds.surveys[svy_id]
     res = svy.fetch_stats_for_slice(q, r, f, s)
+    return res
+
+
+def remap_vars(cfg, coll, into=True):
+    def map_if(pv, k):
+        return pv[k] if k in pv else k
+    pv = ({v: k for k, v in cfg['pop_vars'].items()} if
+          not into else cfg['pop_vars'])
+    res = None
+    typ = type(coll)
+    if isinstance(coll, str):
+        res = coll
+    elif isinstance(coll, Sequence):
+        res = [map_if(pv, k) for k in coll]
+    elif isinstance(coll, Mapping):
+        res = {map_if(pv, k): remap_vars(cfg, v, into) for
+               k, v in coll.items()}
+    else:
+        res = coll
     return res
 
 
@@ -64,6 +86,59 @@ class StatsResource:
         resp.set_header('X-Powered-By', 'Ninjas')
         resp.status = falcon.HTTP_200
         resp.body = json.dumps(result)
+
+
+    def on_get(self, req, resp):
+        logging.info("requested uri: %s" % req.url)
+        qn = req.get_param('q')
+        vars = req.get_param('v') or ''
+        vars = vars.split(',')
+        resp = req.get_param('r') or '1'
+        resp = not 0 ** int(resp, 2)
+        national = req.get_param('s') or '0'
+        national = not 0 ** int(national, 2)
+        filt = req.get_param('f') or ''
+        filt = dict(map(
+                lambda fv: (fv.split(':')[0],
+                            fv.split(':')[1].split(',')),
+                filt.split(';')
+        )) if len(filt) > 0 else {}
+        combined = True
+        # update vars and filt column names according to pop_vars
+        ds = st.dset['yrbss']
+        (k, cfg) = ds.fetch_config(national, None)
+        m_filt = remap_vars(cfg, filt, into=True)
+        m_vars = remap_vars(cfg, vars, into=True)
+        svy = ds.surveys[k]
+        svy = svy.subset(m_filt)
+
+        if not svy.sample_size > 1:
+            raise EmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
+
+        try:
+            question = svy.vars[qn]['question']
+            var_levels = vars,
+        except KeyError as err:
+            raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
+                'traceback': traceback.format_exc().splitlines(),
+                'state': {'q': qn, 'svy_vars': svy.vars, 'm_vars': m_vars
+                          }})
+        try:
+            results = svy.fetch_stats(qn, resp, m_vars, m_filt)
+            results = [remap_vars(cfg, x, into=False) for x in results]
+            # results = await fetch.fetch_all([])
+            precomp = meta.fetch_dash(qn, resp, vars, filt, national, year)
+            precomp = pd.DataFrame(precomp).fillna(-1).to_dict(orient='records')
+            return json({
+                'response': resp, 'vars': vars,
+                'var_levels': var_levels, 'results': stats
+            })
+        except KeyError as err:
+            raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
+                'traceback': traceback.format_exc().splitlines(),
+                'state': {'q': qn, 'svy_vars': svy.vars, 'm_vars': m_vars,
+                          'filter': filt, 'response': resp, 'var_levels': var_levels
+                          }})
 
 app = falcon.API()
 app.add_route('/stats', StatsResource())
