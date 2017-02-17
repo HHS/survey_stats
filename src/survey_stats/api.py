@@ -86,6 +86,17 @@ def gen_slices(k, svy, qn, resp, m_vars, m_filt):
               for s in svy.generate_slices(qn, resp, m_vars, m_filt)]
     return slices
 
+async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):
+    slices = gen_slices(k, svy, qn, resp, m_vars, m_filt)
+    results = await fetch.fetch_all(slices)
+    results = [remap_vars(cfg, x, into=False) for x in results]
+    return results
+
+def fetch_socrata(qn, resp, vars, filt, national, year):
+    precomp = meta.fetch_dash(qn, resp, vars, filt, national, year)
+    precomp = pd.DataFrame(precomp).fillna(-1).to_dict(orient='records')
+    return precomp
+
 async def fetch_survey_stats(req, national, year):
     (k, cfg) = st.dset['yrbss'].fetch_config(national, year)
     qn = req.args.get('q')
@@ -95,6 +106,7 @@ async def fetch_survey_stats(req, national, year):
         map(lambda fv: (fv.split(':')[0],
                         fv.split(':')[1].split(',')),
             req.args.get('f').split(';')))
+    use_socrata = False if not 's' in req.args else not 0 ** int(req.args.get('s'), 2)
     svy = st.dset['yrbss'].surveys[k]
     meta = st.meta['yrbss']
     m_filt = remap_vars(cfg, filt, into=True)
@@ -116,12 +128,9 @@ async def fetch_survey_stats(req, national, year):
             }})
     try:
         logging.info("Ready to fetch!")
-        slices = gen_slices(k, svy, qn, resp, m_vars, m_filt)
-        results = await fetch.fetch_all(slices)
-        results = [remap_vars(cfg, x, into=False) for x in results]
         # results = await fetch.fetch_all([])
-        precomp = meta.fetch_dash(qn, resp, vars, filt, national, year)
-        precomp = pd.DataFrame(precomp).fillna(-1).to_dict(orient='records')
+        results = (fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg) if not
+                    use_socrata else fetch_socrata(qn, resp, vars, filt, national, year))
         return json({
             'q': qn,
             'filter': filt,
@@ -145,67 +154,6 @@ async def fetch_survey_stats(req, national, year):
                 'var_levels': var_levels
             }})
 
-
-async def fetch_survey_stats_linear(national, year):
-    logging.info("requested uri: %s" % req.url)
-    qn = req.args.get('q')
-    vars = [] if not 'v' in req.args else req.args.get('v').split(',')
-    resp = True if not 'r' in req.args else not 0 ** int(req.args.get('r'), 2)
-    filt = {} if not 'f' in req.args else dict(
-        map(lambda fv: (fv.split(':')[0],
-                        fv.split(':')[1].split(',')),
-            req.args.get('f').split(';')))
-    logging.info(filt)
-    combined = True
-    if year:
-        combined = False
-
-    # update vars and filt column names according to pop_vars
-    (k, cfg) = apst['yrbss'].fetch_config(combined, national, year)
-    logging.info((k, cfg))
-    replace_f = lambda x: cfg['pop_vars'][x] if x in cfg['pop_vars'] else x
-    logging.info(vars)
-    logging.info(filt)
-    m_vars = list(map(replace_f, vars))
-    m_filt = {replace_f(k): v for k, v in filt.items()}
-    in_both = set(m_vars).intersection(m_filt)
-    svy = apst['yrbss'].surveys[k]
-    svy = svy.subset(m_filt)
-
-    if not svy.sample_size > 1:
-        raise EmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
-    ivd = {v: k for k, v in cfg['pop_vars'].items()}
-
-    # setup functions to reverse map keys for stats
-    inverse_f = lambda x: ivd[x] if x in ivd else x
-    replkeys_f = lambda d: {inverse_f(k): v for k, v in d.items()}
-
-    try:
-        question = svy.vars[qn]['question']
-        var_levels = {inverse_f(v): svy.vars[v] for v in m_vars}
-    except KeyError as err:
-        raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
-            'traceback': traceback.format_exc().splitlines(),
-            'request': req.args.to_dict(),
-            'state': {'q': qn, 'svy_vars': svy.vars, 'm_vars': m_vars
-                      }})
-    try:
-        logging.info("Ready to fetch!")
-        stats = svy.fetch_stats(qn, resp, m_vars, m_filt)
-        g_time = g.request_time()
-        logging.info('elapsed_time', g_time)
-        stats = list(map(replkeys_f, stats))
-        return json({
-            'response': resp, 'vars': vars, 'var_levels': var_levels,
-            'results': stats, '_elapsed_time': g_time
-        })
-    except KeyError as err:
-        raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
-            'traceback': traceback.format_exc().splitlines(),
-            'request': req.args.to_dict(),
-            'state': {'q': qn, 'svy_vars': svy.vars, 'm_vars': m_vars,
-                      'filter': filt, 'response': resp, 'var_levels': var_levels
-                      }})
 
 
 def serve_app(host, port, workers, debug):
