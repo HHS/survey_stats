@@ -92,7 +92,7 @@ async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):
     results = [remap_vars(cfg, x, into=False) for x in results]
     return results
 
-def fetch_socrata(qn, resp, vars, filt, national, year):
+def fetch_socrata(qn, resp, vars, filt, national, year, meta):
     precomp = meta.fetch_dash(qn, resp, vars, filt, national, year)
     precomp = pd.DataFrame(precomp).fillna(-1).to_dict(orient='records')
     return precomp
@@ -129,8 +129,9 @@ async def fetch_survey_stats(req, national, year):
     try:
         logging.info("Ready to fetch!")
         # results = await fetch.fetch_all([])
-        results = (fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg) if not
-                    use_socrata else fetch_socrata(qn, resp, vars, filt, national, year))
+        results = (await fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg) if not
+                    use_socrata else fetch_socrata(qn, resp, vars, filt,
+                                                   national, year, meta))
         return json({
             'q': qn,
             'filter': filt,
@@ -139,7 +140,7 @@ async def fetch_survey_stats(req, national, year):
             'vars': vars,
             'var_levels': var_levels,
             'results': results,
-            'precomp': precomp
+            'is_socrata':use_socrata
         })
     except KeyError as err:
         raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
