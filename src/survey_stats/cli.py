@@ -53,6 +53,9 @@ parser_prole.add_argument('--max-requests-jitter', type=int,
 		help='max jitter to add to max requests, default: 3')
 parser_prole.add_argument('--debug', action='store_true',
 						  help='turn on debug mode, default: False')
+parser_prole.add_argument('--timeout', type=int,
+						  default=600,
+		help='worker request timeout in seconds, default: 600')
 
 
 

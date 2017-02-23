@@ -12,7 +12,7 @@ from itertools import chain
 from cached_property import cached_property, threaded_cached_property
 from survey_stats.feathers import has_feather, load_feather, save_feather
 from survey_stats.pdutil import guard_nan, fill_none
-
+from survey_stats.log import logger
 
 class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
 
@@ -26,43 +26,43 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         (qn, df) = (load_feather('qnmeta'), load_feather('dash')) if \
             has_feather('qnmeta') and has_feather('dash') else \
             cls.load_rawmeta(config)
-        logging.info(df.shape)
-        logging.info(df.columns)
+        logger.info(df.shape)
+        logger.info(df.columns)
         qn = qn.set_index(config['qnkey'])
         return cls(config=config, qnmeta=qn, dash=df)
 
     @classmethod
     def load_rawmeta(cls, cfg):
         # load dash data
-        logging.info('loading raw dash data')
+        logger.info('loading raw dash data')
         df = pd.read_csv(cfg['files'][0], compression='gzip')
         # TODO: deal with multiple files
         # lowercase col names
-        logging.info('renaming columns')
+        logger.info('renaming columns')
         df.columns = df.columns.map(lambda x: x.lower())
         k = cfg['qnkey']  # get the question key
         # rename questions (TODO: cleanup)
-        logging.info('cleaning up question ids')
+        logger.info('cleaning up question ids')
         df[k] = df[k].apply(lambda k:
                             k.replace('H', 'qn') if
                             k[0] == 'H' else
                             k.lower())
-        logging.info('renaming columns')
+        logger.info('renaming columns')
         # rename columns
         df = df.rename(columns=cfg['rename'])
-        logging.info('extracting all useful columns')
+        logger.info('extracting all useful columns')
         allchain = [k] + list(chain.from_iterable(
             map(lambda x: cfg[x],
                 ['facets', 'strata', 'stats', 'metadata'])))
         df = df[allchain]
-        logging.info('converting object-types to categories')
+        logger.info('converting object-types to categories')
         for col in df.columns:
             if df[col].dtype == np.dtype('O'):
                 df[col] = df[col].astype('category')
 
-        logging.info('deduplicating question metadata and saving')
+        logger.info('deduplicating question metadata and saving')
         qnm = df[[k] + cfg['metadata']].drop_duplicates()
-        logging.info('extracting dash table and saving')
+        logger.info('extracting dash table and saving')
         pre = df[[k] + list(chain.from_iterable(map(lambda x: cfg[x],
                                                     ['facets', 'strata', 'stats'])))]
         save_feather('qnmeta', qnm)
@@ -74,8 +74,9 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         fn_site = lambda x: 'sitecode' if x == 'state' else x
         vars = [fn_site(x) for x in vars]
         filt = {fn_site(k): v for k,v in filt.items()}
-        logging.info(vars)
-        logging.info(filt)
+        logger.info("vars")
+        logger.info(vars)
+        logger.info(filt)
         if not 'year' in vars:
             return [] #only available for indvividual years
         if year:
@@ -87,6 +88,8 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         s_vars = self.config['facets']
         df = self.dash
         df = df[df['questioncode'] == qn]
+        logger.info(s_vars)
+        logger.info(df.shape)
         if is_national:
             df = df[df['stratificationtype'] == 'National']
         else:

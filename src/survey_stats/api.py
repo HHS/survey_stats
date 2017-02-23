@@ -13,7 +13,7 @@ from sanic import Sanic
 from sanic.config import Config
 from sanic.response import text, json
 
-from survey_stats import log
+from survey_stats.log import logger
 from survey_stats import error as sserr
 from survey_stats import settings
 from survey_stats import fetch
@@ -93,6 +93,7 @@ async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):
     return results
 
 def fetch_socrata(qn, resp, vars, filt, national, year, meta):
+    logger.info("hello")
     precomp = meta.fetch_dash(qn, resp, vars, filt, national, year)
     precomp = pd.DataFrame(precomp).fillna(-1).to_dict(orient='records')
     return precomp
@@ -127,7 +128,7 @@ async def fetch_survey_stats(req, national, year):
                 'm_vars': m_vars
             }})
     try:
-        logging.info("Ready to fetch!")
+        logger.info("Ready to fetch!")
         # results = await fetch.fetch_all([])
         results = (await fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg) if not
                     use_socrata else fetch_socrata(qn, resp, vars, filt,
@@ -140,7 +141,9 @@ async def fetch_survey_stats(req, national, year):
             'vars': vars,
             'var_levels': var_levels,
             'results': results,
-            'is_socrata':use_socrata
+            'is_socrata':use_socrata,
+            'precomputed': fetch_socrata(qn, resp, vars, filt, national, year,
+                                         meta) if not use_socrata else []
         })
     except KeyError as err:
         raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
@@ -154,7 +157,6 @@ async def fetch_survey_stats(req, national, year):
                 'response': resp,
                 'var_levels': var_levels
             }})
-
 
 
 def serve_app(host, port, workers, debug):
