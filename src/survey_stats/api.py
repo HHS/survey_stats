@@ -95,8 +95,9 @@ async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):
 def fetch_socrata(qn, resp, vars, filt, national, year, meta):
     logger.info("hello")
     precomp = meta.fetch_dash(qn, resp, vars, filt, national, year)
-    precomp = pd.DataFrame(precomp).fillna(-1).to_dict(orient='records')
-    return precomp
+    precomp = pd.DataFrame(precomp).fillna(-1)
+    precomp['method']='socrata'
+    return precomp.to_dict(orient='records')
 
 
 def parse_filter(f):

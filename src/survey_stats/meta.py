@@ -77,10 +77,10 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         logger.info("vars")
         logger.info(vars)
         logger.info(filt)
-        if not 'year' in vars:
-            return [] #only available for indvividual years
         if year:
             return [] #only available for combined data
+        if not 'year' in vars and not 'year' in filt.keys():
+            return [] #only available for indvividual years
         if not is_national and not 'sitecode' in vars:
             return [] #only available for individual states
         cols = (['mean_yes', 'ci_h_yes', 'ci_l_yes','sample_size'] if response
@@ -98,13 +98,20 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
                 df = df[df['sitecode'] == filt['sitecode']]
         if 'year' in filt.keys():
             df = df[df['year'].isin(map( int, filt['year']))]
+        logger.info(df.shape)
+        logger.info("year selected")
         for v in s_vars:
-            if not v in vars and not v == 'year':
+            if not v in vars and not v == 'year' and not v in filt.keys():
                 df = df[(df[v] == 'Total')]
+            if v in filt.keys() and not v == 'year':
+                df = df[df[v].isin(filt[v])]
         df = df[vars + cols]
-        df.columns = vars + ['mean','ci_h','ci_l','count']
+        df.columns = vars + ['mean','ci_u','ci_l','count']
         df['q'] = qn
         df['q_resp'] = response
+        df['mean'] = df['mean']/100.0
+        df['ci_u'] = df['ci_u']/100.0
+        df['ci_l'] = df['ci_l']/100.0
         return df.to_dict(orient='records')
 
     @threaded_cached_property
