@@ -143,7 +143,7 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
         # setup the formula based on the qn and response
         # add the base case with empty slice filter
         #   and dicts of qn/resp fmla, slice selector fmla, filt fmla
-        res = [{'q': qn, 'r': int(response), 'f': filt, 's': s} for s in [{}, *calls]]
+        res = [{'q': qn, 'r': response, 'f': filt, 's': s} for s in [{}, *calls]]
         rbase.gc()
         return res
 

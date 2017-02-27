@@ -126,7 +126,6 @@ class StatsResource:
         try:
             results = svy.fetch_stats(qn, resp, m_vars, m_filt)
             results = [remap_vars(cfg, x, into=False) for x in results]
-            # results = await fetch.fetch_all([])
             precomp = meta.fetch_dash(qn, resp, vars, filt, national, year)
             precomp = pd.DataFrame(precomp).fillna(-1).to_dict(orient='records')
             return json({

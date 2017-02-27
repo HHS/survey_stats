@@ -98,19 +98,32 @@ def fetch_socrata(qn, resp, vars, filt, national, year, meta):
     precomp = pd.DataFrame(precomp).fillna(-1).to_dict(orient='records')
     return precomp
 
+
+def parse_filter(f):
+    return dict(map(lambda fv: (fv.split(':')[0],
+                                fv.split(':')[1].split(',')), f.split('|')))
+
+def parse_response(r):
+    if r.lower() == 'yes' or r.lower() == 'true' or r.lower() == '1':
+        return True
+    elif r.lower() == 'no' or r.lower() == 'false' or r.lower() == '0':
+        return False
+    else:
+        raise Exception('Invalid response value specified!')
+
+
 async def fetch_survey_stats(req, national, year):
     (k, cfg) = st.dset['yrbss'].fetch_config(national, year)
     qn = req.args.get('q')
     vars = [] if not 'v' in req.args else req.args.get('v').split(',')
-    resp = True if not 'r' in req.args else not 0 ** int(req.args.get('r'), 2)
-    filt = {} if not 'f' in req.args else dict(
-        map(lambda fv: (fv.split(':')[0],
-                        fv.split(':')[1].split(',')),
-            req.args.get('f').split(';')))
+    resp = None if not 'r' in req.args else parse_response(req.args.get('r'))
+    filt = {} if not 'f' in req.args else parse_filter(req.args.get('f'))
     use_socrata = False if not 's' in req.args else not 0 ** int(req.args.get('s'), 2)
     svy = st.dset['yrbss'].surveys[k]
     meta = st.meta['yrbss']
+    logger.info(filt)
     m_filt = remap_vars(cfg, filt, into=True)
+    logger.info(m_filt)
     m_vars = remap_vars(cfg, vars, into=True)
     if not svy.subset(m_filt).sample_size > 1:
         raise EmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
