@@ -25,7 +25,8 @@ class SurveyDataset(namedtuple('Dataset', ['config', 'surveys'])):
         config = None
         with open(yml_f, 'r') as fh:
             config = yaml.load(fh)['surveys']
-
+        if not config:
+            return cls(config=None, surveys=None)
         svys = {}
         for k, v in config.items():
             svys[k] = cls.fetch_or_load_dataset(k, v['spss'], v['data'])
@@ -55,15 +56,17 @@ class YRBSSDataset(SurveyDataset):
 
     def fetch_survey(self, combined=True, national=True, year=None):
         pred = (lambda v: v['is_combined'] == combined and
-                v['is_national'] == national and
                 (v['year'] == year if year else True))
+        if not self.config:
+            return None
         return next(( self.surveys[k] for k, v in self.config.items() if pred(v)), None)
 
     def fetch_config(self, national=True, year=None):
         combined = not year # if year is present, get ind year, else combined
         pred = (lambda v: v['is_combined'] == combined and
-                v['is_national'] == national and
                 (v['year'] == year if year else True))
+        if not self.config:
+            return None
         return next(((k, v) for k, v in self.config.items() if pred(v)), None)
 
 

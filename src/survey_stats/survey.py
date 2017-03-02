@@ -13,7 +13,7 @@ import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
 from rpy2.robjects import Formula
-from survey_stats.parsers import parse_fwfcols_spss, parse_surveyvars_spss
+from survey_stats.parsers import parse_fwfcols_spss, parse_surveyvars_spss, load_survey
 from survey_stats.helpr import svyciprop_yrbs, svybyci_yrbs, subset_des_wexpr
 from survey_stats.helpr import filter_survey_var
 from survey_stats import pdutil as u
@@ -46,7 +46,6 @@ def subset_survey(des, filt):
 def fetch_stats(des, qn, response=True, vars=[], filt={}):
     def fetch_stats_by(des, qn_f, vars):
         lvl_f = Formula('~%s' % ' + '.join(vars))
-        # svyciprop_local =
         merged = pandas2ri.ri2py(rbase.merge(
             svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs),
             rsvy.svyby(qn_f, lvl_f, des, rsvy.unwtd_count, na_rm=True,
@@ -59,7 +58,6 @@ def fetch_stats(des, qn, response=True, vars=[], filt={}):
         merged['q_resp'] = response
         merged = merged.round(DECIMALS)
         #logging.info(merged.to_json(orient='records'))
-        return json.loads(merged.to_json(orient='records'))
     # create formula for selected question and risk profile
     # ex: ~qn8, ~!qn8
     qn_f = Formula('~%s%s' % ('' if response else '!', qn))
@@ -152,7 +150,7 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
         # create the overall filter
         filt_f = u.fmla_for_filt(f) if len(f.keys()) > 0 else ''
         slice_f = u.fmla_for_slice(s) if len(s.keys()) > 0 else ''
-        qn_f = Formula('~%s%s' % ('' if r else '!', q))
+        qn_f = Formula('~%s%s' % ('', q))
         subs_f = (filt_f + ' & ' + slice_f
                   if len(filt_f) > 0 and len(slice_f) > 0
                   else filt_f + slice_f)

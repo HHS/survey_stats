@@ -21,11 +21,11 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         config = None
         with open(yml_f, 'r') as fh:
             config = yaml.load(fh)['dash']
-
         pfx = config['id']
-        (qn, df) = (load_feather('qnmeta'), load_feather('dash')) if \
-            has_feather('qnmeta') and has_feather('dash') else \
-            cls.load_rawmeta(config)
+        logger.info(pfx)
+        (qn, df) = (load_feather(pfx+'.qnmeta'), load_feather(pfx+'.dash')) if \
+                has_feather(pfx+'.qnmeta') and has_feather(pfx+'.dash') else \
+                cls.load_rawmeta(config)
         logger.info(df.shape)
         logger.info(df.columns)
         qn = qn.set_index(config['qnkey'])
@@ -35,26 +35,36 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
     def load_rawmeta(cls, cfg):
         # load dash data
         logger.info('loading raw dash data')
-        df = pd.read_csv(cfg['files'][0], compression='gzip')
+        logger.info(cfg['files'])
+        #df = pd.read_csv(cfg['files'][0], compression='gzip')
+        df = pd.concat([pd.read_csv(f, index_col=None, header=0,
+                                    compression='gzip')
+                      for f in cfg['files']])
         # TODO: deal with multiple files
         # lowercase col names
         logger.info('renaming columns')
         df.columns = df.columns.map(lambda x: x.lower())
         k = cfg['qnkey']  # get the question key
         # rename questions (TODO: cleanup)
+        qpfx = cfg['qnpfx']
         logger.info('cleaning up question ids')
         df[k] = df[k].apply(lambda k:
-                            k.replace('H', 'qn') if
-                            k[0] == 'H' else
+                            k.replace(qpfx, 'qn') if
+                            k.startswith(qpfx) else
                             k.lower())
         logger.info('renaming columns')
         # rename columns
+        logger.info(cfg)
+        logger.info(cfg['response'])
         df = df.rename(columns=cfg['rename'])
         logger.info('extracting all useful columns')
         allchain = [k] + list(chain.from_iterable(
             map(lambda x: cfg[x],
                 ['facets', 'strata', 'stats', 'metadata'])))
+        allchain = allchain + cfg['response']
         df = df[allchain]
+        if 'remap' in cfg.keys():
+            df.replace(cfg['remap'])
         logger.info('converting object-types to categories')
         for col in df.columns:
             if df[col].dtype == np.dtype('O'):
@@ -63,10 +73,11 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         logger.info('deduplicating question metadata and saving')
         qnm = df[[k] + cfg['metadata']].drop_duplicates()
         logger.info('extracting dash table and saving')
-        pre = df[[k] + list(chain.from_iterable(map(lambda x: cfg[x],
+        pre = df[[k] + cfg['response'] + list(chain.from_iterable(map(lambda x: cfg[x],
                                                     ['facets', 'strata', 'stats'])))]
-        save_feather('qnmeta', qnm)
-        save_feather('dash', pre)
+        pfx = cfg['id']
+        save_feather(pfx+'.qnmeta', qnm)
+        save_feather(pfx+'.dash', pre)
         return (qnm, pre)
 
 
@@ -77,41 +88,58 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         logger.info("vars")
         logger.info(vars)
         logger.info(filt)
-        if year:
+        '''if year:
             return [] #only available for combined data
         if not 'year' in vars and not 'year' in filt.keys():
             return [] #only available for indvividual years
         if not is_national and not 'sitecode' in vars:
             return [] #only available for individual states
-        cols = (['mean_yes', 'ci_h_yes', 'ci_l_yes','sample_size'] if response
-            else ['mean_no', 'ci_h_no', 'ci_l_no','sample_size'])
+        '''
+        cols = self.config['stats']
         s_vars = self.config['facets']
         df = self.dash
-        df = df[df['questioncode'] == qn]
+        logger.info("columns")
+        logger.info(df.columns)
+        k = self.config['qnkey']  # get the question key
+        df = df[df[k] == qn]
         logger.info(s_vars)
         logger.info(df.shape)
+        nat_sel = self.config['national_selector']
         if is_national:
-            df = df[df['stratificationtype'] == 'National']
+            for k,v in nat_sel.items():
+                logger.info("is national so selecting k: %s, v: %s" % (k,v))
+                df = df[df[k] == v]
+                logger.info(df.shape)
         else:
-            df = df[df['stratificationtype'] == 'State']
             if 'sitecode' in filt.keys():
-                df = df[df['sitecode'] == filt['sitecode']]
+                v='sitecode'
+                df = df[df[v].isin(filt[v])]
+                logger.info("filter key v: %s with vals %s leaves: %s" % (v,
+                                                                          str(filt[v]),
+                                                                          str(df.shape)))
         if 'year' in filt.keys():
+            logger.info("filtering by year: %s" % str(filt['year']))
             df = df[df['year'].isin(map( int, filt['year']))]
-        logger.info(df.shape)
-        logger.info("year selected")
+            logger.info(df.shape)
         for v in s_vars:
             if not v in vars and not v == 'year' and not v in filt.keys():
-                df = df[(df[v] == 'Total')]
+                df = df[df[v].isin(['Total', 'None'])]
+                logger.info("total out v: %s leaves: %s" % (v,str(df.shape)))
             if v in filt.keys() and not v == 'year':
                 df = df[df[v].isin(filt[v])]
+                logger.info("filter key v: %s with vals %s leaves: %s" % (v,
+                                                                          str(filt[v]),
+                                                                          str(df.shape)))
+        if "response" in df.columns:
+            cols += ['response']
         df = df[vars + cols]
-        df.columns = vars + ['mean','ci_u','ci_l','count']
         df['q'] = qn
-        df['q_resp'] = response
-        df['mean'] = df['mean']/100.0
-        df['ci_u'] = df['ci_u']/100.0
-        df['ci_l'] = df['ci_l']/100.0
+        if not "response" in df.columns:
+            df['response'] = response
+        for k in self.config['stats']:
+            if k.startswith('mean') or k.startswith('ci'):
+                df[k] = df[k]/100.0
+        #df['level'] = df.apply(lambda x: np.sum(x[vars] != "Total"),axis=1)
         return df.to_dict(orient='records')
 
     @threaded_cached_property

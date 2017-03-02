@@ -19,26 +19,33 @@ from survey_stats import settings
 from survey_stats import fetch
 from survey_stats import state as st
 from survey_stats.processify import processify
+from survey_stats.error import SSEmptyFilterError, SSInvalidUsage
 
 Config.REQUEST_TIMEOUT = 50000000
 
 app = Sanic(__name__)
 
-dset_id = 'yrbss'
-
-
 @app.route("/questions")
 def fetch_questions(req):
-    def get_meta(k, v):
+    def get_meta(k, v, dset):
         key = k.lower()
-        res = (dict(st.meta[dset_id].qnmeta_dict[key], **v, id=k) if key in
-               st.meta[dset_id].qnmeta_dict else dict(v, id=k))
+        res = (dict(st.meta[dset].qnmeta_dict[key], **v, id=k) if key in
+               st.meta[dset].qnmeta_dict else dict(v, id=k))
         return res
+    dset=req.args.get('d')
     national = True
     combined = True
-    svy = st.dset[dset_id].fetch_survey(combined, national, year=None)
-    res = [(k, get_meta(k, v)) for k, v in svy.vars.items()]
-    res = OrderedDict(res)
+    svy = st.dset[dset].fetch_survey(combined, national, year=None)
+    res = []
+    if svy:
+        res = [(k, get_meta(k, v, dset)) for k, v in svy.vars.items()]
+    else:
+        qnkey = st.meta[dset].config['qnkey']
+        res = st.meta[dset].qnmeta.reset_index(level=0)
+        #@dash = st.meta[dset].dash
+        #logger.info(dash.columns)
+        #res = res.merge(res, dash.groupby(qnkey)['response'].unique())
+        res = res.to_dict(orient="records")
     return json(res)
 
 
@@ -93,7 +100,6 @@ async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):
     return results
 
 def fetch_socrata(qn, resp, vars, filt, national, year, meta):
-    logger.info("hello")
     precomp = meta.fetch_dash(qn, resp, vars, filt, national, year)
     precomp = pd.DataFrame(precomp).fillna(-1)
     precomp['method']='socrata'
@@ -114,63 +120,36 @@ def parse_response(r):
 
 
 async def fetch_survey_stats(req, national, year):
-    (k, cfg) = st.dset['yrbss'].fetch_config(national, year)
+    dset = req.args.get('d')
     qn = req.args.get('q')
     vars = [] if not 'v' in req.args else req.args.get('v').split(',')
     resp = None if not 'r' in req.args else parse_response(req.args.get('r'))
     filt = {} if not 'f' in req.args else parse_filter(req.args.get('f'))
     use_socrata = False if not 's' in req.args else not 0 ** int(req.args.get('s'), 2)
-    svy = st.dset['yrbss'].surveys[k]
-    meta = st.meta['yrbss']
-    logger.info(filt)
-    m_filt = remap_vars(cfg, filt, into=True)
-    logger.info(m_filt)
-    m_vars = remap_vars(cfg, vars, into=True)
-    if not svy.subset(m_filt).sample_size > 1:
-        raise EmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
-    try:
+    meta = st.meta[dset]
+    #logger.info(meta.qnmeta.columns)
+    question = qn #meta.qnmeta[qn]
+    results = fetch_socrata(qn, resp, vars, filt, national, year, meta)
+    if not use_socrata:
+        (k, cfg) = st.dset[dset].fetch_config(national, year)
+        svy = st.dset[dset].surveys[k]
+        m_filt = remap_vars(cfg, filt, into=True)
+        m_vars = remap_vars(cfg, vars, into=True)
+        if not svy.subset(m_filt).sample_size > 1:
+            raise SSEmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
         question = svy.vars[qn]['question']
-        var_levels = remap_vars(
-            cfg, {v: svy.vars[v] for v in m_vars}, into=False)
-    except KeyError as err:
-        raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
-            'traceback': traceback.format_exc().splitlines(),
-            'request': req.args,
-            'state': {
-                'q': qn,
-                'svy_vars': svy.vars,
-                'm_vars': m_vars
-            }})
-    try:
-        logger.info("Ready to fetch!")
-        # results = await fetch.fetch_all([])
-        results = (await fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg) if not
-                    use_socrata else fetch_socrata(qn, resp, vars, filt,
-                                                   national, year, meta))
-        return json({
-            'q': qn,
-            'filter': filt,
-            'question': question,
-            'response': resp,
-            'vars': vars,
-            'var_levels': var_levels,
-            'results': results,
-            'is_socrata':use_socrata,
-            'precomputed': fetch_socrata(qn, resp, vars, filt, national, year,
-                                         meta) if not use_socrata else []
-        })
-    except KeyError as err:
-        raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
-            'traceback': traceback.format_exc().splitlines(),
-            'request': req.args,
-            'state': {
-                'q': qn,
-                'svy_vars': svy.vars,
-                'm_vars': m_vars,
-                'filter': filt,
-                'response': resp,
-                'var_levels': var_levels
-            }})
+        var_levels = remap_vars(cfg, {v: svy.vars[v] for v in m_vars}, into=False)
+        results = await fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg)
+    return json({
+        'q': qn,
+        'filter': filt,
+        'question': question,
+        'response': resp,
+        'vars': vars,
+        'var_levels': None, #var_levels,
+        'results': results,
+        'is_socrata':use_socrata
+    })
 
 
 def serve_app(host, port, workers, debug):
