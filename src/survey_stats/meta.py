@@ -63,6 +63,8 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
             map(lambda x: cfg[x],
                 ['facets', 'strata', 'stats', 'metadata'])))
         allchain = allchain + cfg['response']
+        allchain = set(df.columns).intersect(allchain)
+        allchain = list(allchain)
         df = df[allchain]
         if 'remap' in cfg.keys():
             df.replace(cfg['remap'], inplace=True)

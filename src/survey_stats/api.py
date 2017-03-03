@@ -72,7 +72,7 @@ def remap_vars(cfg, coll, into=True):
 def gen_slices(k, svy, qn, resp, m_vars, m_filt):
     loc = {'svy_id': k, 'dset_id': 'yrbss'}
     slices = [merge(loc, s)
-              for s in svy.generate_slices(qn, str(resp*1), m_vars, m_filt) ]
+        for s in svy.generate_slices(qn, resp, m_vars, m_filt) ]
     return slices
 
 async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):

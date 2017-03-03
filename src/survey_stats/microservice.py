@@ -93,10 +93,7 @@ class StatsResource:
         qn = req.get_param('q')
         vars = req.get_param('v') or ''
         vars = vars.split(',')
-        resp = req.get_param('r') or '1'
-        resp = not 0 ** int(resp, 2)
-        national = req.get_param('n') or '0'
-        national = not 0 ** int(national, 2)
+        resp = req.get_param('r') or None
         filt = req.get_param('f') or ''
         filt = dict(map(
                 lambda fv: (fv.split(':')[0],
@@ -106,7 +103,7 @@ class StatsResource:
         combined = True
         # update vars and filt column names according to pop_vars
         ds = st.dset['yrbss']
-        (k, cfg) = ds.fetch_config(national, None)
+        (k, cfg) = ds.fetch_config(national=True, year=None)
         m_filt = remap_vars(cfg, filt, into=True)
         m_vars = remap_vars(cfg, vars, into=True)
         svy = ds.surveys[k]

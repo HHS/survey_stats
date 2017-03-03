@@ -206,7 +206,7 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
         return self.var_in_svy(var)
 
     @classmethod
-    def load_cdc_survey(cls, spss_file, dat_files, cfg):
+    def load_cdc_survey(cls, spss_file, dat_files):
         logging.info('loading column definitions')
         svy_cols = parse_fwfcols_spss(spss_file)
 
