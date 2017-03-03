@@ -26,7 +26,9 @@ def fmla_for_filt(filt):
     return ' & '.join([
         '{var} %in% c({lvls})'.format(
             var=k,
-            lvls=','.join(map(lambda x:'"%s"' %x, v))
+            lvls= ','.join(map(lambda x:'"%s"' %x, v)) if
+                type(v) == list else
+                '"%s"' % v
         ) for k,v in filt.items()
     ])
 

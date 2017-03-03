@@ -82,23 +82,22 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         return (qnm, pre)
 
 
-    def fetch_dash(self, qn, response, vars, filt = {}, is_national=True):
-        fn_site = lambda x: 'sitecode' if x == 'state' else x
-        vars = [fn_site(x) for x in vars]
-        filt = {fn_site(k): v for k,v in filt.items()}
-        logger.info("vars")
-        logger.info(vars)
-        logger.info(filt)
+    def fetch_dash(self, qn, response, vars, filt = {}):
+        cols = self.config['stats']
+        s_vars = self.config['facets']
+        df = self.dash
+
         if not 'year' in vars and not 'year' in filt.keys():
             raise ValueError('Must select a year in filter or in vars as '+
                                  'breakout for Socrata results.')
             #only available for indvividual years
+        v_unk = [v for v in vars if v not in df.columns]
+        if len(v_unk) > 0:
+            raise ValueError('Encountered breakout variables not available '+
+                             'in Socrata results: %s' % ','.join(v_unk))
         '''if not is_national and not 'sitecode' in vars:
             return [] #only available for individual states
         '''
-        cols = self.config['stats']
-        s_vars = self.config['facets']
-        df = self.dash
         logger.info("columns")
         logger.info(df.columns)
         k = self.config['qnkey']  # get the question key
@@ -106,27 +105,27 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         logger.info(s_vars)
         logger.info(df.shape)
         nat_sel = self.config['national_selector']
-        if is_national:
-            for k,v in nat_sel.items():
-                logger.info("is national so selecting k: %s, v: %s" % (k,v))
-                df = df[df[k] == v]
-                logger.info(df.shape)
-        else:
+        if 'sitecode' in filt.keys() or 'sitecode' in vars:
             if 'sitecode' in filt.keys():
                 v='sitecode'
                 df = df[df[v].isin(filt[v])]
                 logger.info("filter key v: %s with vals %s leaves: %s" % (v,
                                                                           str(filt[v]),
                                                                           str(df.shape)))
+        else:
+            for k,v in nat_sel.items():
+                logger.info("is national so selecting k: %s, v: %s" % (k,v))
+                df = df[df[k] == v]
+                logger.info(df.shape)
         if 'year' in filt.keys():
             logger.info("filtering by year: %s" % str(filt['year']))
             df = df[df['year'].isin(map( int, filt['year']))]
             logger.info(df.shape)
         for v in s_vars:
-            if not v in vars and not v == 'year' and not v in filt.keys():
+            if not v in vars and not v == 'year' and not v in filt.keys() and v in df.columns:
                 df = df[df[v].isin(['Total', 'None'])]
                 logger.info("total out v: %s leaves: %s" % (v,str(df.shape)))
-            if v in filt.keys() and not v == 'year':
+            if v in filt.keys() and not v == 'year' and v in df.columns:
                 df = df[df[v].isin(filt[v])]
                 logger.info("filter key v: %s with vals %s leaves: %s" % (v,
                                                                           str(filt[v]),

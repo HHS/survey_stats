@@ -17,6 +17,8 @@ from survey_stats.parsers import parse_fwfcols_spss, parse_surveyvars_spss, load
 from survey_stats.helpr import svyciprop_yrbs, svybyci_yrbs, subset_des_wexpr
 from survey_stats.helpr import filter_survey_var
 from survey_stats import pdutil as u
+from survey_stats.log import logger
+
 
 rbase = importr('base')
 rstats = importr('stats')
@@ -142,23 +144,33 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
         # add the base case with empty slice filter
         #   and dicts of qn/resp fmla, slice selector fmla, filt fmla
         res = [{'q': qn, 'r': response, 'f': filt, 's': s} for s in [{}, *calls]]
-        rbase.gc()
         return res
 
-    def fetch_stats_for_slice(self, q, r, f, s):
+    def fetch_stats_for_slice(self, q, r, f, s, cfg):
         # create formula for selected question and risk profile
         # create the overall filter
+        nat_f = '(' + u.fmla_for_slice(cfg['national_selector']) + ')'
+        #not national if sitecode in filters or vars
+        # otherwise national
+        nat_keys = set(cfg['national_selector'].keys())
+        if nat_keys.issubset(f.keys()) or nat_keys.issubset(s.keys()):
+            nat_f = '!' + nat_f
         filt_f = u.fmla_for_filt(f) if len(f.keys()) > 0 else ''
         slice_f = u.fmla_for_slice(s) if len(s.keys()) > 0 else ''
         qn_f = Formula('~%s%s' % ('', q))
         subs_f = (filt_f + ' & ' + slice_f
                   if len(filt_f) > 0 and len(slice_f) > 0
                   else filt_f + slice_f)
+        subs_f += ' & ' + nat_f if len(subs_f) > 0 else nat_f
+        idx = self.rdf.colnames.index("sitecode")
+        logger.info("FORMULA: %s" % subs_f)
+        logger.info(rbase.summary(rbase.as_factor(self.rdf[idx])))
         # subset the design using the slice fmla
         des = subset_des_wexpr(self.des, subs_f) if len(
             subs_f) > 0 else self.des
         count = rbase.as_numeric(rsvy.unwtd_count(qn_f, des, na_rm=True,
                                                   multicore=False))[0]
+        logger.info("FORMULA: %s, %s, %d" % (q, subs_f, count))
         total_ci = None
         if count > 0:
             total_ci = svyciprop_yrbs(qn_f, des, multicore=False)
@@ -194,7 +206,7 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
         return self.var_in_svy(var)
 
     @classmethod
-    def load_cdc_survey(cls, spss_file, dat_files):
+    def load_cdc_survey(cls, spss_file, dat_files, cfg):
         logging.info('loading column definitions')
         svy_cols = parse_fwfcols_spss(spss_file)
 

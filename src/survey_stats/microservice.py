@@ -19,10 +19,10 @@ def check_media_type(req, resp, params):
         'http://docs.examples.com/api/json')
 
 
-def fetch_svy_stats_for_slice(dset_id, svy_id, q, r, f, s ):
-    ds = st.dset[dset_id]
-    svy = ds.surveys[svy_id]
-    res = svy.fetch_stats_for_slice(q, r, f, s)
+def fetch_svy_stats_for_slice(dset_id, svy_id, q, r, f, s):
+    (k, cfg) = st.dset[dset_id].fetch_config(national=True, year=None)
+    svy = st.dset[dset_id].surveys[k]
+    res = svy.fetch_stats_for_slice(q, r, f, s, cfg)
     return res
 
 
@@ -95,7 +95,7 @@ class StatsResource:
         vars = vars.split(',')
         resp = req.get_param('r') or '1'
         resp = not 0 ** int(resp, 2)
-        national = req.get_param('s') or '0'
+        national = req.get_param('n') or '0'
         national = not 0 ** int(national, 2)
         filt = req.get_param('f') or ''
         filt = dict(map(

@@ -38,7 +38,7 @@ def fetch_questions(req):
     svy = st.dset[dset].fetch_survey(combined, national)
     res = []
     if svy:
-        res = [(k, get_meta(k, v, dset)) for k, v in svy.vars.items()]
+        res = {k: get_meta(k, v, dset) for k, v in svy.vars.items()}
     else:
         qnkey = st.meta[dset].config['qnkey']
         res = st.meta[dset].qnmeta.reset_index(level=0)
@@ -49,24 +49,6 @@ def fetch_questions(req):
     return json(res)
 
 
-@app.route('/stats/national')
-def fetch_national_stats(req):
-    """
-    National API
-    Returns mean, CI and unweighted count for a national survey
-    segment from either the combined or individual yearly datasets.
-    """
-    return fetch_survey_stats(req, national=True)
-
-
-@app.route('/stats/state')
-def fetch_state_stats(req):
-    """
-    State API
-
-    segment from either the combined or individual yearly datasets.
-    """
-    return fetch_survey_stats(req, national=False)
 
 
 def remap_vars(cfg, coll, into=True):
@@ -90,7 +72,7 @@ def remap_vars(cfg, coll, into=True):
 def gen_slices(k, svy, qn, resp, m_vars, m_filt):
     loc = {'svy_id': k, 'dset_id': 'yrbss'}
     slices = [merge(loc, s)
-              for s in svy.generate_slices(qn, resp, m_vars, m_filt)]
+              for s in svy.generate_slices(qn, str(resp*1), m_vars, m_filt) ]
     return slices
 
 async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):
@@ -99,8 +81,8 @@ async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):
     results = [remap_vars(cfg, x, into=False) for x in results]
     return results
 
-def fetch_socrata(qn, resp, vars, filt, national, meta):
-    precomp = meta.fetch_dash(qn, resp, vars, filt, national)
+def fetch_socrata(qn, resp, vars, filt, meta):
+    precomp = meta.fetch_dash(qn, resp, vars, filt)
     precomp = pd.DataFrame(precomp).fillna(-1)
     precomp['method']='socrata'
     return precomp.to_dict(orient='records')
@@ -118,8 +100,8 @@ def parse_response(r):
     else:
         raise Exception('Invalid response value specified!')
 
-
-async def fetch_survey_stats(req, national, year=None):
+@app.route('/stats')
+async def fetch_survey_stats(req):
     dset = req.args.get('d')
     qn = req.args.get('q')
     vars = [] if not 'v' in req.args else req.args.get('v').split(',')
@@ -127,11 +109,10 @@ async def fetch_survey_stats(req, national, year=None):
     filt = {} if not 'f' in req.args else parse_filter(req.args.get('f'))
     use_socrata = False if not 's' in req.args else not 0 ** int(req.args.get('s'), 2)
     meta = st.meta[dset]
-    #logger.info(meta.qnmeta.columns)
     question = qn #meta.qnmeta[qn]
-    results = fetch_socrata(qn, resp, vars, filt, national, meta)
+    results = None #fetch_socrata(qn, resp, vars, filt, national, meta)
     if not use_socrata:
-        (k, cfg) = st.dset[dset].fetch_config(national, year)
+        (k, cfg) = st.dset[dset].fetch_config(national=True, year=None)
         svy = st.dset[dset].surveys[k]
         m_filt = remap_vars(cfg, filt, into=True)
         m_vars = remap_vars(cfg, vars, into=True)
@@ -140,6 +121,8 @@ async def fetch_survey_stats(req, national, year=None):
         question = svy.vars[qn]['question']
         var_levels = remap_vars(cfg, {v: svy.vars[v] for v in m_vars}, into=False)
         results = await fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg)
+    else:
+        results = fetch_socrata(qn, resp, vars, filt, meta)
     return json({
         'q': qn,
         'filter': filt,
