@@ -63,7 +63,7 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
             map(lambda x: cfg[x],
                 ['facets', 'strata', 'stats', 'metadata'])))
         allchain = allchain + cfg['response']
-        allchain = set(df.columns).intersect(allchain)
+        allchain = set(df.columns).intersection(allchain)
         allchain = list(allchain)
         df = df[allchain]
         if 'remap' in cfg.keys():
@@ -76,8 +76,11 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         logger.info('deduplicating question metadata and saving')
         qnm = df[[k] + cfg['metadata']].drop_duplicates()
         logger.info('extracting dash table and saving')
-        pre = df[[k] + cfg['response'] + list(chain.from_iterable(map(lambda x: cfg[x],
-                                                    ['facets', 'strata', 'stats'])))]
+        pre = [k] + cfg['response'] + list(chain.from_iterable(map(lambda x: cfg[x],
+                                                    ['facets', 'strata', 'stats'])))
+        pre = set(df.columns).intersection(pre)
+        pre = list(pre)
+        pre = df[pre]
         pfx = cfg['id']
         save_feather(pfx+'.qnmeta', qnm)
         save_feather(pfx+'.dash', pre)
