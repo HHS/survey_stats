@@ -1,0 +1,47 @@
+id: prams
+surveys:
+dash:
+  id: prams_dash
+  files:
+    - data/prams/socrata/CDC_PRAMStat_Data_for_2000.csv.gz
+    - data/prams/socrata/CDC_PRAMStat_Data_for_2001.csv.gz
+    - data/prams/socrata/CDC_PRAMStat_Data_for_2002.csv.gz
+    - data/prams/socrata/CDC_PRAMStat_Data_for_2003.csv.gz
+    - data/prams/socrata/CDC_PRAMStat_Data_for_2004.csv.gz
+    - data/prams/socrata/CDC_PRAMStat_Data_for_2005.csv.gz
+    - data/prams/socrata/CDC_PRAMStat_Data_for_2006.csv.gz
+    - data/prams/socrata/CDC_PRAMStat_Data_for_2007.csv.gz
+    - data/prams/socrata/CDC_PRAMStat_Data_for_2008.csv.gz
+    - data/prams/socrata/CDC_PRAMStat_Data_for_2009.csv.gz
+    - data/prams/socrata/CDC_PRAMStat_Data_for_2010.csv.gz
+  qnkey: questionid
+  qnpfx: QUO
+  response:
+    - response
+  metadata:
+    - class
+    - question
+    - topic
+  facets:
+    - breakout
+  strata:
+    - sitecode
+    - year
+  stats:
+    - mean
+    - std_err
+    - ci_u
+    - ci_l
+    - sample_size
+  national_selector:
+    sitecode: 'XX'
+  rename:
+    locationabbr: sitecode
+    data_value: mean
+    data_value_std_err: std_err
+    high_confidence_limit: ci_u
+    low_confidence_limit: ci_l
+    break_out_category: breakout
+  remap:
+    sitecode:
+      'PRAMS Total': 'XX'
