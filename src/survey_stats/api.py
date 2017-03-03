@@ -35,7 +35,7 @@ def fetch_questions(req):
     dset=req.args.get('d')
     national = True
     combined = True
-    svy = st.dset[dset].fetch_survey(combined, national, year=None)
+    svy = st.dset[dset].fetch_survey(combined, national)
     res = []
     if svy:
         res = [(k, get_meta(k, v, dset)) for k, v in svy.vars.items()]
@@ -56,7 +56,7 @@ def fetch_national_stats(req):
     Returns mean, CI and unweighted count for a national survey
     segment from either the combined or individual yearly datasets.
     """
-    return fetch_survey_stats(req, national=True, year=None)
+    return fetch_survey_stats(req, national=True)
 
 
 @app.route('/stats/state')
@@ -66,7 +66,7 @@ def fetch_state_stats(req):
 
     segment from either the combined or individual yearly datasets.
     """
-    return fetch_survey_stats(req, national=False, year=None)
+    return fetch_survey_stats(req, national=False)
 
 
 def remap_vars(cfg, coll, into=True):
@@ -99,8 +99,8 @@ async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):
     results = [remap_vars(cfg, x, into=False) for x in results]
     return results
 
-def fetch_socrata(qn, resp, vars, filt, national, year, meta):
-    precomp = meta.fetch_dash(qn, resp, vars, filt, national, year)
+def fetch_socrata(qn, resp, vars, filt, national, meta):
+    precomp = meta.fetch_dash(qn, resp, vars, filt, national)
     precomp = pd.DataFrame(precomp).fillna(-1)
     precomp['method']='socrata'
     return precomp.to_dict(orient='records')
@@ -119,7 +119,7 @@ def parse_response(r):
         raise Exception('Invalid response value specified!')
 
 
-async def fetch_survey_stats(req, national, year):
+async def fetch_survey_stats(req, national, year=None):
     dset = req.args.get('d')
     qn = req.args.get('q')
     vars = [] if not 'v' in req.args else req.args.get('v').split(',')
@@ -129,7 +129,7 @@ async def fetch_survey_stats(req, national, year):
     meta = st.meta[dset]
     #logger.info(meta.qnmeta.columns)
     question = qn #meta.qnmeta[qn]
-    results = fetch_socrata(qn, resp, vars, filt, national, year, meta)
+    results = fetch_socrata(qn, resp, vars, filt, national, meta)
     if not use_socrata:
         (k, cfg) = st.dset[dset].fetch_config(national, year)
         svy = st.dset[dset].surveys[k]

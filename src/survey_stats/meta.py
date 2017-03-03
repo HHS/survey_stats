@@ -13,6 +13,7 @@ from cached_property import cached_property, threaded_cached_property
 from survey_stats.feathers import has_feather, load_feather, save_feather
 from survey_stats.pdutil import guard_nan, fill_none
 from survey_stats.log import logger
+from survey_stats.error import SSEmptyFilterError, SSInvalidUsage
 
 class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
 
@@ -64,7 +65,7 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         allchain = allchain + cfg['response']
         df = df[allchain]
         if 'remap' in cfg.keys():
-            df.replace(cfg['remap'])
+            df.replace(cfg['remap'], inplace=True)
         logger.info('converting object-types to categories')
         for col in df.columns:
             if df[col].dtype == np.dtype('O'):
@@ -81,18 +82,18 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         return (qnm, pre)
 
 
-    def fetch_dash(self, qn, response, vars, filt = {}, is_national=True, year=None):
+    def fetch_dash(self, qn, response, vars, filt = {}, is_national=True):
         fn_site = lambda x: 'sitecode' if x == 'state' else x
         vars = [fn_site(x) for x in vars]
         filt = {fn_site(k): v for k,v in filt.items()}
         logger.info("vars")
         logger.info(vars)
         logger.info(filt)
-        '''if year:
-            return [] #only available for combined data
         if not 'year' in vars and not 'year' in filt.keys():
-            return [] #only available for indvividual years
-        if not is_national and not 'sitecode' in vars:
+            raise ValueError('Must select a year in filter or in vars as '+
+                                 'breakout for Socrata results.')
+            #only available for indvividual years
+        '''if not is_national and not 'sitecode' in vars:
             return [] #only available for individual states
         '''
         cols = self.config['stats']
