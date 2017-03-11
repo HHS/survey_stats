@@ -1,0 +1,66 @@
+id: yrbss
+surveys:
+  yrbss_combined_national_2015:
+    spss: data/yrbss/2015-sadc-spss-input-program.sps
+    data:
+      - data/yrbss/sadc_2015_national.dat
+      - data/yrbss/sadc_2015_state_a_m.dat
+      - data/yrbss/sadc_2015_state_n_z.dat
+    year: 2015
+    is_combined: true
+    pop_vars:
+      grade: grade
+      sex: sex
+      race: race7
+      sitecode: sitecode
+      year: year
+    national_selector:
+      sitecode: 'XX'
+dash:
+  id: yrbss_dash_2015
+  files:
+    - data/yrbss_dash.csv.gz
+  qnkey: questioncode
+  qnpfx: H
+  response: []
+  metadata:
+    - shortquestiontext
+    - description
+    - greater_risk_question
+    - lesser_risk_question
+    - topic
+    - subtopic
+  facets:
+    - grade
+    - sex
+    - race
+    - sexid
+    - sexpart
+  strata:
+    - sitecode
+    - year
+  stats:
+    - mean
+    - ci_u
+    - ci_l
+    - mean_no
+    - ci_u_no
+    - ci_l_no
+    - count
+  national_selector:
+    sitecode: 'XX'
+  rename:
+    locationabbr: sitecode
+    greater_risk_data_value: mean
+    greater_risk_high_confidence_limit: ci_u
+    greater_risk_low_confidence_limit: ci_l
+    lesser_risk_data_value: mean_no
+    lesser_risk_high_confidence_limit: ci_u_no
+    lesser_risk_low_confidence_limit: ci_l_no
+    sample_size: count
+  remap:
+    race:
+      'Native Hawaiian or Other Pacific Islander': 'Native Hawaiian/other PI'
+      'American Indian or Alaska Native': 'Am Indian / Alaska Native'
+      'Hispanic or Latino': 'Hispanic/Latino'
+      'Multiple Race': 'Multiple - Non-Hispanic'

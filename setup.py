@@ -3,6 +3,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
+import os
 import io
 import re
 from glob import glob
@@ -74,7 +75,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'surveystats.py = survey_stats.cli:main',
+            'survey_stats = survey_stats.cli:main'
         ]
     },
 )
