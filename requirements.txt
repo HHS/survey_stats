@@ -24,3 +24,4 @@ xmltodict==0.10.2
 pytest==2.9.0
 pytest-cov==2.2.1
 pytest-travis-fold==1.2.0
+falcon==1.0.0
