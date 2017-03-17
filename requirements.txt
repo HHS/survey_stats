@@ -108,3 +108,5 @@ widgetsnbextension==1.2.6
 xmltodict==0.10.2
 yapf==0.15.2
 yarl==0.8.1
+pytest==2.9.0
+pytest-cov==2.2.1
