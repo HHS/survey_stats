@@ -25,4 +25,5 @@ def test_subset_survey():
     ''')
     ssdim = pandas2ri.ri2py(fetch_strata_dim(subdf))
     assert ssdim == 133
+    assert 1 == 1
 
