@@ -29,8 +29,8 @@ parser_serve.add_argument('--host',
 						  default=os.environ.get('HOST', '0.0.0.0'),
 		help='interface to bind API service, default: 0.0.0.0')
 parser_serve.add_argument('--port', type=int,
-						  default=os.environ.get('PORT', 7778),
-		help='port for API service, default: 7778')
+						  default=os.environ.get('PORT', 7777),
+		help='port for API service, default: 7777')
 parser_serve.add_argument('--workers', type=int,
 						  default=number_of_workers(),
 		help='number of worker processes, default: num_cores/2')

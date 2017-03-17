@@ -46,7 +46,8 @@ def fetch_questions(req):
         res = st.meta[dset].qnmeta.reset_index(level=0)
         #@dash = st.meta[dset].dash
         #logger.info(dash.columns)
-        #res = res.merge(res, dash.groupby(qnkey)['response'].unique())
+        resps = dash.groupby(qnkey)['response'].unique()
+        logger.info(resps)
         res = res.to_dict(orient="records")
     return json(res)
 
