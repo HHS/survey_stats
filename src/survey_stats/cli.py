@@ -29,11 +29,13 @@ parser_serve.add_argument('--host',
 						  default=os.environ.get('HOST', '0.0.0.0'),
 		help='interface to bind API service, default: 0.0.0.0')
 parser_serve.add_argument('--port', type=int,
-						  default=os.environ.get('PORT', 77778),
+						  default=os.environ.get('PORT', 7778),
 		help='port for API service, default: 7778')
 parser_serve.add_argument('--workers', type=int,
 						  default=number_of_workers(),
 		help='number of worker processes, default: num_cores/2')
+parser_serve.add_argument('--debug', action='store_true',
+						  help='turn on debug mode, default: False')
 
 parser_prole = subparsers.add_parser('work')
 parser_prole.add_argument('--host',
@@ -58,14 +60,13 @@ parser_prole.add_argument('--timeout', type=int,
 		help='worker request timeout in seconds, default: 600')
 
 
-
 def default_action(args):
 	parser.print_help()
 
 
 def serve_api(args):
 	from survey_stats import api
-	api.serve_app(args.host, args.port, args.workers, True)
+	api.serve_app(args.host, args.port, args.workers, args.debug)
 
 
 def serve_workers(args):
@@ -76,7 +77,7 @@ def serve_workers(args):
 		'workers': args.workers,
 		'max_requests': args.max_requests,
 		'max_requests_jitter': args.max_requests_jitter,
-		'debug': True
+		'debug': args.debug
 		#'when_ready': boot_when_ready
 	}
 	APIServer(app, options).run()

@@ -13,6 +13,8 @@ from sanic import Sanic
 from sanic.config import Config
 from sanic.response import text, json
 
+from aiocache import cached
+
 from survey_stats.log import logger
 from survey_stats import error as sserr
 from survey_stats import settings
@@ -47,8 +49,6 @@ def fetch_questions(req):
         #res = res.merge(res, dash.groupby(qnkey)['response'].unique())
         res = res.to_dict(orient="records")
     return json(res)
-
-
 
 
 def remap_vars(cfg, coll, into=True):
@@ -100,6 +100,7 @@ def parse_response(r):
     else:
         raise Exception('Invalid response value specified!')
 
+@cached(ttl=24*60*60)
 @app.route('/stats')
 async def fetch_survey_stats(req):
     dset = req.args.get('d')
