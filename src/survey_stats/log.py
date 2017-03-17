@@ -14,7 +14,7 @@ class ContextFilter(logging.Filter):
 
 def getLogger(name='survey_stat_deflog'):
     logger = logging.getLogger(name)
-    logger.setLevel(logging.ERROR)
+    logger.setLevel(logging.INFO)
     logger.addHandler(syslog)
     logger.addHandler(errlog)
     f = ContextFilter()

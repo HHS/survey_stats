@@ -109,3 +109,4 @@ yapf==0.15.2
 yarl==0.8.1
 pytest==2.9.0
 pytest-cov==2.2.1
+pytest-travis-fold==1.2.0
