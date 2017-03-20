@@ -5,7 +5,7 @@ The BRFSS objective is to collect uniform, state-specific data on preventive hea
 ### Data Availability
 * SAS format data available from 1984 to 2015.
 * Geospatial (Maps data) available for different levels of city/metro/county
-** Filtered to include minimum number of respondents per geo region
+	* Filtered to include minimum number of respondents per geo region
 
 ### Questionairre Structure
 * Core component used by all states
@@ -26,14 +26,14 @@ The BRFSS objective is to collect uniform, state-specific data on preventive hea
 
 ### Characteristic Issues
 * Sampling through phone survey
-** Previously restricted to landline
-** Then stratified at household level (?)
-** Finally using any primary phone number for eligible adults
+	* Previously restricted to landline
+	* Then stratified at household level (?)
+	* Finally using any primary phone number for eligible adults
 * Changes in weighting methodology
-** Most recent was 2011
-** Further change in weighting due to inclusion of landlines in 2015
+	* Most recent was 2011
+	* Further change in weighting due to inclusion of landlines in 2015
 * Comparability/combine-ability of previous years is dubious
-** Not clear if multi-year comparisons are using raw or weighted data
-** How do they reconcile the different yearly weighting strategies?
+	* Not clear if multi-year comparisons are using raw or weighted data
+	* How do they reconcile the different yearly weighting strategies?
 * Direct collection vs contractor data collectors add additional variability
 
