@@ -19,9 +19,9 @@ The BRFSS objective is to collect uniform, state-specific data on preventive hea
 * Disproportionately sampled states are in the majority
 * Design weights are calculated using the weight of each geographic stratum (_STRWT), the number of landline phones within a household (NUMPHON2), and the number of adults who use those phones (NUMADULT). For cellphone respondents, both NUMPHON2 and NUMADULT are set to 1. The formula for the design weight is: Design Weight = _STRWT * (1/NUMPHON2) * NUMADULT
 * BRFSS calculates the stratum weight (_STRWT) using the following items:
-** Number of available records (NRECSTR) and the number of records users select (NRECSEL) within each geographic strata and density strata.
-** Geographic strata (GEOSTR), which may be the entire state or a geographic subset (e.g., counties, census tracts).
-** Density strata (_DENSTR) indicating the density of the phone numbers for a given block of numbers as listed or not listed.
+	* Number of available records (NRECSTR) and the number of records users select (NRECSEL) within each geographic strata and density strata.
+	* Geographic strata (GEOSTR), which may be the entire state or a geographic subset (e.g., counties, census tracts).
+	* Density strata (_DENSTR) indicating the density of the phone numbers for a given block of numbers as listed or not listed.
 * In 2015, the inclusion of cellular telephone respondents who also have landline telephones in their household required an adjustment to the design weights to account for the overlapping sample frames
 
 ### Characteristic Issues
