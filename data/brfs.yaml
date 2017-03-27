@@ -1,0 +1,35 @@
+id: prams
+surveys:
+dash:
+  id: brfs_dash
+  files:
+    - data/prams/socrata/prevalence-2011-2015.csv.gz
+  qnkey: questionid
+  qnpfx: null
+  response:
+    - response
+  metadata:
+    - question
+    - topic
+    - subtopic
+  facets:
+    - breakout
+  strata:
+    - sitecode
+    - year
+  stats:
+    - mean
+    - std_err
+    - ci_u
+    - ci_l
+    - sample_size
+  national_selector:
+    sitecode: 'US'
+  rename:
+    locationabbr: sitecode
+    data_value: mean
+    confidence_limiti_high: ci_u
+    confidence_limit_low: ci_l
+    break_out_category: breakout
+    class: topic
+    topic: subtopic
