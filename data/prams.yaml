@@ -19,9 +19,9 @@ dash:
   response:
     - response
   metadata:
-    - class
     - question
     - topic
+    - subtopic
   facets:
     - breakout
   strata:
@@ -42,6 +42,8 @@ dash:
     high_confidence_limit: ci_u
     low_confidence_limit: ci_l
     break_out_category: breakout
+    class: topic
+    topic: subtopic
   remap:
     sitecode:
       'PRAMS Total': 'XX'
