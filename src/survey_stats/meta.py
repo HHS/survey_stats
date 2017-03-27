@@ -68,13 +68,15 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         df = df[allchain]
         if 'remap' in cfg.keys():
             df.replace(cfg['remap'], inplace=True)
+
+        df[cfg['response']] = df[cfg['response']].fillna('NA')
         logger.info('converting object-types to categories')
         for col in df.columns:
             if df[col].dtype == np.dtype('O'):
                 df[col] = df[col].astype('category')
 
         logger.info('deduplicating question metadata and saving')
-        qnm = df[[k] + cfg['metadata']].drop_duplicates()
+        qnm = df[[k] + cfg['metadata'] + cfg['response']].drop_duplicates()
         logger.info('extracting dash table and saving')
         pre = [k] + cfg['response'] + list(chain.from_iterable(map(lambda x: cfg[x],
                                                     ['facets', 'strata', 'stats'])))

@@ -44,11 +44,17 @@ def fetch_questions(req):
     else:
         qnkey = st.meta[dset].config['qnkey']
         res = st.meta[dset].qnmeta.reset_index(level=0)
-        #@dash = st.meta[dset].dash
-        #logger.info(dash.columns)
-        resps = dash.groupby(qnkey)['response'].unique()
-        logger.info(resps)
-        res = res.to_dict(orient="records")
+        res = res.groupby('questionid').agg({
+            'topic': lambda x: x.head(1).get_values()[0],
+            'subtopic': lambda x: x.head(1).get_values()[0],
+            'question': lambda x: x.head(1).get_values()[0],
+            'response': lambda x: list(x)
+        })
+        # dash = st.meta[dset].dash
+        # logger.info(dash.columns)
+        # logger.info(res['response'].value_counts().to_dict())
+        res = res.to_dict(orient="index")
+        #logger.info(res)
     return json(res)
 
 
