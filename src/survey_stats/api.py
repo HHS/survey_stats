@@ -12,7 +12,6 @@ from toolz.dicttoolz import merge
 from sanic import Sanic
 from sanic.config import Config
 from sanic.response import text, json
-
 from aiocache import cached
 
 from survey_stats.log import logger
