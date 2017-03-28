@@ -22,8 +22,13 @@ dash:
     - question
     - topic
     - subtopic
+  selectors:
+    - facet
+    - facet_description
+    - facet_level
+    - facet_level_value
   facets:
-    - breakout
+    - facet
   strata:
     - sitecode
     - year
@@ -41,7 +46,10 @@ dash:
     data_value_std_err: std_err
     high_confidence_limit: ci_u
     low_confidence_limit: ci_l
-    break_out_category: breakout
+    breakoutcategoryid: facet
+    break_out_category: facet_description
+    breakoutid: facet_level
+    break_out: facet_level_value
     class: topic
     topic: subtopic
   remap:
