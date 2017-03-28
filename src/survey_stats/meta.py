@@ -87,6 +87,11 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         pre = set(df.columns).intersection(pre)
         pre = list(pre)
         pre = df[pre]
+        logger.info('pivoting facet and facet_level values')
+        facets_df = pre[['facet', 'facet_level']].drop_duplicates()
+        pre.drop(['facet', 'facet_level'], axis=1, inplace=True)
+        facets_df = facets_df.pivot(columns='facet', values='facet_level')
+        pre = pd.merge(pre, facets_df, left_index=True, right_index=True)
         pfx = cfg['id']
         save_feather(pfx+'.qnmeta', qnm)
         save_feather(pfx+'.dash', pre)

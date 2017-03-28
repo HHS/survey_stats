@@ -29,6 +29,7 @@ dash:
     - facet_level_value
   facets:
     - facet
+    - facet_level
   strata:
     - sitecode
     - year
