@@ -1,11 +1,11 @@
 id: yrbss
 surveys:
   yrbss_combined_national_2015:
-    spss: data/yrbss/2015-sadc-spss-input-program.sps
+    spss: data/yrbss/combined/2015-sadc-spss-input-program.sps
     data:
-      - data/yrbss/sadc_2015_national.dat
-      - data/yrbss/sadc_2015_state_a_m.dat
-      - data/yrbss/sadc_2015_state_n_z.dat
+      - data/yrbss/combined/sadc_2015_national.dat
+      - data/yrbss/combined/sadc_2015_state_a_m.dat
+      - data/yrbss/combined/sadc_2015_state_n_z.dat
     year: 2015
     is_combined: true
     pop_vars:

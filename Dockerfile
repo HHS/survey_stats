@@ -34,7 +34,9 @@ RUN pip3 install --no-cache-dir --upgrade pip && \
 
 COPY . /app
 
+RUN python3 setup.py develop
+
 ENV MALLOC_MMAP_THRESHOLD_ 1000000
 ENV MALLOC_MMAP_MAX_ 262144
 ENV MALLOC_MXFAST_ 0
-ENTRYPOINT ["supervise","survey_stats"]
+ENTRYPOINT ["survey_stats"]

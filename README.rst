@@ -68,6 +68,59 @@ Installation
 Documentation
 =============
 
+
+Endpoints:
+
+GET '/questions'
+
+Returns the questions in the dataset.
+
+Response Content Type: application/json
+
+Parameters:
+
+Parameter: d
+Values: yrbss, prams, brfss
+Description: Specifies dataset
+Data Type: String
+
+Example request: http://localhost:7777/questions?d=prams
+
+GET '/stats'
+
+Returns the available data that can be narrowed down using the parameters.
+
+Response Content Type: application/json
+
+Parameters:
+
+Parameter: d
+Values: yrbss, prams, brfss
+Description: Specifies dataset
+Data Type: String
+
+Parameter: q
+Values: Question ID (Example: qn32)
+Description: Narrow data set by question by specifying this parameter
+Data Type: String
+
+Parameter: v
+Values:
+Description:
+Data Type: List of Strings
+
+Parameter: f
+Values: Field name followed by values you are filtering for (Example: year:2001,2002)
+Description: Fields to filter the data set by
+Data Type: Field name followed by a colon followed by a list of values separated by commas. Each set of field name and values separated by a pipe (Example: f=year:2001,2002|sitecode:IL)
+
+Parameter: s
+Values: 1, 2
+Description: Specifies if you want to the precomputed data set (s=1) or raw data (s=2)
+Data Type: Integer
+
+Example request: http://localhost:7777/stats?d=prams&f=year:2001,2002|sitecode:IL&q=qn25&s=1&v=sitecode,year
+
 https://survey_stats.readthedocs.io/
 
 Development
