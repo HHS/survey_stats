@@ -61,7 +61,7 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         logger.info('extracting all useful columns')
         allchain = [k] + list(chain.from_iterable(
             map(lambda x: cfg[x],
-                ['facets', 'strata', 'stats', 'metadata'])))
+                ['facets', 'strata', 'stats', 'metadata', 'selectors'])))
         allchain = allchain + cfg['response']
         allchain = set(df.columns).intersection(allchain)
         allchain = list(allchain)
@@ -70,19 +70,28 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
             df.replace(cfg['remap'], inplace=True)
 
         df[cfg['response']] = df[cfg['response']].fillna('NA')
+        df['facet'] = df['facet'].fillna('NA')
+        df['facet_description'] = df['facet_description'].fillna('NA')
+        df['facet_level'] = df['facet_level'].fillna('NA')
+        df['facet_level_value'] = df['facet_level_value'].fillna('NA')
         logger.info('converting object-types to categories')
         for col in df.columns:
             if df[col].dtype == np.dtype('O'):
                 df[col] = df[col].astype('category')
 
         logger.info('deduplicating question metadata and saving')
-        qnm = df[[k] + cfg['metadata'] + cfg['response']].drop_duplicates()
+        qnm = df[[k] + cfg['metadata'] + cfg['response'] + cfg['selectors']].drop_duplicates()
         logger.info('extracting dash table and saving')
         pre = [k] + cfg['response'] + list(chain.from_iterable(map(lambda x: cfg[x],
                                                     ['facets', 'strata', 'stats'])))
         pre = set(df.columns).intersection(pre)
         pre = list(pre)
         pre = df[pre]
+        logger.info('pivoting facet and facet_level values')
+        facets_df = pre[['facet', 'facet_level']].drop_duplicates()
+        pre.drop(['facet', 'facet_level'], axis=1, inplace=True)
+        facets_df = facets_df.pivot(columns='facet', values='facet_level')
+        pre = pd.merge(pre, facets_df, left_index=True, right_index=True)
         pfx = cfg['id']
         save_feather(pfx+'.qnmeta', qnm)
         save_feather(pfx+'.dash', pre)

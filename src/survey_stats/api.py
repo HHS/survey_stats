@@ -43,16 +43,28 @@ def fetch_questions(req):
     else:
         qnkey = st.meta[dset].config['qnkey']
         res = st.meta[dset].qnmeta.reset_index(level=0)
-        res = res.groupby('questionid').agg({
+        sl_res =[]
+        sl_res = res[['facet', 'facet_description',
+            'facet_level', 'facet_level_value']].drop_duplicates()
+        sl_res = {f[0]: {
+            'facet':f[0],
+            'facet_description': f[1]['facet_description'].get_values()[0],
+            'levels': dict(list(f[1][['facet_level','facet_level_value']].to_records(index=False)))
+            } for f in sl_res.groupby('facet')}
+
+        qn_res = res[['questionid', 'topic', 'subtopic', 'question', 'response']].groupby('questionid').agg({
             'topic': lambda x: x.head(1).get_values()[0],
-            'subtopic': lambda x: x.head(1).get_values()[0],
-            'question': lambda x: x.head(1).get_values()[0],
-            'response': lambda x: list(x)
+            'subtopic': lambda x: x.get_values()[0],
+            'question': lambda x: x.get_values()[0],
+            'response': lambda x: list(x.drop_duplicates())
         })
+        # qn_res = qn_res['response'].unique()
         # dash = st.meta[dset].dash
         # logger.info(dash.columns)
         # logger.info(res['response'].value_counts().to_dict())
-        res = res.to_dict(orient="index")
+
+        qn_res = qn_res.to_dict(orient='index')
+        res = {'facets':sl_res, 'questions':qn_res}
         #logger.info(res)
     return json(res)
 
