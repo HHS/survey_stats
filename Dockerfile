@@ -34,4 +34,7 @@ RUN pip3 install --no-cache-dir --upgrade pip && \
 
 COPY . /app
 
-CMD ["gunicorn", "-w", "8", "--timeout", "120", "-b","0.0.0.0:7777", "test_harness:app"]
+ENV MALLOC_MMAP_THRESHOLD_ 1000000
+ENV MALLOC_MMAP_MAX_ 262144
+ENV MALLOC_MXFAST_ 0
+ENTRYPOINT ["supervise","survey_stats"]
