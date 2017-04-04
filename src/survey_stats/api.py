@@ -130,19 +130,24 @@ async def fetch_survey_stats(req):
     meta = st.meta[dset]
     question = qn #meta.qnmeta[qn]
     results = None #fetch_socrata(qn, resp, vars, filt, national, meta)
-    if not use_socrata:
-        (k, cfg) = st.dset[dset].fetch_config(national=True, year=None)
-        svy = st.dset[dset].surveys[k]
-        m_filt = remap_vars(cfg, filt, into=True)
-        m_vars = remap_vars(cfg, vars, into=True)
-        if not svy.subset(m_filt).sample_size > 1:
-            raise SSEmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
-        question = svy.vars[qn]['question']
-        var_levels = remap_vars(cfg, {v: svy.vars[v] for v in m_vars}, into=False)
-        results = await fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg)
-    else:
-        results = fetch_socrata(qn, resp, vars, filt, meta)
+    error = None
+    try:
+        if not use_socrata:
+            (k, cfg) = st.dset[dset].fetch_config(national=True, year=None)
+            svy = st.dset[dset].surveys[k]
+            m_filt = remap_vars(cfg, filt, into=True)
+            m_vars = remap_vars(cfg, vars, into=True)
+            if not svy.subset(m_filt).sample_size > 1:
+                raise SSEmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
+            question = svy.vars[qn]['question']
+            var_levels = remap_vars(cfg, {v: svy.vars[v] for v in m_vars}, into=False)
+            results = await fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg)
+        else:
+            results = fetch_socrata(qn, resp, vars, filt, meta)
+    except Exception as e:
+        error = str(e)
     return json({
+        'error': error,
         'q': qn,
         'filter': filt,
         'question': question,
@@ -152,6 +157,7 @@ async def fetch_survey_stats(req):
         'results': results,
         'is_socrata':use_socrata
     })
+
 
 
 def serve_app(host, port, workers, debug):

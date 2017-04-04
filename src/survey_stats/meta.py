@@ -45,11 +45,11 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         # lowercase col names
         logger.info('renaming columns')
         df.columns = df.columns.map(lambda x: x.lower())
-        k = cfg['qnkey']  # get the question key
+        qnkey = cfg['qnkey']  # get the question key
         # rename questions (TODO: cleanup)
         qpfx = cfg['qnpfx']
         logger.info('cleaning up question ids')
-        df[k] = df[k].apply(lambda k:
+        df[qnkey] = df[qnkey].apply(lambda k:
                             k.replace(qpfx, 'qn') if
                             k.startswith(qpfx) else
                             k.lower())
@@ -59,7 +59,7 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         logger.info(cfg['response'])
         df = df.rename(columns=cfg['rename'])
         logger.info('extracting all useful columns')
-        allchain = [k] + list(chain.from_iterable(
+        allchain = [qnkey] + list(chain.from_iterable(
             map(lambda x: cfg[x],
                 ['facets', 'strata', 'stats', 'metadata', 'selectors'])))
         allchain = allchain + cfg['response']
@@ -70,28 +70,41 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
             df.replace(cfg['remap'], inplace=True)
 
         df[cfg['response']] = df[cfg['response']].fillna('NA')
-        df['facet'] = df['facet'].fillna('NA')
-        df['facet_description'] = df['facet_description'].fillna('NA')
-        df['facet_level'] = df['facet_level'].fillna('NA')
-        df['facet_level_value'] = df['facet_level_value'].fillna('NA')
+        if 'selectors' in cfg.keys():
+            for s in cfg['selectors']:
+                df[s].fillna('NA', inplace=True)
+
+        if 'unstack' in cfg.keys():
+            unstack = cfg['unstack']
+            for k,v in unstack.items():
+                catfacets = list(df[k].drop_duplicates())
+                for c in catfacets:
+                    df[c] = 'Total'
+                    df[c][df[k] == c] = df[v][df[k] == c]
+                    logger.info(df.shape)
+                    logger.info(df[c].value_counts())
+                cfg['facets'] = cfg['facets'] + catfacets
+
+        logger.info(df.columns)
         logger.info('converting object-types to categories')
         for col in df.columns:
             if df[col].dtype == np.dtype('O'):
                 df[col] = df[col].astype('category')
-
+        logger.info(df.columns)
         logger.info('deduplicating question metadata and saving')
-        qnm = df[[k] + cfg['metadata'] + cfg['response'] + cfg['selectors']].drop_duplicates()
+
+        qnm = df[[qnkey] + cfg['metadata'] + cfg['response'] + cfg['selectors']].drop_duplicates()
         logger.info('extracting dash table and saving')
-        pre = [k] + cfg['response'] + list(chain.from_iterable(map(lambda x: cfg[x],
+        pre = [qnkey] + cfg['response'] + list(chain.from_iterable(map(lambda x: cfg[x],
                                                     ['facets', 'strata', 'stats'])))
         pre = set(df.columns).intersection(pre)
         pre = list(pre)
         pre = df[pre]
-        logger.info('pivoting facet and facet_level values')
-        facets_df = pre[['facet', 'facet_level']].drop_duplicates()
-        pre.drop(['facet', 'facet_level'], axis=1, inplace=True)
-        facets_df = facets_df.pivot(columns='facet', values='facet_level')
-        pre = pd.merge(pre, facets_df, left_index=True, right_index=True)
+        # logger.info('pivoting facet and facet_level values')
+        # facets_df = pre[['facet', 'facet_level']].drop_duplicates()
+        # pre.drop(['facet', 'facet_level'], axis=1, inplace=True)
+        # facets_df = facets_df.pivot(columns='facet', values='facet_level')
+        # pre = pd.merge(pre, facets_df, left_index=True, right_index=True, how='left')
         pfx = cfg['id']
         save_feather(pfx+'.qnmeta', qnm)
         save_feather(pfx+'.dash', pre)
@@ -102,7 +115,7 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         cols = self.config['stats']
         s_vars = self.config['facets']
         df = self.dash
-
+        #TODO: consider the case where year is not mandatory in a precomp/Socrata DS
         if not 'year' in vars and not 'year' in filt.keys():
             raise ValueError('Must select a year in filter or in vars as '+
                                  'breakout for Socrata results.')

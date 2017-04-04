@@ -27,9 +27,7 @@ dash:
     - facet_description
     - facet_level
     - facet_level_value
-  facets:
-    - facet
-    - facet_level
+  facets: []
   strata:
     - sitecode
     - year
@@ -39,6 +37,8 @@ dash:
     - ci_u
     - ci_l
     - sample_size
+  unstack:
+    facet: facet_level
   national_selector:
     sitecode: 'XX'
   rename:
@@ -56,3 +56,7 @@ dash:
   remap:
     sitecode:
       'PRAMS Total': 'XX'
+    facet:
+        'BOC99': 'None'
+    facet_level:
+        'BOC99': 'None'
