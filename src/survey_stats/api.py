@@ -58,11 +58,6 @@ def fetch_questions(req):
             'question': lambda x: x.get_values()[0],
             'response': lambda x: list(x.drop_duplicates())
         })
-        # qn_res = qn_res['response'].unique()
-        # dash = st.meta[dset].dash
-        # logger.info(dash.columns)
-        # logger.info(res['response'].value_counts().to_dict())
-
         qn_res = qn_res.to_dict(orient='index')
         res = {'facets':sl_res, 'questions':qn_res}
         #logger.info(res)
@@ -100,11 +95,6 @@ def fetch_questions(req):
             'question': lambda x: x.get_values()[0],
             'response': lambda x: list(x.drop_duplicates())
         })
-        # qn_res = qn_res['response'].unique()
-        # dash = st.meta[dset].dash
-        # logger.info(dash.columns)
-        # logger.info(res['response'].value_counts().to_dict())
-
         qn_res = qn_res.to_dict(orient='index')
         res = qn_res
         #logger.info(res)
