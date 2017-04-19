@@ -19,7 +19,6 @@ from survey_stats.helpr import filter_survey_var
 from survey_stats import pdutil as u
 from survey_stats.log import logger
 
-
 rbase = importr('base')
 rstats = importr('stats')
 rsvy = importr('survey')

@@ -1,5 +1,4 @@
 import socket
-import backtracepython as bt
 import traceback
 import logging
 from logging.handlers import SysLogHandler
@@ -21,8 +20,6 @@ def getLogger(name='survey_stat_deflog'):
     logger.addFilter(f)
     return logger
 
-bt.initialize(endpoint=settings.BACKTRACE_URL,
-              token=settings.BACKTRACE_TKN)
 formatter = logging.Formatter(
     '%(asctime)s - STATS: %(message)s',
     datefmt='%b %d %H:%M:%S'

@@ -69,7 +69,6 @@ setup(
         'cython==0.25.2',
         'aiofiles==0.3.0',
         'aiohttp==1.2.0',
-        'backtracepython==0.3.2',
         'cached-property==1.3.0',
         'cytoolz==0.8.2',
         'feather-format==0.3.1',
