@@ -19,10 +19,11 @@ surveys:
 dash:
   id: yrbss_dash_2015
   files:
-    - data/yrbss_dash.csv.gz
+    - data/yrbss/socrata/2017-01-17.csv.gz
   qnkey: questioncode
   qnpfx: H
-  response: []
+  response:
+    - response
   metadata:
     - shortquestiontext
     - description
@@ -36,6 +37,7 @@ dash:
     - race
     - sexid
     - sexpart
+  selectors: []
   strata:
     - sitecode
     - year
@@ -43,9 +45,6 @@ dash:
     - mean
     - ci_u
     - ci_l
-    - mean_no
-    - ci_u_no
-    - ci_l_no
     - count
   national_selector:
     sitecode: 'XX'
@@ -58,6 +57,15 @@ dash:
     lesser_risk_high_confidence_limit: ci_u_no
     lesser_risk_low_confidence_limit: ci_l_no
     sample_size: count
+  fold_stats:
+    y:
+      - mean
+      - ci_u
+      - ci_l
+    n:
+      - mean_no
+      - ci_u_no
+      - ci_l_no
   remap:
     race:
       'Native Hawaiian or Other Pacific Islander': 'Native Hawaiian/other PI'

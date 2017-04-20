@@ -30,8 +30,8 @@ app = Sanic(__name__)
 def fetch_questions(req):
     def get_meta(k, v, dset):
         key = k.lower()
-        res = (dict(st.meta[dset].qnmeta_dict[key], **v, id=k) if key in
-               st.meta[dset].qnmeta_dict else dict(v, id=k))
+        res = (dict(st.meta[dset].qnmeta.ix[key].ix[0].to_dict(), **v, id=k) if key in
+               st.meta[dset].qnmeta.index else dict(v, id=k))
         return res
     dset=req.args.get('d')
     national = True
@@ -67,8 +67,8 @@ def fetch_questions(req):
 def fetch_questions(req):
     def get_meta(k, v, dset):
         key = k.lower()
-        res = (dict(st.meta[dset].qnmeta_dict[key], **v, id=k) if key in
-               st.meta[dset].qnmeta_dict else dict(v, id=k))
+        res = (dict(st.meta[dset].qnmeta.ix[key].ix[0].to_dict(), **v, id=k) if key in
+               st.meta[dset].qnmeta.index else dict(v, id=k))
         return res
     dset=req.args.get('d')
     national = True
@@ -122,7 +122,9 @@ def remap_vars(cfg, coll, into=True):
 def gen_slices(k, svy, qn, resp, m_vars, m_filt):
     loc = {'svy_id': k, 'dset_id': 'yrbss'}
     slices = [merge(loc, s)
-        for s in svy.generate_slices(qn, resp, m_vars, m_filt) ]
+        for s in svy.generate_slices(qn, True, m_vars, m_filt) ]
+    slices += [merge(loc, s)
+        for s in svy.generate_slices(qn, False, m_vars, m_filt) ]
     return slices
 
 async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):

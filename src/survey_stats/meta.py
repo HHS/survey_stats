@@ -56,20 +56,25 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         logger.info('renaming columns')
         # rename columns
         logger.info(cfg)
-        logger.info(cfg['response'])
+        #logger.info(cfg['response'])
         df = df.rename(columns=cfg['rename'])
         logger.info('extracting all useful columns')
         allchain = [qnkey] + list(chain.from_iterable(
             map(lambda x: cfg[x],
                 ['facets', 'strata', 'stats', 'metadata', 'selectors'])))
+        if 'fold_stats' in cfg:
+            allchain = allchain  + cfg['fold_stats']['y'] + cfg['fold_stats']['n']
+
         allchain = allchain + cfg['response']
         allchain = set(df.columns).intersection(allchain)
         allchain = list(allchain)
         df = df[allchain]
         if 'remap' in cfg.keys():
             df.replace(cfg['remap'], inplace=True)
-
-        df[cfg['response']] = df[cfg['response']].fillna('NA')
+        try:
+            df[cfg['response']] = df[cfg['response']].fillna('NA')
+        except:
+            pass
         if 'selectors' in cfg.keys():
             for s in cfg['selectors']:
                 df[s].fillna('NA', inplace=True)
@@ -91,10 +96,24 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
             if df[col].dtype == np.dtype('O'):
                 df[col] = df[col].astype('category')
         logger.info(df.columns)
+        if 'fold_stats' in cfg:
+            logger.info(df.shape)
+            cols = list(df.columns)
+            yes_cols = cfg['fold_stats']['y']
+            no_cols = cfg['fold_stats']['n']
+            fixed_cols = list( set(cols) - set(yes_cols + no_cols) )
+            yes_df = df[ fixed_cols + yes_cols ]
+            no_df = df[ fixed_cols + no_cols ]
+            yes_df['response'] = True
+            no_df['response'] = False
+            no_df.columns = yes_df.columns
+            df = pd.concat([yes_df, no_df])
+            df.reset_index(drop=True, inplace=True)
+            logger.info(df.columns)
+            logger.info(df.shape)
         logger.info('deduplicating question metadata and saving')
-
-        qnm = df[[qnkey] + cfg['metadata'] + cfg['response'] + cfg['selectors']].drop_duplicates()
         logger.info('extracting dash table and saving')
+        qnm = df[[qnkey] + cfg['metadata'] + cfg['response'] + cfg['selectors']].drop_duplicates()
         pre = [qnkey] + cfg['response'] + list(chain.from_iterable(map(lambda x: cfg[x],
                                                     ['facets', 'strata', 'stats'])))
         pre = set(df.columns).intersection(pre)
@@ -163,8 +182,6 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
             cols += ['response']
         df = df[vars + cols]
         df['q'] = qn
-        if not "response" in df.columns:
-            df['response'] = response
         for k in self.config['stats']:
             if k.startswith('mean') or k.startswith('ci'):
                 df[k] = df[k]/100.0

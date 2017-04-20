@@ -56,7 +56,7 @@ def fetch_stats(des, qn, response=True, vars=[], filt={}):
         merged.columns = vars + ['mean', 'se', 'ci_l', 'ci_u', 'count']
         merged['level'] = len(vars)
         merged['q'] = qn
-        merged['q_resp'] = response
+        merged['response'] = response
         merged = merged.round(DECIMALS)
         #logging.info(merged.to_json(orient='records'))
     # create formula for selected question and risk profile
@@ -186,7 +186,7 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
             rbase.attr(total_ci, 'ci')[1]) if total_ci else None,
             'count': count,
             'filter': f,
-            'q_resp': bool(r),
+            'response': bool(r),
             'q': q}
         res.update(s)
         # round as appropriate
