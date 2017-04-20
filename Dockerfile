@@ -3,21 +3,17 @@ FROM rocker/r-base
 # ensure local python is preferred over distribution python
 ENV PATH /usr/local/bin:$PATH
 
-# http://bugs.python.org/issue19846
-# > At the moment, setting "LANG=C" on a Linux system *fundamentally breaks Python 3*, and that's not OK.
-ENV LANG C.UTF-8
+# System packages
+RUN apt-get update && apt-get install -y curl
 
-RUN set -ex \
-  && buildDeps=' \
-      python3-dev \
-      python3-setuptools \
-      python3-pip \
-      python3-pandas \
-      python3-virtualenv \
-      cython3 \
-      libopenblas-base \
-  ' \
-  && apt-get update && apt-get install -y $buildDeps --no-install-recommends && rm -rf /var/lib/apt/lists/* \
+# Install miniconda to /miniconda
+RUN curl -LO http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh
+RUN bash Miniconda-latest-Linux-x86_64.sh -p /miniconda -b
+RUN rm Miniconda-latest-Linux-x86_64.sh
+ENV PATH=/miniconda/bin:${PATH}
+RUN conda update -y conda \
+  && conda config --add channels intel \
+  && conda create -n idp intelpython3_full python=3 \
   && R --vanilla -e 'install.packages("survey", repos="http://R-Forge.R-project.org")' \
   && R --vanilla -e 'install.packages("functional", repos="https://cloud.r-project.org/")' \
   && R --vanilla -e 'install.packages("feather", repos="https://cloud.r-project.org/")'

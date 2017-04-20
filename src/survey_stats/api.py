@@ -30,8 +30,7 @@ app = Sanic(__name__)
 def fetch_questions(req):
     def get_meta(k, v, dset):
         key = k.lower()
-        res = (dict(st.meta[dset].qnmeta.ix[key].ix[0].to_dict(), **v, id=k) if key in
-               st.meta[dset].qnmeta.index else dict(v, id=k))
+        res = (dict(v, id=k))
         return res
     dset=req.args.get('d')
     national = True
