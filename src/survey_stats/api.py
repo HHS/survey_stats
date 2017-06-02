@@ -28,7 +28,7 @@ Config.REQUEST_TIMEOUT = 50000000
 
 app = Sanic(__name__)
 
-@app.route("/v2/questions")
+@app.route("/questions/v2")
 def fetch_questions(req):
     def get_meta(k, v, dset):
         key = k.lower()
