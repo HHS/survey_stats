@@ -1,3 +1,5 @@
+import sys
+import math
 import time
 import logging
 import traceback
@@ -76,6 +78,12 @@ def fetch_questions(req):
     res = []
     if svy:
         res = {k: get_meta(k, v, dset) for k, v in svy.vars.items()}
+        # removed  responses
+        for key,value in res.items():
+            del value['responses']
+            del value['is_integer']
+            if 'response' in value:
+               del value['response'] 
     else:
         qnkey = st.meta[dset].config['qnkey']
         res = st.meta[dset].qnmeta.reset_index(level=0)
@@ -94,9 +102,18 @@ def fetch_questions(req):
             'question': lambda x: x.get_values()[0],
             'response': lambda x: list(x.drop_duplicates())
         })
+        qn_res['class'] = qn_res['topic']
+        qn_res['topic'] = qn_res['subtopic']
+        del qn_res['subtopic']
         qn_res = qn_res.to_dict(orient='index')
         res = qn_res
         #logger.info(res)
+    # looping through dictionary and replacing all 'nan' values with empty string
+    for value in res.values():
+        for i in value.keys():
+            item = value[i]
+            if isinstance(item, float) and math.isnan(item):
+               value[i] = ''
     return json(res)
 
 

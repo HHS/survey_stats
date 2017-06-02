@@ -19,7 +19,7 @@ surveys:
 dash:
   id: yrbss_dash_2015
   files:
-    - data/yrbss/socrata/2017-01-17.csv.gz
+    - data/yrbss_dash.csv.gz
   qnkey: questioncode
   qnpfx: H
   response:
