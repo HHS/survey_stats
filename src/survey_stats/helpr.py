@@ -7,7 +7,7 @@ function(formula, design, method='xlogit', level = 0.95, df=degf(design), ...) {
 
 svybyci_yrbs = robjects.r('''
 function( formula, by, des, fn, ...) {
-    svyby(formula, by, des, fn, keep_var=TRUE, method='xlogit',
+    svyby(formula, by, des, fn, keep.var=TRUE, method='xlogit',
           vartype=c('se','ci'), na.rm.by=TRUE, na.rm.all=TRUE, multicore=TRUE)
 }''')
 
