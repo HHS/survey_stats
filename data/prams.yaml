@@ -1,19 +1,5 @@
 id: prams
 surveys:
-  data:
-    - data/PRAMS_Data/CDC_PRAMStat_Data_for_2000.csv.gz
-    - data/PRAMS_Data/CDC_PRAMStat_Data_for_2001.csv.gz
-    - data/PRAMS_Data/CDC_PRAMStat_Data_for_2002.csv.gz
-    - data/PRAMS_Data/CDC_PRAMStat_Data_for_2003.csv.gz
-    - data/PRAMS_Data/CDC_PRAMStat_Data_for_2004.csv.gz
-    - data/PRAMS_Data/CDC_PRAMStat_Data_for_2005.csv.gz
-    - data/PRAMS_Data/CDC_PRAMStat_Data_for_2006.csv.gz
-    - data/PRAMS_Data/CDC_PRAMStat_Data_for_2007.csv.gz
-    - data/PRAMS_Data/CDC_PRAMStat_Data_for_2008.csv.gz
-    - data/PRAMS_Data/CDC_PRAMStat_Data_for_2009.csv.gz
-    - data/PRAMS_Data/CDC_PRAMStat_Data_for_2010.csv.gz
-  pop_vars:
-  
 dash:
   id: prams_dash
   files:
@@ -28,6 +14,7 @@ dash:
     - data/prams/socrata/CDC_PRAMStat_Data_for_2008.csv.gz
     - data/prams/socrata/CDC_PRAMStat_Data_for_2009.csv.gz
     - data/prams/socrata/CDC_PRAMStat_Data_for_2010.csv.gz
+    - data/prams/socrata/CDC_PRAMStat_Data_for_2011.csv.gz
   qnkey: questionid
   qnpfx: QUO
   response:
