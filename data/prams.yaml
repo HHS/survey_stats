@@ -28,8 +28,7 @@ dash:
     - facet_description
     - facet_level
     - facet_level_value
-  facets:
-    - 
+  facets: []
   strata:
     - sitecode
     - year
@@ -55,6 +54,25 @@ dash:
     break_out: facet_level_value
     class: topic
     topic: subtopic
+    'Adequacy of Prenatal care': 'KESSNER'
+    'Birth Weight': 'BIRTHWGT'
+    'Income (years 2004 and beyond)': 'CP_INCOME7'
+    'Marital Status': 'MARRIED'
+    'Maternal Age - 18 to 44 years in groupings': 'AGE_1844G'
+    'Maternal Age - 18 to 44 years only': 'AGE_1844'
+    'Maternal Age (3 Levels)': 'MAT_AGE3'
+    'Maternal Age (4 Levels)': 'MAT_AGE3'
+    'Maternal Age (4 Levels)': 'MAT_AGE4'
+    'Maternal Education': 'MATEDG'
+    'Maternal Race/Ethnicity': 'MATRCETH'
+    'Medicaid Recipient': 'ps7_medic7any_brk'
+    'Mother Hispanic': 'HISP_BC'
+    'None': ''
+    'Number of Previous Live Births': 'PRVLIVBR'
+    'On WIC during Pregnancy': 'WIC_PREG'
+    'Pregnancy Intendedness': 'ps7_intended7_brk'
+    'Smoked 3 months before Pregnancy': 'SMK43B_A'
+    'Smoked last 3 months of Pregnancy': 'SMK43L_A'
   remap:
     sitecode:
       'PRAMS Total': 'XX'
