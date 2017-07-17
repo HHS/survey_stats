@@ -49,10 +49,11 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         # rename questions (TODO: cleanup)
         qpfx = cfg['qnpfx']
         logger.info('cleaning up question ids')
-        df[qnkey] = df[qnkey].apply(lambda k:
-                            k.replace(qpfx, 'qn') if
-                            k.startswith(qpfx) else
-                            k.lower())
+        if qpfx:
+            df[qnkey] = df[qnkey].apply(lambda k:
+                                k.replace(qpfx, 'qn') if
+                                k.startswith(qpfx) else
+                                k.lower())
         logger.info('renaming columns')
         # rename columns
         logger.info(cfg)
@@ -93,6 +94,8 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         logger.info(df.columns)
         logger.info('converting object-types to categories')
         for col in df.columns:
+            if col in cfg['stats']:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
             if df[col].dtype == np.dtype('O'):
                 df[col] = df[col].astype('category')
         logger.info(df.columns)
@@ -111,21 +114,23 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
             df.reset_index(drop=True, inplace=True)
             logger.info(df.columns)
             logger.info(df.shape)
+        pfx = cfg['id']
         logger.info('deduplicating question metadata and saving')
-        logger.info('extracting dash table and saving')
         qnm = df[[qnkey] + cfg['metadata'] + cfg['response'] + cfg['selectors']].drop_duplicates()
+        logger.info(qnm.dtypes)
+        save_feather(pfx+'.qnmeta', qnm)
+        logger.info('extracting dash table and saving')
         pre = [qnkey] + cfg['response'] + list(chain.from_iterable(map(lambda x: cfg[x],
                                                     ['facets', 'strata', 'stats'])))
         pre = set(df.columns).intersection(pre)
         pre = list(pre)
         pre = df[pre]
+        logger.info(pre.shape)
         # logger.info('pivoting facet and facet_level values')
         # facets_df = pre[['facet', 'facet_level']].drop_duplicates()
         # pre.drop(['facet', 'facet_level'], axis=1, inplace=True)
         # facets_df = facets_df.pivot(columns='facet', values='facet_level')
         # pre = pd.merge(pre, facets_df, left_index=True, right_index=True, how='left')
-        pfx = cfg['id']
-        save_feather(pfx+'.qnmeta', qnm)
         save_feather(pfx+'.dash', pre)
         return (qnm, pre)
 
