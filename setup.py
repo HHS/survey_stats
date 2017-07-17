@@ -71,9 +71,9 @@ setup(
         'Werkzeug>=0.12',
         'aiofiles>=0.3.0',
         'aiohttp>=1.2.0',
+        'aiocache==0.7.0',
         'cached-property>=1.3.0',
         'cytoolz>=0.8.2',
-        'feather-format>=0.3.1',
         'gunicorn>=19.6.0',
         'jsonschema>=2.5.1',
         'pandas>=0.19.2',
@@ -87,7 +87,9 @@ setup(
         'uvloop>=0.7.2',
         'xmltodict>=0.10.2',
         'falcon>=1.0.0',
-        'py-lru-cache>=0.1.4'
+        'py-lru-cache>=0.1.4',
+        'pyarrow>=0.4.1',
+        'feather-format>=0.4.0'
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={
