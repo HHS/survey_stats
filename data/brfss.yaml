@@ -1,0 +1,58 @@
+id: brfss
+surveys_pl:
+  data_urls: 'data/brfss/annual_survey_files.csv'
+surveys:
+dash:
+  id: brfss_dash
+  files:
+    - 'data/brfss/socrata/brfss_prevalence_from2011.csv.gz'
+    - 'data/brfss/socrata/brfss_prevalence_pre2011.csv.gz'
+  qnkey: questionid
+  qnpfx: null
+  response:
+    - response
+  metadata:
+    - question
+    - topic
+    - subtopic
+  selectors:
+    - facet
+    - facet_description
+    - facet_level
+    - facet_level_value
+  facets: []
+  strata:
+    - sitecode
+    - year
+  stats:
+    - mean
+    - std_err
+    - ci_u
+    - ci_l
+    - sample_size
+  unstack:
+    facet: facet_level
+  national_selector:
+    sitecode: 'UW'
+  rename:
+    locationabbr: sitecode
+    data_value: mean
+    confidence_limit_high: ci_u
+    confidence_limit_low: ci_l
+    breakoutcategoryid: facet_description
+    break_out_category: facet
+    breakoutid: facet_level_value
+    break_out: facet_level
+    data_value_footnote_symbol: std_err
+    class: topic
+    topic: subtopic
+  remap:
+    facet:
+      'Overall': 'None'
+      'Household Income': income
+      'Age Group': age_group
+      'Education Attained': education
+      'Gender': gender
+      'Race/Ethnicity': race
+    facet_level:
+      'Overall': 'none'
