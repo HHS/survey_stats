@@ -6,9 +6,10 @@ import rpy2
 import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
-import pandas.rpy.common as com
 
 from survey_stats import helpr
+
+pandas2ri.activate()
 
 rbase = importr('base')
 
@@ -181,7 +182,7 @@ def load_survey(dat_files, svy_cols, svy_vars):
                                                  na_values=['.','']),
                        dat_files), ignore_index=True, copy=False)
     logging.info('converting survey data to R object')
-    rdf = com.convert_to_r_dataframe(df)
+    rdf = pandas2ri.py2ri(df)
     logging.info('coercing variables to annotated types')
     for q, v in svy_vars.items():
         if v['is_integer']:
