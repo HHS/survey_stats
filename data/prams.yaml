@@ -47,16 +47,18 @@ dash:
     data_value_std_err: std_err
     high_confidence_limit: ci_u
     low_confidence_limit: ci_l
-    breakoutcategoryid: facet
-    break_out_category: facet_description
-    breakoutid: facet_level
-    break_out: facet_level_value
+    breakoutcategoryid: facet_description
+    break_out_category: facet
+    breakoutid: facet_level_value
+    break_out: facet_level
     class: topic
     topic: subtopic
   remap:
     sitecode:
       'PRAMS Total': 'XX'
     facet:
-        'BOC99': 'None'
+      'BOC99': 'Total'
+      'None': 'Unknown'
     facet_level:
-        'BOC99': 'None'
+      'BOC99': 'Total'
+      'None': 'Unknown'
