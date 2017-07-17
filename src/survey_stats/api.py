@@ -83,7 +83,7 @@ def fetch_questions(req):
             del value['responses']
             del value['is_integer']
             if 'response' in value:
-               del value['response'] 
+               del value['response']
     else:
         qnkey = st.meta[dset].config['qnkey']
         res = st.meta[dset].qnmeta.reset_index(level=0)
@@ -114,6 +114,7 @@ def fetch_questions(req):
             item = value[i]
             if isinstance(item, float) and math.isnan(item):
                value[i] = ''
+    res = {'questions': res, 'facets': sl_res}
     return json(res)
 
 
