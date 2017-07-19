@@ -20,7 +20,12 @@ dash:
     - facet_description
     - facet_level
     - facet_level_value
-  facets: []
+  facets:
+    - age_group
+    - gender
+    - race
+    - education
+    - income
   strata:
     - sitecode
     - year

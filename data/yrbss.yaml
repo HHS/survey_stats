@@ -16,6 +16,10 @@ surveys:
       year: year
     national_selector:
       sitecode: 'XX'
+    default_levels:
+      '1': true
+      '2': false
+      '': null
 dash:
   id: yrbss_dash_2015
   files:

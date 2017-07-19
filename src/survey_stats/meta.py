@@ -40,7 +40,7 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
         #df = pd.read_csv(cfg['files'][0], compression='gzip')
         df = pd.concat([pd.read_csv(f, index_col=None, header=0,
                                     compression='gzip')
-                      for f in cfg['files']])
+                      for f in cfg['files']], ignore_index=True)
         # TODO: deal with multiple files
         # lowercase col names
         logger.info('renaming columns')
@@ -138,6 +138,8 @@ class SurveyMetadata(namedtuple('Metadata', ['config', 'qnmeta', 'dash'])):
     def fetch_dash(self, qn, response, vars, filt = {}):
         cols = self.config['stats']
         s_vars = self.config['facets']
+        #logger.info(self.qnmeta.columns)
+        #s_vars = s_vars.extend( list(self.qnmeta['facet'].drop_duplicates()) )
         df = self.dash
         #TODO: consider the case where year is not mandatory in a precomp/Socrata DS
         if not 'year' in vars and not 'year' in filt.keys():
