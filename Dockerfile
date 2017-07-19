@@ -25,9 +25,8 @@ RUN apt-get install -y libreadline-dev
 
 COPY . /app
 
-RUN python setup.py develop
+RUN pip install -e .
 
 ENV MALLOC_MMAP_THRESHOLD_ 1000000
 ENV MALLOC_MMAP_MAX_ 262144
 ENV MALLOC_MXFAST_ 0
-ENTRYPOINT ["survey_stats serve"]
