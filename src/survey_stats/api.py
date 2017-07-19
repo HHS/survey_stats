@@ -76,6 +76,7 @@ def fetch_questions(req):
     combined = True
     svy = st.dset[dset].fetch_survey(combined, national)
     res = []
+    sl_res = {}
     if svy:
         res = {k: get_meta(k, v, dset) for k, v in svy.vars.items()}
         # removed  responses
@@ -86,7 +87,7 @@ def fetch_questions(req):
                del value['response']
     else:
         qnkey = st.meta[dset].config['qnkey']
-        res = st.meta[dset].qnmeta.reset_index(level=0)
+        res = st.meta[dset].qnmeta.reset_index()
         sl_res =[]
         sl_res = res[['facet', 'facet_description',
             'facet_level', 'facet_level_value']].drop_duplicates()
