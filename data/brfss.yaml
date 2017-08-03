@@ -1,12 +1,22 @@
-id: brfss
-surveys_pl:
-  data_urls: 'data/brfss/annual_survey_files.csv'
+
 surveys:
-dash:
-  id: brfss_dash
-  files:
-    - 'data/brfss/socrata/brfss_prevalence_from2011.csv.gz'
-    - 'data/brfss/socrata/brfss_prevalence_pre2011.csv.gz'
+  data_urls: 'data/brfss/annual_survey_files.csv'
+  year: 2015
+  is_combined: true
+  pop_vars:
+    sex: sex
+    race: race
+    age: xAGExG
+    sitecode: state
+    year: year
+  national_selector:
+    sitecode: 'XX'
+  default_levels:
+    '1': true
+    '2': false
+    '': null
+precomputed:
+  soda_api: 'https://chronicdata.cdc.gov/resource/fn2i-3j6c.json'
   qnkey: questionid
   qnpfx: null
   response:

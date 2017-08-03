@@ -143,6 +143,7 @@ class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
         # add the base case with empty slice filter
         #   and dicts of qn/resp fmla, slice selector fmla, filt fmla
         res = [{'q': qn, 'r': response, 'f': filt, 's': s} for s in [{}, *calls]]
+        logger.info(res)
         return res
 
     def fetch_stats_for_slice(self, q, r, f, s, cfg):

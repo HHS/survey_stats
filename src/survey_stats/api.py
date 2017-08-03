@@ -16,7 +16,7 @@ from sanic.config import Config
 from sanic.response import text, json
 from aiocache import cached
 
-from survey_stats.log import logger
+from survey_stats import log
 from survey_stats import error as sserr
 from survey_stats import settings
 from survey_stats import fetch
@@ -27,6 +27,8 @@ from survey_stats.error import SSEmptyFilterError, SSInvalidUsage
 Config.REQUEST_TIMEOUT = 50000000
 
 app = Sanic(__name__)
+
+logger = log.getLogger()
 
 @app.route("/questions/v2")
 def fetch_questions(req):
@@ -183,21 +185,21 @@ async def fetch_survey_stats(req):
     question = qn #meta.qnmeta[qn]
     results = None #fetch_socrata(qn, resp, vars, filt, national, meta)
     error = None
-    try:
-        if not use_socrata:
-            (k, cfg) = st.dset[dset].fetch_config(national=True, year=None)
-            svy = st.dset[dset].surveys[k]
-            m_filt = remap_vars(cfg, filt, into=True)
-            m_vars = remap_vars(cfg, vars, into=True)
-            if not svy.subset(m_filt).sample_size > 1:
-                raise SSEmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
-            question = svy.vars[qn]['question']
-            var_levels = remap_vars(cfg, {v: svy.vars[v] for v in m_vars}, into=False)
-            results = await fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg)
-        else:
-            results = fetch_socrata(qn, resp, vars, filt, meta)
-    except Exception as e:
-        error = str(e)
+    #try:
+    if not use_socrata:
+        (k, cfg) = st.dset[dset].fetch_config(national=True, year=None)
+        svy = st.dset[dset].surveys[k]
+        m_filt = remap_vars(cfg, filt, into=True)
+        m_vars = remap_vars(cfg, vars, into=True)
+        if not svy.subset(m_filt).sample_size > 1:
+            raise SSEmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
+        question = svy.vars[qn]['question']
+        var_levels = remap_vars(cfg, {v: svy.vars[v] for v in m_vars}, into=False)
+        results = await fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg)
+    else:
+        results = fetch_socrata(qn, resp, vars, filt, meta)
+    #except Exception as e:
+    #    error = str(e)
     return json({
         'error': error,
         'q': qn,

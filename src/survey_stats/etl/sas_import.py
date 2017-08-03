@@ -23,6 +23,8 @@ from cytoolz.itertoolz import concat, concatv, mapcat
 from cytoolz.functoolz import thread_last, thread_first, flip, do, compose
 from cytoolz.curried import map, filter, reduce
 
+from survey_stats import log
+
 US_STATES_FIPS_INTS = thread_last(
     us.STATES_AND_TERRITORIES,
     map(lambda x: x.fips),
@@ -42,17 +44,7 @@ SAMPLING_COLS = {
     'sitecode': 'sitecode_col'
 }
 
-def getLogger(name='survey_stat_deflog'):
-    formatter = logging.Formatter('%(asctime)s - STATSETL: %(message)s',
-                                  datefmt='%b %d %H:%M:%S')
-    errlog = logging.StreamHandler()
-    errlog.setFormatter(formatter)
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
-    logger.addHandler(errlog)
-    return logger
-
-logger = getLogger()
+logger = log.getLogger()
 
 def number_of_workers():
     return multiprocessing.cpu_count()-2
@@ -104,15 +96,16 @@ def block2dict(lines):
         map(lambda x: (int(x[0]), x[1])),
         dict
     )
+    d[-1] = "NA"
     return d
 
 
-def parse_variable_levels(levels_f, remote_url = True):
-    fh = levels_f
+def parse_variable_labels(labels_f, remote_url = True):
+    fh = labels_f
     if remote_url:
-        r = requests.get(levels_f)
+        r = requests.get(labels_f)
         fh = r.text
-    levels = thread_last(
+    labels = thread_last(
         fh.split(';'),
         map(lambda x: re.split('\/?\*', x)[0].strip()),
         filter(lambda x: x.lower().startswith('value')),
@@ -120,37 +113,33 @@ def parse_variable_levels(levels_f, remote_url = True):
         map(lambda x: (x[0].split()[1].lower(), block2dict(x[1:]))),
         dict
     )
-    return levels
+    return labels
 
-#@dask.delayed
-def load_brfss_varlabels( row ):
-    assignments = parse_format_assignments(row['formas'])
-    #logger.info("%s: loading variable levels" % (row['year']))
-    levels = parse_variable_levels(row['format'])
-    '''
-    df = pd.concat([
-        (pd.DataFrame(
-            list(levels[v].items()),
-            columns=['code','label'])
-        .assign(var=k, year=int(row['year']))
-        ) for
-        k, v in assignments.items() if v in levels
-    ])
-    df['code'] = df['code'].astype(int)
-    df['var'] = df['var'].astype('str')
-    df['label'] = df['label'].astype('category')
-    df = df.set_index(['var','year','code'])
-    '''
-    #logger.info(df.shape)
-    #logger.info(df.head())
-    #logger.ingo(df.describe())
-    return {k: levels[v] for k, v in assignments.items() if v in levels}
+def load_variable_labels( formas_f, format_f, as_dataframe=False):
+    logger.info("loading format labels", file=format_f)
+    labels = parse_variable_labels(format_f)
+    logger.info("loading format assignments", file=formas_f)
+    assignments = parse_format_assignments(formas_f)
+    if as_dataframe:
+        df = pd.concat([
+            (pd.DataFrame(
+                list(labels[v].items()),
+                columns=['code','label'])
+            .assign(var=k, year=int(row['year']))
+            ) for
+            k, v in assignments.items() if v in labels
+        ])
+        return (df.assign(code = df['code'].astype(int),
+                          var = df['var'].astype('str'),
+                          label = df['label'].astype('category'))
+                .set_index(['var','year','code']))
+    else:
+        return {k: labels[v] for k, v in assignments.items() if v in labels}
 
-def get_sitecodes(src, type):
+def get_sitecode(src, type):
     if type == 'fips':
-        src = src.apply(lambda x: us.states.lookup( '%.2d' % x ).abbr if
-                        int(x) in US_STATES_FIPS_INTS else
-                        MISSING_INDICATOR).astype(str)
+        return src.apply(lambda x: us.states.lookup( '%.2d' % x ).abbr if
+                        int(x) in US_STATES_FIPS_INTS else None).astype(str)
     else:
         raise KeyError('Only fips is supported for sitecode type.')
 
@@ -161,58 +150,64 @@ def load_sas_from_remote_zip(url, format):
         with zipf.open(zipf.namelist()[0]) as fh:
             return pd.read_sas(fh, format=format)
 
-#@dask.delayed
-def load_sas_survey_df( row ):
-    logger.info("%s: loading SAS annotation files" % (row['year']))
-    lbls = load_brfss_varlabels( row )
-    logger.info(len(lbls.keys()))
-    logger.info("%s: loading SAS export file" % (row['year']))
+def eager_convert_categorical(s, lbls):
+    if not (s.name in lbls.keys() and
+            set(s).issubset(lbls[s.name].keys())):
+        return s
+    try:
+        s = (pd.to_numeric(s.fillna(-1), downcast='integer')
+             .astype('category')
+             .cat.rename_categories(
+                  [lbls[s.name][k] for k in sorted(s.unique())])
+             .cat.set_categories(
+                 [lbls[s.name][k] for k in sorted(lbls[s.name].keys())])
+             )
+    except:
+        return s
+
+def load_sas_xport_df( row ):
+    logger.info("loading SAS annotation files")
+    logger.bind(year=row['year'])
+    lbls = load_variable_labels( row['formas'], row['format'] )
+    logger.info("loading SAS XPORT file", file=row['xpt'])
     df = load_sas_from_remote_zip(row['xpt'], 'xport')
-    df.rename(columns={x: x.lower() for x in df.columns}, inplace=True)
+    df = df.rename(columns={ x:x.lower() for x in df.columns})
     logger.info("%s: loaded SAS export file with %d rows, %d cols" %
                 (row['year'], df.shape[0], df.shape[1]))
-    df = (df.head(1000).select_dtypes(include=[int,float])
-            .apply(lambda x: pd.to_numeric(x.fillna(-1), errors='coerce', downcast='integer'))
-            .assign(year = int(row['year']),
-                    sitecode = df[row['sitecode_col']].astype(int),
-                    weight = df[row['weight_col']].astype(float),
-                    strata = df[row['strata_col']].astype(int),
-                    psu = df[row['psu_col']].astype(int)))
-    logger.info('replacing levels')
     lbls = {k:v for k,v in lbls.items() if k in df.columns}
-    logger.info(df.dtypes.value_counts())
-    df.replace(to_replace=lbls, inplace=True)
-    logger.info(df.dtypes.value_counts())
-    str_cols = df.columns[df.apply(lambda x: x.apply(type) == str).all()]
-    logger.info(df.dtypes.value_counts())
-    logger.info('done')
+    logger.info('summarized column values',
+                summary=df.dtypes.value_counts().to_dict())
+    logger.info('translating codes to labels')
+    df = (df.head(1000).select_dtypes(include=[int,float])
+            .apply(lambda x: eager_convert_categorical(x, lbls))
+            .select_dtypes(include=['category'])
+            .assign(year = int(row['year']),
+                  sitecode = (get_sitecode(df[row['sitecode_col']],
+                                           'fips')).astype('category'),
+                  weight = df[row['weight_col']].astype(float),
+                  strata = df[row['strata_col']].astype(int),
+                  psu = df[row['psu_col']].astype(int)))
+    logger.unbind('year')
     return df
 
 
-def process_sas_survey_dataset(files):
-    flist = pd.read_csv(files, comment='#')
-    dfs = [load_brfss_df(r) for idx, r in list(flist.iterrows())[:2]]
+def process_dataset(f):
+    flist = pd.read_csv(f, comment='#')
+    dfs = [load_sas_xport_df(r) for idx, r in list(flist.iterrows())]
     logger.info('merging dataframes')
-    dfs = pd.concat(dfs, ignore_index=True).fillna(-1)
-    cat_cols = dfs.select_dtypes(['object','category']).columns
-    dfs = (dfs[cat_cols].astype({k:'category' for k in cat_cols}, errors='raise')
-           .assign(year=pd.to_numeric(dfs['year'], errors='coerce',
-                                      downcast='integer'),
-                   sitecode=dfs['sitecode'].astype('category'),
-                   weight=pd.to_numeric(dfs['weight'], errors='coerce',
-                                        downcast='float'),
-                   strata=pd.to_numeric(dfs['strata'],errors='coerce',
-                                        downcast='integer'),
-                   psu=pd.to_numeric(dfs['psu'], errors='coerce',
-                                     downcast='integer')))
-    logger.info(dfs.shape)
-    feather.write_dataframe(dfs, 'brfss_test.feather')
+    dfs = (pd.concat(dfs, ignore_index=True)
+           .apply(lambda x: (x.fillna(np.nan)
+                             .astype('category')) if
+                  x.dtype.name in ['category','object'] else x))
+    dfs.columns = [ re.sub(r'^_','',x) for x in dfs.columns ]
+    logger.info('finished merging dataframes', shape=dfs.shape, summary=dfs.dtypes.value_counts())
+    feather.write_dataframe(dfs, 'test.feather')
 
 if __name__ == '__main__':
     from dask.distributed import Executor, Client
     f = '~/dev/semanticbits/survey_stats/data/brfss/annual_survey_files.csv'
     #client = Client('127.0.0.1:8786')
-    process_brfss_dataset(f)
+    process_dataset(f)
 
 
 

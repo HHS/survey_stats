@@ -89,7 +89,9 @@ setup(
         'falcon>=1.0.0',
         'py-lru-cache>=0.1.4',
         'pyarrow>=0.4.1',
-        'feather-format>=0.4.0'
+        'feather-format>=0.4.0',
+        'retry>=0.9.2',
+        'us>=0.9.1'
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={
