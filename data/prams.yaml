@@ -14,6 +14,7 @@ dash:
     - data/prams/socrata/CDC_PRAMStat_Data_for_2008.csv.gz
     - data/prams/socrata/CDC_PRAMStat_Data_for_2009.csv.gz
     - data/prams/socrata/CDC_PRAMStat_Data_for_2010.csv.gz
+    - data/prams/socrata/CDC_PRAMStat_Data_for_2011.csv.gz
   qnkey: questionid
   qnpfx: QUO
   response:
