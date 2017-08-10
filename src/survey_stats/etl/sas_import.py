@@ -1,29 +1,20 @@
 import os
+import os.path
 import io
 import re
 import us
-import sys
-import tempfile
-import feather
-import logging
-import requests
 import zipfile
-import traceback
-import dask
-import dask.dataframe as dd
-import dask.delayed
-from dask.delayed import delayed
-import numpy as np
 import pandas as pd
+import boto3
 import urllib.request
 import multiprocessing
 from retry import retry
-from cytoolz import curry
-from cytoolz.itertoolz import concat, concatv, mapcat
-from cytoolz.functoolz import thread_last, thread_first, flip, do, compose
-from cytoolz.curried import map, filter, reduce
+from cytoolz.itertoolz import mapcat
+from cytoolz.functoolz import thread_last
+from cytoolz.curried import map, filter
 
 from survey_stats import log
+from survey_stats import pdutil
 
 US_STATES_FIPS_INTS = thread_last(
     us.STATES_AND_TERRITORIES,
@@ -33,49 +24,62 @@ US_STATES_FIPS_INTS = thread_last(
     list
 )
 
-WEIGHTING_COLS = {
-    'weight': 'weight_col',
-    'psu': 'psu_col',
-    'strata': 'strata_col'
+SITECODE_TRANSLATORS = {
+    'fips': lambda x: (us.states.lookup( '%.2d' % x ).abbr if int(x) in US_STATES_FIPS_INTS else 'NA')
 }
 
-SAMPLING_COLS = {
-    'year': 'year_col',
-    'sitecode': 'sitecode_col'
-}
+SVYDESIGN_COLS = ['sitecode','strata','psu','weight']
 
 logger = log.getLogger()
+
 
 def number_of_workers():
     return multiprocessing.cpu_count()-2
 
-def parse_format_assignments(formas_f, remote_url=True):
-    fh = formas_f
-    if remote_url:
-        r = requests.get(formas_f)
-        fh = r.iter_lines(decode_unicode=True)
+
+def fetch_s3_bytes(url):
+    bucket, key = url[5:].split('/',1)
+    logger.info('fetching s3 url', url=url, bucket=bucket, key=key)
+    client = boto3.client('s3')
+    obj = client.get_object(Bucket=bucket, Key=key)
+    return obj['Body']
+
+@retry(tries=5, delay=2, backoff=2, logger=logger)
+def fetch_data_from_url(url):
+    if os.path.isfile(url):
+        return open(url,'r',errors='ignore')
+    elif url.startswith('s3://'):
+        return fetch_s3_bytes(url)
+    else:
+        return urllib.request.urlopen(url)
+
+
+def parse_format_assignments(txt):
     format_lines = ''
     append = False
-    for line in fh:
+    for line in txt.split('\n'):
         # lowercase, trim off comments and whitespace
         l = re.split('\/?\*', line.lower())[0].strip()
         if line.strip().endswith(';'):
             # make sure we don't lose terminating semicolons
             l += ';'
-        if not append and l.startswith('format'):
+        elif not append and l.startswith('format'):
             # begin collecting format lines
             append = True
             format_lines += l.replace('format','',1) + ' '
             continue
-        if append and l.endswith(';'):
+        elif append and l.endswith(';'):
             # stop collecting format lines
             format_lines += l.replace(';','')
             append = False
             break
-        if append:
+        elif append:
             # add format info line
             format_lines += l + ' '
             continue
+        else:
+            pass
+
     assignments = thread_last(
         format_lines.split('.'), # assignment set ends with fmt + dot
         map(lambda x: x.split()), # break out vars and format
@@ -85,129 +89,183 @@ def parse_format_assignments(formas_f, remote_url=True):
     return assignments
 
 def block2dict(lines):
+    rqt = re.compile(r'[\"]') # match quote chars
+    rws = re.compile(r'\s')        # match whitespace
+    # keep only alnum and a few unreserved symbols
+    ruri = re.compile(r'(?![\w\s\-\_\.\'\-\+\(\)\/]|\.).')
     d = thread_last(
         lines,
-        map(lambda x: x.strip().replace('"','').replace("'","").split('=')),
-        map(lambda x: (x[0].strip().replace(' ',''),
-                       x[1].strip().replace('\x92',"'").replace(',',''))),
-        filter(lambda x: x[0].find('-') == -1),
+        map(lambda x: x.replace('\x92',"'")),
+        map(lambda x: rqt.sub('',x.strip()).split('=')),
+        map(lambda x: (rws.sub('', x[0].strip()), ruri.sub('', x[1].strip()))),
+        filter(lambda x: x[0].find('-') == -1), # no support for ranges
         (mapcat, lambda x: map(lambda y: (y, x[1]), x[0].split(','))),
-        filter(lambda x: x[0].isnumeric()),
-        map(lambda x: (int(x[0]), x[1])),
+        filter(lambda x: x[0].isnumeric()), # remox[1]e non-numeric codes
+        map(lambda x: (int(x[0]), x[1])), # cat codes will be ints
         dict
     )
-    d[-1] = "NA"
+    d[-1] = 'NA' #use NA as a marker for unmapped vals
     return d
 
 
-def parse_variable_labels(labels_f, remote_url = True):
-    fh = labels_f
-    if remote_url:
-        r = requests.get(labels_f)
-        fh = r.text
+def parse_variable_labels(txt):
     labels = thread_last(
-        fh.split(';'),
-        map(lambda x: re.split('\/?\*', x)[0].strip()),
-        filter(lambda x: x.lower().startswith('value')),
-        map(lambda x: x.split('\n')),
+        txt.split(';'),
+        filter(lambda x: x.strip().lower().startswith('value')),
+        map(lambda x: x.strip().split('\n')),
         map(lambda x: (x[0].split()[1].lower(), block2dict(x[1:]))),
         dict
     )
+    logger.info('parsed varlabels from format txt',
+                nlabeled=len(labels.keys()))
     return labels
 
-def load_variable_labels( formas_f, format_f, as_dataframe=False):
+
+def load_variable_labels(formas_f, format_f, year=None):
     logger.info("loading format labels", file=format_f)
-    labels = parse_variable_labels(format_f)
+    labels = thread_last(
+        format_f,
+        fetch_data_from_url,
+        lambda x: x.read(),
+        lambda t: (t.decode('utf-8', errors='ignore')
+                   if type(t) is bytes else t),
+        parse_variable_labels
+    )
     logger.info("loading format assignments", file=formas_f)
-    assignments = parse_format_assignments(formas_f)
-    if as_dataframe:
-        df = pd.concat([
-            (pd.DataFrame(
-                list(labels[v].items()),
-                columns=['code','label'])
-            .assign(var=k, year=int(row['year']))
-            ) for
-            k, v in assignments.items() if v in labels
-        ])
-        return (df.assign(code = df['code'].astype(int),
-                          var = df['var'].astype('str'),
-                          label = df['label'].astype('category'))
-                .set_index(['var','year','code']))
-    else:
-        return {k: labels[v] for k, v in assignments.items() if v in labels}
+    assignments = thread_last(
+        formas_f,
+        fetch_data_from_url,
+        lambda x: x.read(),
+        lambda t: (t.decode('utf-8', errors='ignore')
+                   if type(t) is bytes else t),
+        parse_format_assignments
+    )
+    return {k: labels[v] for k, v in assignments.items() if v in labels}
 
-def get_sitecode(src, type):
-    if type == 'fips':
-        return src.apply(lambda x: us.states.lookup( '%.2d' % x ).abbr if
-                        int(x) in US_STATES_FIPS_INTS else None).astype(str)
-    else:
-        raise KeyError('Only fips is supported for sitecode type.')
 
-@retry(tries=3, delay=5, backoff=2)
-def load_sas_from_remote_zip(url, format):
-    with zipfile.ZipFile( io.BytesIO(
-        urllib.request.urlopen(url).read() )) as zipf:
+def varlabels2df(vlbls, yr=None):
+    return thread_last(
+        vlbls.items(),
+        map(lambda k,v: pd.DataFrame({'code': list(v.keys()),
+                                      'label': list(v.values()),
+                                      'var': k})),
+        map(lambda df: df.assign(year=yr) if yr else df),
+        pd.concat,
+        lambda df: (df.set_index(['var','year','code'])
+                    if yr else df.set_index(['var','code']))
+    )
+
+
+def load_sas_from_zip(fh, format):
+    with zipfile.ZipFile( io.BytesIO(fh.read())) as zipf:
         with zipf.open(zipf.namelist()[0]) as fh:
             return pd.read_sas(fh, format=format)
 
+
+def load_sas_from_url(url, format):
+    fh = fetch_data_from_url(url)
+    return (load_sas_from_zip(fh, format) if url[-3:].lower() == 'zip'
+            else pd.read_sas(fh, format=format))
+
+
+def force_convert_categorical(s, lbls):
+    c = (pd.to_numeric(s.fillna(-1), downcast='integer')
+         .replace(to_replace=lbls[s.name])
+         .astype('category'))
+    #logger.info('forced cat conversion', c=str(c.value_counts(dropna=False)),
+    #            c_desc=str(c.describe()))
+    return c
+
+
 def eager_convert_categorical(s, lbls):
-    if not (s.name in lbls.keys() and
-            set(s).issubset(lbls[s.name].keys())):
+    if not s.name in lbls.keys():
         return s
     try:
-        s = (pd.to_numeric(s.fillna(-1), downcast='integer')
-             .astype('category')
-             .cat.rename_categories(
-                  [lbls[s.name][k] for k in sorted(s.unique())])
-             .cat.set_categories(
-                 [lbls[s.name][k] for k in sorted(lbls[s.name].keys())])
-             )
-    except:
+        c = (pd.to_numeric(s.fillna(-1), downcast='integer')
+             .astype('category'))
+        #logger.info('eager conv - 1', summ=c.value_counts(dropna=False).to_dict(),
+        #            labels=lbls[s.name])
+        c = c.cat.rename_categories(
+            [lbls[s.name][k] for k in sorted(c.unique())])
+        #logger.info('eager conv - 2', summ=c.value_counts(dropna=False).to_dict(),
+        #            keys=sorted(lbls[s.name].keys()))
+        c = (c.cat.set_categories(
+            [lbls[s.name][k] for k in sorted(lbls[s.name].keys())])
+            .astype('category'))
+        #logger.info('eager conv - 3', summ=c.value_counts(dropna=False).to_dict(),
+        #            desc = str(c.describe()))
+        return c
+    except KeyError:
         return s
+    except ValueError as e:
+        logger.info('found value err', err=e, c=str(c.value_counts(dropna=False)),
+                    c_desc=c.describe())
+        return force_convert_categorical(s, lbls)
 
-def load_sas_xport_df( row ):
-    logger.info("loading SAS annotation files")
-    logger.bind(year=row['year'])
-    lbls = load_variable_labels( row['formas'], row['format'] )
-    logger.info("loading SAS XPORT file", file=row['xpt'])
-    df = load_sas_from_remote_zip(row['xpt'], 'xport')
-    df = df.rename(columns={ x:x.lower() for x in df.columns})
-    logger.info("%s: loaded SAS export file with %d rows, %d cols" %
-                (row['year'], df.shape[0], df.shape[1]))
+
+def filter_columns(df, r, facets, qids):
+    set_union = lambda x,y: y.union(x)
+    cols = thread_last(set(qids),
+                       (set_union, map(lambda x: r[x], SVYDESIGN_COLS)),
+                       (set_union, facets.keys()),
+                       lambda x: x.intersection(df.columns),
+                       list,
+                       sorted)
+    ndf = df[cols]
+    logger.info("filtered df columns", qids=','.join(qids),
+                facets=','.join(facets.keys()),
+                fixed=','.join(map(lambda x: r[x], SVYDESIGN_COLS)),
+                filtered=','.join(cols),
+                missing=set(cols).difference(df.columns),
+                ncols=len(cols), old_shape=df.shape, new_shape=ndf.shape)
+    return ndf
+
+
+def load_sas_xport_df(r, p, facets, qids):
+    logger.bind(year=r.year)
+    logger.info("loading SAS programs", formas=r.formas, format=r.format)
+    lbls = load_variable_labels(p + r.formas, p + r.format)
+    logger.info("loading SAS XPORT file", file=p + r.xpt)
+    df = load_sas_from_url(p+r.xpt, 'xport')
+    df.columns = [x.lower() for x in df.columns]
+    logger.info("loaded SAS XPORT file", shape=df.shape)
     lbls = {k:v for k,v in lbls.items() if k in df.columns}
-    logger.info('summarized column values',
-                summary=df.dtypes.value_counts().to_dict())
-    logger.info('translating codes to labels')
-    df = (df.head(1000).select_dtypes(include=[int,float])
-            .apply(lambda x: eager_convert_categorical(x, lbls))
-            .select_dtypes(include=['category'])
-            .assign(year = int(row['year']),
-                  sitecode = (get_sitecode(df[row['sitecode_col']],
-                                           'fips')).astype('category'),
-                  weight = df[row['weight_col']].astype(float),
-                  strata = df[row['strata_col']].astype(int),
-                  psu = df[row['psu_col']].astype(int)))
+    facets = {r[k]:k for k in facets}
+    logger.info("loaded SAS XPORT file", shape=df.shape)
+    logger.info('filtering, applying varlabels, munging')
+    ndf = (filter_columns(df, r, facets, qids)
+           .select_dtypes(include=[int,float])
+           .apply(lambda x: eager_convert_categorical(x, lbls))
+           .rename(index=str, columns=facets)
+           .select_dtypes(include=['category'])
+           .assign(year = int(r.year),
+                   sitecode = df[r.sitecode].apply(
+                        SITECODE_TRANSLATORS['fips']).astype('category'),
+                   weight = df[r.weight].astype(float),
+                   strata = df[r.strata].astype(int),
+                   psu = df[r.psu].astype(int))
+    )
+    logger.info('completed SAS df munging',
+                summary=ndf.dtypes.value_counts(dropna=False).to_dict(),
+                shape=ndf.shape, dups=pdutil.duplicated_varnames(df))
     logger.unbind('year')
-    return df
+    return ndf
 
 
-def process_dataset(f):
-    flist = pd.read_csv(f, comment='#')
-    dfs = [load_sas_xport_df(r) for idx, r in list(flist.iterrows())]
-    logger.info('merging dataframes')
+def process_dataset(flist, facets, prefix, qids):
+    logger.bind(p=prefix)
+    undash_fn = lambda x: 'x' + x if x[0] == '_' else x
+    dfs = [load_sas_xport_df(r, prefix, facets, qids) for
+        idx, r in list(flist.iterrows())]
+    logger.info('merging SAS dfs')
     dfs = (pd.concat(dfs, ignore_index=True)
-           .apply(lambda x: (x.fillna(np.nan)
-                             .astype('category')) if
-                  x.dtype.name in ['category','object'] else x))
-    dfs.columns = [ re.sub(r'^_','',x) for x in dfs.columns ]
-    logger.info('finished merging dataframes', shape=dfs.shape, summary=dfs.dtypes.value_counts())
-    feather.write_dataframe(dfs, 'test.feather')
-
-if __name__ == '__main__':
-    from dask.distributed import Executor, Client
-    f = '~/dev/semanticbits/survey_stats/data/brfss/annual_survey_files.csv'
-    #client = Client('127.0.0.1:8786')
-    process_dataset(f)
-
+           .apply(lambda x: x.astype('category') if
+                 x.dtype.name in ['O','object'] else x)
+           .pipe(lambda xf: xf.rename(index=str, columns={x:undash_fn(x) for x
+                                                          in xf.columns})))
+    logger.info('merged SAS dfs', shape=dfs.shape,
+                 summary=dfs.dtypes.value_counts(dropna=False).to_dict())
+    logger.unbind('p')
+    return dfs
 
 
