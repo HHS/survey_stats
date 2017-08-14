@@ -65,3 +65,9 @@ docs/_build
 *.bak
 
 cache/
+data/
+
+error.log
+.RData
+.Rhistory
+.vscode
