@@ -7,7 +7,7 @@ from survey_stats import log
 from survey_stats.serdes import has_feather, load_feather
 from survey_stats.survey import des_from_feather, des_from_survey_db
 
-STATS_COLUMNS = ['count','mean','ci_u','ci_l','se']
+STATS_COLUMNS = ['count', 'mean', 'ci_u', 'ci_l', 'se']
 
 logger = log.getLogger()
 
