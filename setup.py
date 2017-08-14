@@ -3,7 +3,6 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-import os
 import io
 import re
 from glob import glob
@@ -67,31 +66,22 @@ setup(
     ],
     install_requires=[
         'Cython>=0.25.2',
-        'cachetools>=2.0.0',
-        'Werkzeug>=0.12',
-        'aiofiles>=0.3.0',
+        'asyncio>=3.4.0',
         'aiohttp>=1.2.0',
-        'aiocache==0.7.0',
-        'cached-property>=1.3.0',
-        'cytoolz>=0.8.2',
         'gunicorn>=19.6.0',
-        'jsonschema>=2.5.1',
         'pandas>=0.19.2',
         'PyYAML>=3.12',
         'requests>=2.11.1',
         'rpy2>=2.8.4',
         'Sanic>=0.3.0',
-        'six>=1.10.0',
         'toolz>=0.8.2',
         'ujson>=1.35',
         'uvloop>=0.7.2',
-        'xmltodict>=0.10.2',
         'falcon>=1.0.0',
-        'py-lru-cache>=0.1.4',
-        'pyarrow>=0.4.1',
         'feather-format>=0.4.0',
         'retry>=0.9.2',
-        'us>=0.9.1'
+        'us>=0.9.1',
+        'boto3>=1.4.5'
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={
