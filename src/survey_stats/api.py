@@ -1,27 +1,15 @@
-import sys
-import math
-import time
-import logging
-import traceback
 import pandas as pd
-import numpy as np
 
-from collections import OrderedDict
-from collections.abc import Sequence
-from collections.abc import Mapping
 from toolz.dicttoolz import merge
 
 from sanic import Sanic
 from sanic.config import Config
 from sanic.response import text, json
-from aiocache import cached
 
 from survey_stats import log
-from survey_stats import error as sserr
 from survey_stats import settings
 from survey_stats import fetch
 from survey_stats import state as st
-from survey_stats.processify import processify
 from survey_stats.error import SSEmptyFilterError, SSInvalidUsage
 
 Config.REQUEST_TIMEOUT = 50000000
@@ -30,12 +18,9 @@ app = Sanic(__name__)
 
 logger = log.getLogger()
 
+
 @app.route("/questions/v2")
 def fetch_questions(req):
-    def get_meta(k, v, dset):
-        key = k.lower()
-        res = (dict(v, id=k))
-        return res
     dset=req.args.get('d')
     national = True
     combined = True
@@ -121,23 +106,6 @@ def fetch_questions(req):
     return json(res)
 
 
-def remap_vars(cfg, coll, into=True):
-    def map_if(pv, k):
-        return pv[k] if k in pv else k
-    pv = ({v: k for k, v in cfg['pop_vars'].items()} if
-          not into else cfg['pop_vars'])
-    res = None
-    typ = type(coll)
-    if isinstance(coll, str):
-        res = coll
-    elif isinstance(coll, Sequence):
-        res = [map_if(pv, k) for k in coll]
-    elif isinstance(coll, Mapping):
-        res = {map_if(pv, k): remap_vars(cfg, v, into) for
-               k, v in coll.items()}
-    else:
-        res = coll
-    return res
 
 def gen_slices(k, svy, qn, resp, m_vars, m_filt):
     loc = {'svy_id': k, 'dset_id': 'yrbss'}
@@ -172,7 +140,6 @@ def parse_response(r):
     else:
         raise Exception('Invalid response value specified!')
 
-@cached(ttl=24*60*60)
 @app.route('/stats')
 async def fetch_survey_stats(req):
     dset = req.args.get('d')
