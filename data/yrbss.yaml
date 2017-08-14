@@ -1,31 +1,17 @@
 id: yrbss
 surveys:
-  yrbss_combined_national_2015:
-    spss: data/yrbss/combined/2015-sadc-spss-input-program.sps
-    data:
-      - data/yrbss/combined/sadc_2015_national.dat
-      - data/yrbss/combined/sadc_2015_state_a_m.dat
-      - data/yrbss/combined/sadc_2015_state_n_z.dat
-    year: 2015
-    is_combined: true
-    pop_vars:
-      grade: grade
-      sex: sex
-      race: race7
-      sitecode: sitecode
-      year: year
-    national_selector:
-      sitecode: 'XX'
-    default_levels:
-      '1': true
-      '2': false
-      '': null
-dash:
-  id: yrbss_dash_2015
-  files:
-    - data/yrbss/socrata/yrbss_dash.csv.gz
-  qnkey: questioncode
-  qnpfx: H
+  spss: data/yrbss/combined/2015-sadc-spss-input-program.sps
+  data:
+    - data/yrbss/combined/sadc_2015_national.dat
+    - data/yrbss/combined/sadc_2015_state_a_m.dat
+    - data/yrbss/combined/sadc_2015_state_n_z.dat
+  pop_vars:
+    grade: grade
+    sex: sex
+    race: race7
+    sitecode: sitecode
+    year: year
+socrata:
   response:
     - response
   metadata:
@@ -50,29 +36,36 @@ dash:
     - ci_u
     - ci_l
     - count
-  national_selector:
-    sitecode: 'XX'
   rename:
+    questioncode: qid
     locationabbr: sitecode
     greater_risk_data_value: mean
     greater_risk_high_confidence_limit: ci_u
     greater_risk_low_confidence_limit: ci_l
+    greater_risk_data_value_footnote_symbol: se
     lesser_risk_data_value: mean_no
     lesser_risk_high_confidence_limit: ci_u_no
     lesser_risk_low_confidence_limit: ci_l_no
+    lesser_risk_data_value_footnote_symbol: se_no
     sample_size: count
   fold_stats:
     y:
       - mean
       - ci_u
       - ci_l
+      - se
     n:
       - mean_no
       - ci_u_no
       - ci_l_no
+      - se_no
   remap:
     race:
       'Native Hawaiian or Other Pacific Islander': 'Native Hawaiian/other PI'
       'American Indian or Alaska Native': 'Am Indian / Alaska Native'
       'Hispanic or Latino': 'Hispanic/Latino'
       'Multiple Race': 'Multiple - Non-Hispanic'
+  apply_fn:
+    qid: |
+      def fix_qid(x):
+          return ('qn' + x[1:] if x.startswith('H') else x)

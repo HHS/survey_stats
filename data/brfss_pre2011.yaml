@@ -1,0 +1,62 @@
+id: brfss_pre2011
+description: "BRFSS survey data from 2000 to 2010, before the introduction of mobile sampling and raking in 2011."
+strata:
+  - year
+  - sitecode
+facets:
+  - sex
+  - race
+  - age
+  - income
+  - education
+surveys:
+  survey_files: 'data/brfss_pre2011/annual_survey_files.csv'
+  source_url_prefix: "https://www.cdc.gov/brfss/annual_data/{year}/files/"
+  s3_url_prefix: "s3://cdc-survey-data/brfss_pre2011/"
+  has_national_weights: false
+  national_selector: null
+socrata:
+  soda_api: 'https://chronicdata.cdc.gov/resource/cwqr-cv7t.json'
+  qnkey: questionid
+  qnpfx: null
+  national_selector: UW
+  unstack:
+    facet: facet_level
+  rename:
+    questionid: qid
+    locationabbr: sitecode
+    data_value: mean
+    confidence_limit_high: ci_u
+    confidence_limit_low: ci_l
+    break_out_category: facet
+    break_out: facet_level
+    data_value_footnote_symbol: std_err
+    class: topic
+    topic: subtopic
+  remap:
+    facet:
+      'Household Income': income
+      'Age Group': age
+      'Education Attained': education
+      'Gender': sex
+      'Race/Ethnicity': race
+    facet_level:
+      'Overall': 'Total'
+      'White, non-Hispanic': 'White only non-Hispanic'
+      'Black, non-Hispanic': 'Black only non-Hispanic'
+      'American Indian or Alaskan Native, non-Hispanic': 'American Indian or Alaskan Native only Non-Hispanic'
+      'Asian, non-Hispanic': 'Asian only non-Hispanic'
+      'Native Hawaiian or other Pacific Islander, non-Hispanic': 'Native Hawaiian or other Pacific Islander only Non-Hispanic'
+      'Other, non-Hispanic': 'Other race only non-Hispanic'
+      'Multiracial, non-Hispanic': 'Multiracial non-Hispanic'
+      'Hispanic': 'Hispanic'
+      'Less than $15,000':'Less than $15000'
+      '$15,000-$24,999':'$15000 to less than $25000'
+      '$25,000-$34,999':'$25000 to less than $35000'
+      '$35,000-$49,999':'$35000 to less than $50000'
+      '$50,000+':'$50000 or more'
+      'Less than H.S.':'Did not graduate High School'
+      'H.S. or G.E.D.':'Graduated High School'
+      'Some post H.S.':'Attended College or Technical School'
+      'College graduate':'Graduated from College or Technical School'
+  apply_fn:null

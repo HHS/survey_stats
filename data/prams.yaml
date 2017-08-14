@@ -1,6 +1,6 @@
 id: prams
 surveys:
-dash:
+socrata:
   id: prams_dash
   files:
     - data/prams/socrata/CDC_PRAMStat_Data_for_2000.csv.gz
