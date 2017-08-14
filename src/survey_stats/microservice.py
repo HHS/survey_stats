@@ -7,7 +7,6 @@ from survey_stats import cache
 from survey_stats import settings
 from survey_stats import state as st
 from survey_stats import error as sserr
-from survey_stats.processify import processify
 
 
 def check_media_type(req, resp, params):
@@ -89,7 +88,7 @@ class StatsResource:
 
 
     def on_get(self, req, resp):
-        logging.info("requested uri: %s" % req.url)
+        logging.info("requested uri: %s" % req.url)i
         qn = req.get_param('q')
         vars = req.get_param('v') or ''
         vars = vars.split(',')
@@ -137,17 +136,6 @@ class StatsResource:
 app = falcon.API()
 app.add_route('/stats', StatsResource())
 
-
-'''
-        try:
-            proper_thing = self.db.add_thing(thing)
-
-        except StorageError:
-            raise falcon.HTTPError(falcon.HTTP_725,
-                                   'Database Error',
-                                   "Sorry, couldn't write your thing to the "
-                                   'database. It worked on my machine.')
-'''
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=7788, debug=True)
