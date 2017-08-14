@@ -221,11 +221,8 @@ def filter_columns(df, r, facets, qids):
     return ndf
 
 
-def load_sas_xport_df(r, p, facets, qids):
+def load_sas_xport_df(r, p, facets, qids, lbls):
     logger.bind(year=r.year)
-    logger.info("loading SAS programs", formas=r.formas, format=r.format)
-    lbls = load_variable_labels(p + r.formas, p + r.format)
-    logger.info("loading SAS XPORT file", file=p + r.xpt)
     df = load_sas_from_url(p+r.xpt, 'xport')
     df.columns = [x.lower() for x in df.columns]
     logger.info("loaded SAS XPORT file", shape=df.shape)
@@ -234,9 +231,7 @@ def load_sas_xport_df(r, p, facets, qids):
     logger.info("loaded SAS XPORT file", shape=df.shape)
     logger.info('filtering, applying varlabels, munging')
     ndf = (filter_columns(df, r, facets, qids)
-           .select_dtypes(include=[int,float])
            .apply(lambda x: eager_convert_categorical(x, lbls))
-           .rename(index=str, columns=facets)
            .select_dtypes(include=['category'])
            .assign(year = int(r.year),
                    sitecode = df[r.sitecode].apply(
@@ -252,10 +247,15 @@ def load_sas_xport_df(r, p, facets, qids):
     return ndf
 
 
+
 def process_dataset(flist, facets, prefix, qids):
     logger.bind(p=prefix)
     undash_fn = lambda x: 'x' + x if x[0] == '_' else x
-    dfs = [load_sas_xport_df(r, prefix, facets, qids) for
+
+    lbls = {r.year: load_variable_labels(prefix + r.formas,
+                                         prefix + r.format) for
+            idx, r in list(flist.iterrows())}
+    dfs = [load_sas_xport_df(r, prefix, facets, qids, lbls=lbls[r.year]) for
         idx, r in list(flist.iterrows())]
     logger.info('merging SAS dfs')
     dfs = (pd.concat(dfs, ignore_index=True)
