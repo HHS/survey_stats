@@ -25,10 +25,10 @@ US_STATES_FIPS_INTS = thread_last(
 )
 
 SITECODE_TRANSLATORS = {
-    'fips': lambda x: (us.states.lookup( '%.2d' % x ).abbr if int(x) in US_STATES_FIPS_INTS else 'NA')
+    'fips': lambda x: (us.states.lookup('%.2d' % x).abbr if int(x) in US_STATES_FIPS_INTS else 'NA')
 }
 
-SVYDESIGN_COLS = ['sitecode','strata','psu','weight']
+SVYDESIGN_COLS = ['sitecode', 'strata', 'psu', 'weight']
 
 logger = log.getLogger()
 
@@ -38,11 +38,12 @@ def number_of_workers():
 
 
 def fetch_s3_bytes(url):
-    bucket, key = url[5:].split('/',1)
+    bucket, key = url[5:].split('/', 1)
     logger.info('fetching s3 url', url=url, bucket=bucket, key=key)
     client = boto3.client('s3')
     obj = client.get_object(Bucket=bucket, Key=key)
     return obj['Body']
+
 
 @retry(tries=5, delay=2, backoff=2, logger=logger)
 def fetch_data_from_url(url):
@@ -81,15 +82,15 @@ def parse_format_assignments(txt):
             pass
 
     assignments = thread_last(
-        format_lines.split('.'), # assignment set ends with fmt + dot
-        map(lambda x: x.split()), # break out vars and format
+        format_lines.split('.'),  # assignment set ends with fmt + dot
+        map(lambda x: x.split()),  # break out vars and format
         (mapcat, lambda y: [(k, y[-1]) for k in y]), # tuple of var, fmt
         dict
     )
     return assignments
 
 def block2dict(lines):
-    rqt = re.compile(r'[\"]') # match quote chars
+    rqt = re.compile(r'[\"]')  # match quote chars
     rws = re.compile(r'\s')        # match whitespace
     # keep only alnum and a few unreserved symbols
     ruri = re.compile(r'(?![\w\s\-\_\.\'\-\+\(\)\/]|\.).')
@@ -249,7 +250,6 @@ def load_sas_xport_df(r, p, facets, qids, lbls):
 
 
 def process_dataset(flist, facets, prefix, qids):
-    logger.bind(p=prefix)
     undash_fn = lambda x: 'x' + x if x[0] == '_' else x
 
     lbls = {r.year: load_variable_labels(prefix + r.formas,
@@ -265,7 +265,6 @@ def process_dataset(flist, facets, prefix, qids):
                                                           in xf.columns})))
     logger.info('merged SAS dfs', shape=dfs.shape,
                  summary=dfs.dtypes.value_counts(dropna=False).to_dict())
-    logger.unbind('p')
     return dfs
 
 

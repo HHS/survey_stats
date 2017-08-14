@@ -18,14 +18,12 @@ def unstack_facets(df, unstack):
             df[c][df[k] == c] = df[v][df[k] == c]
             logger.info('unstacked facet column', col=c,
                         facets=df[c].value_counts(dropna=False).to_dict())
-        del df[k]
-        del df[v]
     logger.info('unstacking facet columns', shape=df.shape, cols=df.columns,
                 unstack=unstack)
     return df
 
 
-def fold_stats(df, folds):
+def fold_stats_cols(df, folds):
     if not folds:
         return df
     logger.info('folding df stats', shape=df.shape, folds=folds,
@@ -68,8 +66,8 @@ def coerce_dtypes(df):
     return df
 
 
-def process_socrata_url(base_url, rename, remap, apply_fn, c_filter, unstack, fold_stats):
-    url = '%s?$limit=%d' % (base_url, MAX_SOCRATA_FETCH)
+def process_socrata_url(soda_api, rename, remap, apply_fn, c_filter, unstack, fold_stats, national_selector):
+    url = '%s?$limit=%d' % (soda_api[0], MAX_SOCRATA_FETCH)
     logger.info('loading SODA data', url=url)
     df = (pd.read_json(url)
           .pipe(lambda xf: xf.rename(index=str, columns={ x: x.lower() for x in
@@ -84,6 +82,6 @@ def process_socrata_url(base_url, rename, remap, apply_fn, c_filter, unstack, fo
                   facet_level=lambda x: x.facet_level.fillna('NA'))
           .pipe(coerce_dtypes)
           .pipe(unstack_facets, unstack=unstack)
-          .pipe(fold_stats, folds=fold_stats))
+          .pipe(fold_stats_cols, folds=fold_stats))
     return df
 

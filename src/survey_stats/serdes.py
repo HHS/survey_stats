@@ -1,15 +1,30 @@
 import os
 import feather as ft
-from survey_stats.const import *
+from survey_stats.const import SURVEYS_SUFFIX, SOCRATA_SUFFIX, METADATA_SUFFIX
+from survey_stats.const import CACHE_DIR
+
 
 cache_dir = os.path.join(os.getcwd(), CACHE_DIR)
 
-surveys_key4id = lambda id: id + SURVEYS_SUFFIX
-socrata_key4id = lambda id: id + SOCRATA_SUFFIX
-metadata_key4id = lambda id: id + METADATA_SUFFIX
 
-f4key = lambda key: os.path.join(cache_dir,key+'.feather')
-csv4key = lambda key: os.path.join(cache_dir,key+'.csv')
+def surveys_key4id(id):
+    return id + SURVEYS_SUFFIX
+
+
+def socrata_key4id(id):
+    return id + SOCRATA_SUFFIX
+
+
+def metadata_key4id(id):
+    return id + METADATA_SUFFIX
+
+
+def f4key(key):
+    return os.path.join(cache_dir, key+'.feather')
+
+
+def csv4key(key):
+    return os.path.join(cache_dir, key+'.csv')
 
 
 def has_feather(k):

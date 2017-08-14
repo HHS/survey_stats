@@ -10,6 +10,19 @@ facets:
   - income
   - education
 surveys:
+  source_url_prefix: "https://www.cdc.gov/brfss/annual_data/{year}/files/"
+  s3_url_prefix: "s3://cdc-survey-data/brfss/"
+  qids: [bloodcho, _alteth2, employ, employ1, _flshot6, _drnkdrv, _pastae1, _paindx1, income, _rfhype5, genhlth, chcvisn1, _rfpap33, hlthpln1, _michd, _rfpsa21, sex, _rfblds2, checkup1, _paindex, drnkany5, _denvst2, decide, cvdcrhd4, chckidny, chcvison, _rfseat3, _lmtact1, _pastrng, tetanus, qlactlm2, _rfdrhv5, cvdinfr4, _crcrec, _casthm1, _rfdrhv4, _rfmam2y, _flshot5, usenow3, _ltasth1, blind, _smoker3, _rfpap32, addepev2, _mam502y, chcscncr, internet, medcost, _rfsmok3, veteran3, _rfbing5, diabete3, _rfhlth, _pastaer, age, _totinda, hivtst6, _lmtwrk1, educa, _chldcnt, _rfblds3, _exteth2, _rfsigm2, chccopd1, _pneumo2, useequip, _bmi5cat, _cholchk, _drdxar1, _hcvu651, shingle2, _lmtscl1, diffwalk, cvdstrk3, chcocncr, chccopd, _veglt1, marital, diffalon, _mam5021, persdoc2, race, diffdres, _rfchol, _frtlt1, race8, renthom1]
+  meta:
+    cols: [year, fwf_zip, xpt_zip, fwf, xpt, format, formas, sasout, weight, psu, strata, sitecode, sitecode_type, sex, race, age, income, education]
+    rows:
+      - [2011, LLCP2011ASC.ZIP, LLCP2011XPT.ZIP, LLCP2011.ASC, LLCP2011.XPT, format11.sas, formas11.sas, sasout11_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, race2, _age_g, _incomg, _educag]
+      - [2012, LLCP2012ASC.ZIP, LLCP2012XPT.ZIP, LLCP2012.ASC, LLCP2012.XPT, format12.sas, formas12.sas, sasout12_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, race2, _age_g, _incomg, _educag]
+      - [2013, LLCP2013ASC.ZIP, LLCP2013XPT.ZIP, LLCP2013.ASC, LLCP2013.XPT, format13.sas, formas13.sas, sasout13_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
+      - [2014, LLCP2014ASC.ZIP, LLCP2014XPT.ZIP, LLCP2014.ASC, LLCP2014.XPT, format14.sas, formas14.sas, sasout14_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
+      - [2015, LLCP2015ASC.zip, LLCP2015XPT.zip, LLCP2015.ASC, LLCP2015.XPT, format15.sas, formas15.sas, sasout15_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
+
+surveys:
   survey_files: 'data/brfss_pre2011/annual_survey_files.csv'
   source_url_prefix: "https://www.cdc.gov/brfss/annual_data/{year}/files/"
   s3_url_prefix: "s3://cdc-survey-data/brfss_pre2011/"
