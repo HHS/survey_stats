@@ -1,10 +1,11 @@
 import blaze as bz
+import yaml
 import feather
 from collections import namedtuple
 
 from survey_stats import log
-from survey_stats.survey import AnnotatedSurvey
 from survey_stats.serdes import has_feather, load_feather
+from survey_stats.survey import des_from_feather, des_from_survey_db
 
 STATS_COLUMNS = ['count','mean','ci_u','ci_l','se']
 
@@ -18,12 +19,24 @@ def resolve_db_url(url):
 
 
 class SurveyDataset(namedtuple('SurveyDataset',
-                               ['svy_db','meta_db', 'cfg'])):
+                               ['svy','meta', 'cfg'])):
+
 
     @classmethod
+    def load_dataset(cls, cfg_f):
+        cfg = None
+        with open(cfg_f) as fh:
+            cfg = yaml.load(fh)
+        
+        
+    @classmethod
     def from_db_urls(cls, svy_url, meta_url, cfg):
-        return cls(svy_db=resolve_db_url(svy_url),
-                   meta_db=resolve_db_url(meta_url), cfg=cfg)
+        return cls(svy=resolve_db_url(svy_url),
+                   meta=resolve_db_url(meta_url), cfg=cfg)
+
+    @classmethod
+    def from_feather_files(cls, svy_f, meta_f, cfg):
+        return cls(svy=des_from_feather(svy_f), meta=load_feather(metaf))
 
 
     def fetch_socrata(self, qn, vars, filt = {}):

@@ -12,7 +12,7 @@ from survey_stats import log
 rbase = importr('base')
 rstats = importr('stats')
 rsvy = importr('survey')
-rfeather = importr('feather')
+rfeather = importr('feather', on_conflict='warn')
 
 DECIMALS = {
     'mean': 4,
@@ -178,7 +178,6 @@ def fetch_stats_for_slice(d, q, r, f, s, cfg):
            res.items()}
     rbase.gc()
     return res
-
 
 
 def des_from_feather(cls, fthr_file):

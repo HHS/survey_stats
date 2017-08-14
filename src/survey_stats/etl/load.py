@@ -3,7 +3,7 @@ import pandas as pd
 from survey_stats import log
 from survey_stats.etl.sas_import import load_sas_xport_df
 from survey_stats.etl.socrata import process_socrata_url
-from survey_stats.feathers import save_feather, save_csv
+from survey_stats import serdes
 
 
 logger = log.getLogger()
@@ -32,7 +32,7 @@ def load_socrata_data(params):
     dfs = [process_socrata_url(url=url,
                               rename=params['rename'],
                               remap=params['remap'],
-                              apply_fn=params['apply_fn']
+                              apply_fn=params['apply_fn'],
                               c_filter=params['c_filter'],
                               unstack=params['unstack'],
                               fold_stats=params['fold_stats'])
@@ -47,7 +47,8 @@ def load_survey_data(yaml_f):
         cfg = yaml.load(fh)
     logger.bind(dataset=cfg['id'])
     soda = socrata.load_socrata_data(cfg['socrata'])
-    save_feather(, soda)
+    ksoda = serdes.surveys_key4id(cfg['id'])
+    save_feather(ksoda,soda)
     logger.info('saving socrata data to csv')
     save_csv(ksoda, soda)
     logger.info('loading survey dfs')
@@ -56,7 +57,7 @@ def load_survey_data(yaml_f):
                          qids=cfg['surveys']['qids'],
                          facets=cfg['facets'])
     logger.info('loaded survey dfs', shape=svydf.shape)
-    ksvy = cfg['survey_data']
+    ksvy = serdes.socrata_key4id(cfg['id'])
     logger.info('saving survey data to feather', name=ksvy)
     save_feather(ksvy, svydf)
     logger.info('saving survey data to csv', name=ksvy)

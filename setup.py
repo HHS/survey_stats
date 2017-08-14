@@ -81,7 +81,13 @@ setup(
         'feather-format>=0.4.0',
         'retry>=0.9.2',
         'us>=0.9.1',
-        'boto3>=1.4.5'
+        'boto3>=1.4.5',
+        'structlog>=17.2.0',
+        'colorama>=0.3.9',
+        'cytoolz>=0.8.2',
+        'blaze>=0.10.1',
+        'asteval>=0.9.8',
+        'odo>=0.5.0',
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={

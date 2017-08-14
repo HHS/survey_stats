@@ -5,12 +5,12 @@ from toolz.dicttoolz import merge
 from sanic import Sanic
 from sanic.config import Config
 from sanic.response import text, json
+from sanic.exceptions import InvalidUsage, ServerError, NotFound
 
 from survey_stats import log
 from survey_stats import settings
 from survey_stats import fetch
 from survey_stats import state as st
-from survey_stats.error import SSEmptyFilterError, SSInvalidUsage
 
 Config.REQUEST_TIMEOUT = 50000000
 
@@ -181,7 +181,14 @@ async def fetch_survey_stats(req):
 
 
 
-def serve_app(host, port, workers, debug):
+def setup_app(db_url, data_dir, stats_svc):
+    app.config.db_url = db_url
+    app.config.data_dir = data_dir
+    app.config.stats_svc = stats_svc
+    return app
+
+
+def serve_app(host, port, workers, stats_svc, debug):
     app.run(host=host, port=port, workers=workers, debug=debug)
 
 if __name__ == '__main__':

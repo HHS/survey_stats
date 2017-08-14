@@ -3,9 +3,9 @@ import uvloop
 import asyncio
 import ujson as json
 from aiohttp import ClientSession
-from survey_stats import cache
-from survey_stats.log import logger
+from survey_stats import log
 
+logger = log.getLogger()
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 

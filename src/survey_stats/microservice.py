@@ -2,11 +2,9 @@ import logging
 import falcon
 import ujson as json
 import traceback
+from falcon import HTTPInvalidParam, HTTPMissingParam
 from survey_stats import log
-from survey_stats import cache
 from survey_stats import settings
-from survey_stats import state as st
-from survey_stats import error as sserr
 
 
 def check_media_type(req, resp, params):
@@ -45,7 +43,7 @@ def remap_vars(cfg, coll, into=True):
 
 
 class StatsResource:
-
+    
 
     def __init__(self):
         self.logger = log.getLogger('statsworker.' + __name__)
@@ -57,22 +55,21 @@ class StatsResource:
         except Exception:
             raise falcon.HTTPError(falcon.HTTP_748,
                                    'Read Error',
-                                   'Could not read the request body. Must be '
+                                   'Could not read the request body. Must be '+
                                    'them ponies again.')
 
         try:
             slice = json.loads(raw_json, 'utf-8')
             self.logger.info(json.dumps(slice))
         except ValueError:
-            raise falcon.HTTPError(falcon.HTTP_753,
-                                   'Malformed JSON',
-                                   'Could not decode the request body. The '
-                                   'JSON was incorrect.')
+            raise falcon.HTTPBadRequest(
+                'Malformed JSON',
+                'Could not decode the request body. The ' +
+                'JSON was incorrect.')
         try:
             result = fetch_svy_stats_for_slice(**slice)
         except Exception as ex:
             self.logger.error(ex)
-
             description = ('Aliens have attacked our base! We will '
                            'be back as soon as we fight them off. '
                            'We appreciate your patience.')
@@ -88,7 +85,7 @@ class StatsResource:
 
 
     def on_get(self, req, resp):
-        logging.info("requested uri: %s" % req.url)i
+        logging.info("requested uri: %s" % req.url)
         qn = req.get_param('q')
         vars = req.get_param('v') or ''
         vars = vars.split(',')
@@ -109,13 +106,12 @@ class StatsResource:
         svy = svy.subset(m_filt)
 
         if not svy.sample_size > 1:
-            raise EmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
-
+            raise ValueError('given filter is empty: %s' % (str(m_filt)))
         try:
             question = svy.vars[qn]['question']
-            var_levels = vars,
+
         except KeyError as err:
-            raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
+            raise HTTPInvalidParam('invalid %s' % str(err), payload={
                 'traceback': traceback.format_exc().splitlines(),
                 'state': {'q': qn, 'svy_vars': svy.vars, 'm_vars': m_vars
                           }})
@@ -124,7 +120,7 @@ class StatsResource:
             results = [remap_vars(cfg, x, into=False) for x in results]
             return json({
                 'response': resp, 'vars': vars,
-                'var_levels': var_levels, 'results': stats
+                'var_levels': vars, 'results': stats
             })
         except KeyError as err:
             raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
@@ -133,8 +129,13 @@ class StatsResource:
                           'filter': filt, 'response': resp, 'var_levels': var_levels
                           }})
 
-app = falcon.API()
-app.add_route('/stats', StatsResource())
+
+def setup_app(db_uri, data_dir):
+    app = falcon.API()
+    app.add_route('/stats', StatsResource())
+    app.req_options.db_uri = db_uri
+    app.req_options.data_dir = data_dir
+    return app
 
 
 if __name__ == '__main__':
