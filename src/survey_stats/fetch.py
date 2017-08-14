@@ -9,7 +9,7 @@ from survey_stats.log import logger
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
-MAX_CONCURRENT_REQ = 1000
+MAX_CONCURRENT_REQ = 100
 headers = {'content-type': 'application/json'}
 
 def key_from_data(*args, **kwargs):
