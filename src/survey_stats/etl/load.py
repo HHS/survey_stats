@@ -7,23 +7,13 @@ import sqlalchemy as sa
 import subprocess as sp
 
 from survey_stats import log
-from survey_stats.etl.sas_import import load_sas_xport_df, process_dataset
+from survey_stats.etl.sas_import import load_sas_xport_df, process_sas_survey
 from survey_stats.etl.socrata import process_socrata_url
 from survey_stats import serdes
 
 
 logger = log.getLogger()
 
-
-def load_surveys(meta, prefix, qids, facets, na_syns):
-    logger.bind(p=prefix)
-    undash_fn = lambda x: 'x' + x if x[0] == '_' else x
-    meta_df = pd.DataFrame(meta['rows'], columns=meta['cols'])
-    dfs = process_dataset(flist=meta_df, prefix=prefix, qids=qids, facets=facets, na_syns=na_syns)
-    logger.info('merged SAS dfs', shape=dfs.shape,
-                summary=dfs.dtypes.value_counts(dropna=False).to_dict())
-    logger.unbind('p')
-    return dfs
 
 
 def load_socrata_data(params):
@@ -50,11 +40,11 @@ def load_survey_data(yaml_f):
     logger.info('saving socrata data to csv')
     serdes.save_csv(ksoda, soda)'''
     logger.info('loading survey dfs')
-    svydf = load_surveys(meta=cfg['surveys']['meta'],
-                         prefix=cfg['surveys']['s3_url_prefix'],
-                         qids=cfg['surveys']['qids'],
-                         facets=cfg['facets'], 
-                         na_syns=cfg['na_synonyms'])
+    svydf = process_sas_survey(meta=cfg['surveys']['meta'],
+                               prefix=cfg['surveys']['s3_url_prefix'],
+                               qids=cfg['surveys']['qids'],
+                               facets=cfg['facets'], 
+                               na_syns=cfg['na_synonyms'])
     logger.info('loaded survey dfs', shape=svydf.shape)
     ksvy = serdes.surveys_key4id(cfg['id'])
     logger.info('saving survey data to feather', name=ksvy)

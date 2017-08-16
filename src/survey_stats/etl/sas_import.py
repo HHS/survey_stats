@@ -206,7 +206,7 @@ def eager_convert_categorical(s, lbls):
 
 def find_na_synonyms(df, na_syns):
     df[df.applymap(lambda x: x.lower() in na_syns)] = np.nan
-    return df
+    return df.fillna('NA')
 
 
 def filter_columns(df, r, facets, qids):
@@ -254,9 +254,9 @@ def load_sas_xport_df(r, p, facets, qids, lbls, na_syns):
 
 
 
-def process_dataset(flist, facets, prefix, qids, na_syns):
+def process_sas_survey(meta, facets, prefix, qids, na_syns):
     undash_fn = lambda x: 'x' + x if x[0] == '_' else x
-
+    flist = pd.DataFrame(meta['rows'], columns=meta['cols'])
     lbls = {r.year: load_variable_labels(prefix + r.formas,
                                          prefix + r.format) for
             idx, r in list(flist.iterrows())}
@@ -271,6 +271,8 @@ def process_dataset(flist, facets, prefix, qids, na_syns):
                                                           in xf.columns})))
     logger.info('merged SAS dfs', shape=dfs.shape,
                  summary=dfs.dtypes.value_counts(dropna=False).to_dict())
+    logger.unbind('p')
+
     return dfs
 
 
