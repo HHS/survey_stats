@@ -70,6 +70,7 @@ def bulk_load_df(tblname, engine):
     setup_table(df, tblname, engine)
     logger.info('bulk loading data using cfimport', name=tblname)
 
+def bulk_load_df(tblname, engine)
 
 def setup_tables(yaml_f, dburl):
     cfg = None
@@ -83,17 +84,20 @@ def setup_tables(yaml_f, dburl):
 
 
 if __name__ == '__main__':
+    default_sql_conn = 'mysql+pymysql://mcsuser:mcsuser@localhost:4306/survey'
+    default_sql_conn = 'monetdb://localhost/survey'
     # load_survey_data('config/data/brfss.yaml')
     load_survey_data('config/data/brfss_pre2011.yaml')
-    '''setup_tables(
+    setup_tables(
         'config/data/brfss.yaml',
-        'mysql+mysqlconnector://mcsuser:mcsuser@localhost:4306/survey'
+        default_sql_conn
+    )
+    '''
+    setup_tables(
+        'config/data/brfss_pre2011.yaml',
+        'mysql+pymysql://mcsuser:mcsuser@localhost:4306/survey'
     )
     setup_tables(
         'config/data/brfss_pre2011.yaml',
-        'mysql+mysqlconnector://mcsuser:mcsuser@localhost:4306/survey'
-    )
-    setup_tables(
-        'config/data/brfss_pre2011.yaml',
-        'mysql+mysqlconnector://mcsuser:mcsuser@localhost:4306/survey'
+        'mysql+://mcsuser:mcsuser@localhost:4306/survey'
     )'''
