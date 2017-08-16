@@ -15,11 +15,11 @@ from survey_stats import serdes
 logger = log.getLogger()
 
 
-def load_surveys(meta, prefix, qids, facets):
+def load_surveys(meta, prefix, qids, facets, na_syns):
     logger.bind(p=prefix)
     undash_fn = lambda x: 'x' + x if x[0] == '_' else x
     meta_df = pd.DataFrame(meta['rows'], columns=meta['cols'])
-    dfs = process_dataset(flist=meta_df, prefix=prefix, qids=qids, facets=facets)
+    dfs = process_dataset(flist=meta_df, prefix=prefix, qids=qids, facets=facets, na_syns=na_syns)
     logger.info('merged SAS dfs', shape=dfs.shape,
                 summary=dfs.dtypes.value_counts(dropna=False).to_dict())
     logger.unbind('p')
@@ -53,7 +53,8 @@ def load_survey_data(yaml_f):
     svydf = load_surveys(meta=cfg['surveys']['meta'],
                          prefix=cfg['surveys']['s3_url_prefix'],
                          qids=cfg['surveys']['qids'],
-                         facets=cfg['facets'])
+                         facets=cfg['facets'], 
+                         na_syns=cfg['na_synonyms'])
     logger.info('loaded survey dfs', shape=svydf.shape)
     ksvy = serdes.surveys_key4id(cfg['id'])
     logger.info('saving survey data to feather', name=ksvy)

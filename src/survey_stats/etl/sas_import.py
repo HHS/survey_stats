@@ -204,6 +204,11 @@ def eager_convert_categorical(s, lbls):
         return force_convert_categorical(s, lbls)
 
 
+def find_na_synonyms(df, na_syns):
+    df[df.applymap(lambda x: x.lower() in na_syns)] = np.nan
+    return df
+
+
 def filter_columns(df, r, facets, qids):
     set_union = lambda x,y: y.union(x)
     cols = thread_last(set(qids),
@@ -222,7 +227,7 @@ def filter_columns(df, r, facets, qids):
     return ndf
 
 
-def load_sas_xport_df(r, p, facets, qids, lbls):
+def load_sas_xport_df(r, p, facets, qids, lbls, na_syns):
     logger.bind(year=r.year)
     df = load_sas_from_url(p+r.xpt, 'xport')
     df.columns = [x.lower() for x in df.columns]
@@ -234,6 +239,7 @@ def load_sas_xport_df(r, p, facets, qids, lbls):
     ndf = (filter_columns(df, r, facets, qids)
            .apply(lambda x: eager_convert_categorical(x, lbls))
            .select_dtypes(include=['category'])
+           .pipe(lambda xf: find_na_synonyms(xf, na_syns))
            .assign(year = int(r.year),
                    sitecode = df[r.sitecode].apply(
                         SITECODE_TRANSLATORS['fips']).astype('category'),
@@ -249,13 +255,13 @@ def load_sas_xport_df(r, p, facets, qids, lbls):
 
 
 
-def process_dataset(flist, facets, prefix, qids):
+def process_dataset(flist, facets, prefix, qids, na_syns):
     undash_fn = lambda x: 'x' + x if x[0] == '_' else x
 
     lbls = {r.year: load_variable_labels(prefix + r.formas,
                                          prefix + r.format) for
             idx, r in list(flist.iterrows())}
-    dfs = [load_sas_xport_df(r, prefix, facets, qids, lbls=lbls[r.year]) for
+    dfs = [load_sas_xport_df(r, prefix, facets, qids, lbls[r.year], na_syns) for
         idx, r in list(flist.iterrows())]
     logger.info('merging SAS dfs')
     dfs = (pd.concat(dfs, ignore_index=True)

@@ -18,6 +18,18 @@ surveys:
       - [2013, LLCP2013ASC.ZIP, LLCP2013XPT.ZIP, LLCP2013.ASC, LLCP2013.XPT, format13.sas, formas13.sas, sasout13_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
       - [2014, LLCP2014ASC.ZIP, LLCP2014XPT.ZIP, LLCP2014.ASC, LLCP2014.XPT, format14.sas, formas14.sas, sasout14_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
       - [2015, LLCP2015ASC.zip, LLCP2015XPT.zip, LLCP2015.ASC, LLCP2015.XPT, format15.sas, formas15.sas, sasout15_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
+  na_synonyms:
+    - "not asked or missing"
+    - "dk/ns"
+    - "refused"
+    - "don't know/not sure"
+    - "refused"
+    - "na"
+    - "unk/ref"
+    - "missing"
+    - "ref"
+    - "don’t know/not sure/refused"
+    - "don't know/refused/missing"
 socrata:
   soda_api:
     - "https://chronicdata.cdc.gov/resource/fn2i-3j6c.json"
