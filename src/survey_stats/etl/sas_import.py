@@ -239,7 +239,6 @@ def load_sas_xport_df(r, p, facets, qids, lbls, na_syns):
     ndf = (filter_columns(df, r, facets, qids)
            .apply(lambda x: eager_convert_categorical(x, lbls))
            .select_dtypes(include=['category'])
-           .pipe(lambda xf: find_na_synonyms(xf, na_syns))
            .assign(year = int(r.year),
                    sitecode = df[r.sitecode].apply(
                         SITECODE_TRANSLATORS['fips']).astype('category'),
@@ -265,6 +264,7 @@ def process_dataset(flist, facets, prefix, qids, na_syns):
         idx, r in list(flist.iterrows())]
     logger.info('merging SAS dfs')
     dfs = (pd.concat(dfs, ignore_index=True)
+           .pipe(lambda xf: find_na_synonyms(xf, na_syns))
            .apply(lambda x: x.astype('category') if
                  x.dtype.name in ['O','object'] else x)
            .pipe(lambda xf: xf.rename(index=str, columns={x:undash_fn(x) for x
