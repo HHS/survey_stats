@@ -36,8 +36,12 @@ def load_feather(k):
 
 
 def save_feather(k, df):
-    ft.write_dataframe(df, f4key(k))
+    of = f4key(k)
+    ft.write_dataframe(df, of)
+    return of
 
 
 def save_csv(k, df, **kwargs):
-    df.to_csv(csv4key(k), **kwargs)
+    of = csv4key(k)
+    df.to_csv(of, **kwargs)
+    return of

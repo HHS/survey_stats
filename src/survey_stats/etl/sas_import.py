@@ -4,14 +4,18 @@ import io
 import re
 import us
 import zipfile
+import numpy as np
 import pandas as pd
-import boto3
 import urllib.request
 import multiprocessing
 from retry import retry
 from cytoolz.itertoolz import mapcat
 from cytoolz.functoolz import thread_last
 from cytoolz.curried import map, filter
+import boto3
+from botocore import UNSIGNED
+from botocore.client import Config
+
 
 from survey_stats import log
 from survey_stats import pdutil
@@ -33,6 +37,9 @@ SVYDESIGN_COLS = ['sitecode', 'strata', 'psu', 'weight']
 logger = log.getLogger()
 
 
+s3 = boto3.client('s3', config=Config(signature_version=UNSIGNED))
+
+
 def number_of_workers():
     return multiprocessing.cpu_count()-2
 
@@ -40,8 +47,7 @@ def number_of_workers():
 def fetch_s3_bytes(url):
     bucket, key = url[5:].split('/', 1)
     logger.info('fetching s3 url', url=url, bucket=bucket, key=key)
-    client = boto3.client('s3')
-    obj = client.get_object(Bucket=bucket, Key=key)
+    obj = s3.get_object(Bucket=bucket, Key=key)
     return obj['Body']
 
 
@@ -205,8 +211,14 @@ def eager_convert_categorical(s, lbls):
 
 
 def find_na_synonyms(df, na_syns):
-    df[df.applymap(lambda x: x.lower() in na_syns)] = np.nan
-    return df.fillna('NA')
+    df = df.applymap(
+        lambda x: np.nan if 
+        (x.lower() in na_syns if 
+            type(x) == str else 
+            False) 
+        else x)
+    return df
+    
 
 
 def filter_columns(df, r, facets, qids):
@@ -239,6 +251,7 @@ def load_sas_xport_df(r, p, facets, qids, lbls, na_syns):
     ndf = (filter_columns(df, r, facets, qids)
            .apply(lambda x: eager_convert_categorical(x, lbls))
            .select_dtypes(include=['category'])
+           .rename(index=str, columns=facets)
            .assign(year = int(r.year),
                    sitecode = df[r.sitecode].apply(
                         SITECODE_TRANSLATORS['fips']).astype('category'),
@@ -256,6 +269,7 @@ def load_sas_xport_df(r, p, facets, qids, lbls, na_syns):
 
 def process_sas_survey(meta, facets, prefix, qids, na_syns):
     undash_fn = lambda x: 'x' + x if x[0] == '_' else x
+    logger.bind(p=prefix)
     flist = pd.DataFrame(meta['rows'], columns=meta['cols'])
     lbls = {r.year: load_variable_labels(prefix + r.formas,
                                          prefix + r.format) for
