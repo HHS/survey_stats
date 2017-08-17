@@ -11,6 +11,7 @@ STATS_COLUMNS = ['count', 'mean', 'ci_u', 'ci_l', 'se']
 
 logger = log.getLogger()
 
+
 def resolve_db_url(url):
     return (feather.read_dataframe(url) if
             url.endswith('.feather') else
@@ -27,16 +28,18 @@ class SurveyDataset(namedtuple('SurveyDataset',
         cfg = None
         with open(cfg_f) as fh:
             cfg = yaml.load(fh)
-        
-        
+
+
     @classmethod
     def from_db_urls(cls, svy_url, meta_url, cfg):
         return cls(svy=resolve_db_url(svy_url),
                    meta=resolve_db_url(meta_url), cfg=cfg)
 
+
     @classmethod
     def from_feather_files(cls, svy_f, meta_f, cfg):
         return cls(svy=des_from_feather(svy_f), meta=load_feather(metaf))
+
 
 
     def fetch_socrata(self, qn, vars, filt = {}):
