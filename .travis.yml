@@ -15,10 +15,9 @@ install:
   - conda info -a
   # Replace dep1 dep2 ... with your dependencies
   - conda config --add channels intel
-  - conda create -q -n test-environment -c intel/label/test intelpython r rpy2 r-feather pandas numba openmp cython pip scikit-learn libiconv
+  - conda create -q -n test-environment -c intel/label/test python=3 r-base=3.4.1 pandas scikit-learn cython r-feather libiconv r-survival
   - source activate test-environment
-  - conda install -c intel/label/test --file requirements.txt
-  - pip install -r requirements-noconda.txt
+  #- conda install -c intel/label/test --file requirements.txt
   - pip install -r requirements-dev.txt
   - R --vanilla -e 'install.packages("survey", repos="http://R-Forge.R-project.org")'
   - pip install -e .
