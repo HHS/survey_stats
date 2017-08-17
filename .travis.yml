@@ -14,7 +14,8 @@ install:
   - conda update -q conda
   - conda info -a
   # Replace dep1 dep2 ... with your dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pandas cython r-feather r-functional
+  - conda config --add channels intel
+  - conda create -q -n test-environment -c intel python=$TRAVIS_PYTHON_VERSION intelpython3_full r-feather rpy2
   - source activate test-environment
   - pip install -r requirements.txt
   - R --vanilla -e 'install.packages("survey", repos="http://R-Forge.R-project.org")'
