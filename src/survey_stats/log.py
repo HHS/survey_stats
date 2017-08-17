@@ -61,5 +61,5 @@ structlog.configure(
 	cache_logger_on_first_use=True,
 )
 
-def getLogger():
-	return structlog.get_logger('structlog')
+def getLogger(name='surveystats-default-log'):
+	return structlog.get_logger(name)
