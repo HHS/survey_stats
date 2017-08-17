@@ -47,7 +47,7 @@ class StatsResource:
 
 
     def __init__(self):
-        self.logger = log.getLogger()
+        self.logger = log.getLogger('statsworker.' + __name__)
 
 
     def on_post(self, req, resp):
