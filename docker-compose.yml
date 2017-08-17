@@ -1,0 +1,49 @@
+version: "3"
+services:
+
+  monetdb:
+    image: monetdb/monetdb-r-docker
+    ports:
+      - 50000
+    deploy:
+      replicas: 2
+      update_config:
+        parallelism: 1
+        delay: 10s
+      restart_policy:
+        condition: any
+
+  statsworker:
+    image: ajish/survey_stats
+    ports:
+      - 7788
+    depends_on:
+      - monetdb
+    command: survey_stats work
+    deploy:
+      mode: replicated
+      replicas: 4
+      update_config:
+        parallelism: 1
+        failure_action: rollback
+      restart_policy:
+        condition: any
+
+  statsserver:
+    image: ajish/survey_stats
+    ports:
+      - 7777
+    depends_on:
+      - monetdb
+      - statsworker
+    command: survey_stats serve --statsuri http://statsworker:7788/
+    deploy:
+      mode: replicated
+      replicas: 4
+      update_config:
+        parallelism: 1
+        failure_action: rollback
+      restart_policy:
+        condition: any
+
+
