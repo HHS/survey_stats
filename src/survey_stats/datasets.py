@@ -18,16 +18,17 @@ def resolve_db_url(url):
             bz.data(url))
 
 
-
 class SurveyDataset(namedtuple('SurveyDataset',
-                               ['svy','meta', 'cfg'])):
+                               ['cfg','meta','soc','svy','des'])):
 
+    __slots__ = ()
 
     @classmethod
     def load_dataset(cls, cfg_f):
         cfg = None
         with open(cfg_f) as fh:
             cfg = yaml.load(fh)
+
 
 
     @classmethod
@@ -39,7 +40,6 @@ class SurveyDataset(namedtuple('SurveyDataset',
     @classmethod
     def from_feather_files(cls, svy_f, meta_f, cfg):
         return cls(svy=des_from_feather(svy_f), meta=load_feather(metaf))
-
 
 
     def fetch_socrata(self, qn, vars, filt = {}):
@@ -65,5 +65,4 @@ class SurveyDataset(namedtuple('SurveyDataset',
     def facet_levels(self):
         return {k: list(self.meta_db[k]
                         .cat.categories) for k in self.facets}
-
 
