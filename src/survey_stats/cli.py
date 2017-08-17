@@ -16,6 +16,7 @@ Also see (1) from http://click.pocoo.org/5/setuptools/#setuptools-integration
 """
 
 import os
+import yaml
 import argparse
 import logging
 import multiprocessing
@@ -35,6 +36,8 @@ parser_serve.add_argument('--processes', type=int, default=DEFAULT_NUM_WORKERS,
         				  help='number of processes to use for server, default: num_cores/2')
 parser_serve.add_argument('--stats_uri', type=str, default='http://localhost:7788',
         				  help='stats worker uri, default: http://localhost:7788')
+parser_serve.add_argument('--db_conf', type=argparse.FileType('r'),
+                          help='database connection info yaml, default: config/db-default.yaml')
 parser_serve.add_argument('--debug', action='store_true',
                           help='turn on debug mode, default: False')
 
@@ -45,6 +48,8 @@ parser_prole.add_argument('--port', type=int, default=os.environ.get('PORT', 778
         				  help='port for API service, default: 7788')
 parser_prole.add_argument('--workers', type=int, default=DEFAULT_NUM_WORKERS,
         				  help='number of worker processes, default: num_cores/2')
+parser_serve.add_argument('--db_conf', type=argparse.FileType('r'),
+                          help='database connection info yaml, default: config/db-default.yaml')
 parser_prole.add_argument('--max-requests', type=int, default=0,
         				  help='requests to prole per worker before respawn, default: 1000')
 parser_prole.add_argument('--max-requests-jitter', type=int, default=0,
@@ -62,8 +67,13 @@ def default_action(args):
 def serve_api(args):
     from survey_stats.server import APIServer
     from survey_stats.api import setup_app
+    dbc = args.db_conf if args.db_conf else open('config/db-default.yaml')
+    dbconf = yaml.load(dbc)
+    dbc.close()
     options = {
         'bind': '%s:%s' % (args.host, str(args.port)),
+        'db_conf': dbconf,
+        'stats_svc': args.stats_uri,
         'workers': args.processes,
         'max_requests': args.max_requests,
         'max_requests_jitter': args.max_requests_jitter,
@@ -71,23 +81,27 @@ def serve_api(args):
         #'when_ready': boot_when_ready
     }
     api = setup_app(
-        db_url=options['db_url'],
-        data_dir=options['data_dir'],
+        db_conf=options['db_conf'],
         stats_svc=options['stats_svc'])
-    APIServer(app, options).run()
+    APIServer(api, options).run()
 
 
 def serve_workers(args):
     from survey_stats.server import APIServer
     from survey_stats.microservice import setup_app
+    dbc = args.db_conf if args.db_conf else open('config/db-default.yaml')
+    dbconf = yaml.load(dbc)
+    dbc.close()
     options = {
         'bind': '%s:%s' % (args.host, str(args.port)),
+        'db_conf': dbconf,
         'workers': args.workers,
         'max_requests': args.max_requests,
         'max_requests_jitter': args.max_requests_jitter,
         'debug': args.debug
         #'when_ready': boot_when_ready
     }
+    app = setup_app(db_conf=options['db_conf'])
     APIServer(app, options).run()
 
 

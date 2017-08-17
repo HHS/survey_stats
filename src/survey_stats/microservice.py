@@ -43,7 +43,7 @@ def remap_vars(cfg, coll, into=True):
 
 
 class StatsResource:
-    
+
 
     def __init__(self):
         self.logger = log.getLogger('statsworker.' + __name__)
@@ -130,11 +130,10 @@ class StatsResource:
                           }})
 
 
-def setup_app(db_uri, data_dir):
+def setup_app(db_conf):
     app = falcon.API()
     app.add_route('/stats', StatsResource())
-    app.req_options.db_uri = db_uri
-    app.req_options.data_dir = data_dir
+    app.req_options.db_conf = db_conf
     return app
 
 
