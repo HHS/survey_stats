@@ -15,7 +15,7 @@ install:
   - conda info -a
   # Replace dep1 dep2 ... with your dependencies
   - conda config --add channels intel
-  - conda create -q -n test-environment -c intel/label/test intelpython r rpy2 r-feather pandas numba openmp cython pip scikit-learn
+  - conda create -q -n test-environment -c intel/label/test intelpython r rpy2 r-feather pandas numba openmp cython pip scikit-learn libiconv
   - source activate test-environment
   - conda install -c intel/label/test --file requirements.txt
   - pip install -r requirements-noconda.txt
