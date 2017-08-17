@@ -1,5 +1,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/semanticbits/survey_stats/badge.svg?branch=develop)](https://coveralls.io/github/semanticbits/survey_stats?branch=develop)
 
+[![Build Status](https://travis-ci.org/semanticbits/survey_stats.svg?branch=develop)](https://travis-ci.org/semanticbits/survey_stats)
+
 Overview
 ========
 
