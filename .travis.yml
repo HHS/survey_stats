@@ -24,8 +24,9 @@ install:
   - R --vanilla -e 'install.packages("survey", repos="http://R-Forge.R-project.org")'
   - pip install -e .
 script:
-  - pytest
+  - py.test --coverage-report= --cov src tests
 notifications:
   email:
     on_success: never
     on_failure: always
+after_success: coveralls
