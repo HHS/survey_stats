@@ -11,7 +11,7 @@ from timeit import default_timer as timer
 
 from survey_stats import log
 from survey_stats.etl.sas import load_sas_xport_df, process_sas_survey
-from survey_stats.etl.socrata import process_socrata_url
+from survey_stats.etl.socrata import fetch_socrata_stats
 from survey_stats import serdes
 
 
@@ -19,7 +19,7 @@ logger = log.getLogger(__name__)
 
 
 def load_socrata_data(params):
-    dfs = [process_socrata_url(url=url,
+    dfs = [fetch_socrata_stats(url=url,
                               mapcols=params['mapcols'],
                               mapvals=params['mapvals'],
                               apply_fn=params['apply_fn'],
