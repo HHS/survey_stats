@@ -1,7 +1,9 @@
 pytest>=2.9.0
-pytest-cov>=2.2.1
+pytest-cov>=2.0.0
+coverage>=4.0,<4.4
 pytest-travis-fold==1.2.0
 pytest-pep8>=1.0.6
 coveralls>=1.2.0
 flake8>=3.4.1
 pytest-xdist>=1.9.1
+codeclimate-test-reporter>=0.2.3

@@ -10,7 +10,7 @@ RUN conda update -y conda
 RUN conda install -y -c intel/label/test python=3 r-base=3.4.1 pandas scikit-learn cython r-feather r-survival libiconv
 RUN R --vanilla -e 'install.packages("survey", repos="http://R-Forge.R-project.org")'
 RUN R --vanilla -e 'install.packages("MonetDB.R", repos="http://R-Forge.R-project.org")'
-RUN R --vanilla -e 'install.packages("RMySQL", repos="http://R-Forge.R-project.org")'
+#RUN R --vanilla -e 'install.packages("RMySQL", repos="http://R-Forge.R-project.org")'
 
 RUN mkdir -p /app
 WORKDIR /app

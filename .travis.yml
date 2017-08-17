@@ -12,18 +12,14 @@ install:
   - conda update -q conda
   - conda info -a
   - conda config --add channels intel
-  - conda create -q -n test-environment -c intel/label/test python=3 r-base=3.4.1 pandas scikit-learn cython r-feather libiconv r-survival
+  - conda create -q -n test-environment -c intel/label/test python=3 r-base=3.4.1 pandas scikit-learn cython r-feather libiconv r-survival r-dbi
   - source activate test-environment
   - pip install -r requirements-dev.txt
   - R --vanilla -e 'install.packages("survey", repos="http://R-Forge.R-project.org")'
   - pip install -e .
-before_script:
-  - curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
-  - chmod +x ./cc-test-reporter
-  - ./cc-test-reporter before-build
 script:
   - py.test --coverage-report= --cov src tests
-  - ./cc-test-reporter after-build --exit-code $?
+  - codeclimate-test-reporter
 notifications:
   email:
     on_success: never
