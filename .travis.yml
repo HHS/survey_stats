@@ -1,5 +1,5 @@
 language: python
-python: '3.6'
+python: '3'
 install:
   - sudo apt-get update
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
@@ -14,9 +14,10 @@ install:
   - conda update -q conda
   - conda info -a
   # Replace dep1 dep2 ... with your dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pandas r-feather r-survey
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pandas cython r-feather r-functional
   - source activate test-environment
   - pip install -r requirements.txt
+  - R --vanilla -e 'install.packages("survey", repos="http://R-Forge.R-project.org")'
   - pip install -e .
 script:
   - pytest
