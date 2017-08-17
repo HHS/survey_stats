@@ -101,10 +101,10 @@ if __name__ == '__main__':
     default_sql_conn = 'monetdb://monetdb:monetdb@localhost/survey'
     # load_survey_data('config/data/brfss.yaml')
     #load_survey_data('config/data/brfss.yaml')
-    setup_tables(
-        'config/data/brfss.yaml',
-        default_sql_conn
-    )
+    #setup_tables(
+    #    'config/data/brfss.yaml',
+    #    default_sql_conn
+    #)
     '''
     setup_tables(
         'config/data/brfss_pre2011.yaml',

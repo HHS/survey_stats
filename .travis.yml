@@ -1,5 +1,7 @@
 language: python
 python: '3.6'
+env:
+	CODECLIMATE_REPO_TOKEN: 286aac924e768f43d969ca629f36d2d7c911e40d5a3efb9b625b19ec6f481844
 install:
   - sudo apt-get update
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
