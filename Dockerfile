@@ -15,15 +15,13 @@ WORKDIR /app
 
 EXPOSE 7777
 
-COPY requirements.txt /app/
+RUN apt-get install -y libreadline-dev
+
+COPY . /app
 
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements-dev.txt && \
     pip install --no-cache-dir -r requirements.txt
-
-RUN apt-get install -y libreadline-dev
-
-COPY . /app
 
 RUN pip install -e .
 
