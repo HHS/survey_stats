@@ -21,9 +21,6 @@ def load_survey(dat_files, svy_cols, svy_vars):
                                                  names=list(svy_cols.keys()),
                                                  na_values=['.','']),
                        dat_files), ignore_index=True, copy=False)
-    logger.info('converting survey data to R object')
-    rdf = pandas2ri.py2ri(df)
-    logger.info('coercing variables to annotated types')
     for q, v in svy_vars.items():
         if v['is_integer']:
             (codes, cats) = zip(*v['responses'])

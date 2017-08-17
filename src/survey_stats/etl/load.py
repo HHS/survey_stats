@@ -10,18 +10,18 @@ import subprocess as sp
 from timeit import default_timer as timer
 
 from survey_stats import log
-from survey_stats.etl.sas_import import load_sas_xport_df, process_sas_survey
+from survey_stats.etl.sas import load_sas_xport_df, process_sas_survey
 from survey_stats.etl.socrata import process_socrata_url
 from survey_stats import serdes
 
 
-logger = log.getLogger()
+logger = log.getLogger(__name__)
 
 
 def load_socrata_data(params):
     dfs = [process_socrata_url(url=url,
-                              rename=params['rename'],
-                              remap=params['remap'],
+                              mapcols=params['mapcols'],
+                              mapvals=params['mapvals'],
                               apply_fn=params['apply_fn'],
                               c_filter=params['c_filter'],
                               unstack=params['unstack'],

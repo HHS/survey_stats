@@ -1,3 +1,8 @@
+from survey_stats import log
+
+
+logger = log.getLogger(__name__)
+
 
 def strip_line(l):
     # type: (str) -> str
@@ -27,7 +32,7 @@ def parse_fwfcols_spss(spss_file):
             (st, en) = span.split('-')
             ret = (int(st)-1,int(en))
         except Exception as e:
-            raise ParseSPSSException("Improperly formed span in SPSS" +
+            raise ValueError("Improperly formed span in SPSS" +
                                      "file! %s -> %s" % (span, str(e)))
         return ret
 
@@ -51,7 +56,7 @@ def parse_fwfcols_spss(spss_file):
             #split on two consec spaces
             widths = strip_line(line).replace('(A)','').split()
             if not len(widths) % 2 == 0:
-                raise ParseSPSSException("Invalid fixed-width field" +
+                raise ValueError("Invalid fixed-width field" +
                                     " definitions on line: %s" %
                                     strip_line(line))
             for i in range(0,len(widths),2):
