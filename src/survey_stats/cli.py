@@ -21,6 +21,7 @@ import argparse
 import logging
 import multiprocessing
 import survey_stats.log
+import sanic.worker
 
 DEFAULT_NUM_WORKERS = int(multiprocessing.cpu_count() / 2.0)
 
@@ -48,7 +49,7 @@ parser_prole.add_argument('--port', type=int, default=os.environ.get('PORT', 778
         				  help='port for API service, default: 7788')
 parser_prole.add_argument('--workers', type=int, default=DEFAULT_NUM_WORKERS,
         				  help='number of worker processes, default: num_cores/2')
-parser_serve.add_argument('--db_conf', type=argparse.FileType('r'),
+parser_prole.add_argument('--db_conf', type=argparse.FileType('r'),
                           help='database connection info yaml, default: config/db-default.yaml')
 parser_prole.add_argument('--max-requests', type=int, default=0,
         				  help='requests to prole per worker before respawn, default: 1000')
@@ -74,9 +75,8 @@ def serve_api(args):
         'bind': '%s:%s' % (args.host, str(args.port)),
         'db_conf': dbconf,
         'stats_svc': args.stats_uri,
+        'worker_class': "sanic.worker.GunicornWorker",
         'workers': args.processes,
-        'max_requests': args.max_requests,
-        'max_requests_jitter': args.max_requests_jitter,
         'debug': args.debug
         #'when_ready': boot_when_ready
     }

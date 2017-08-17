@@ -6,6 +6,7 @@ from falcon import HTTPInvalidParam, HTTPMissingParam
 from survey_stats import log
 from survey_stats import settings
 
+db_conf = None
 
 def check_media_type(req, resp, params):
     if req.client_accepts_json:
@@ -46,7 +47,7 @@ class StatsResource:
 
 
     def __init__(self):
-        self.logger = log.getLogger('statsworker.' + __name__)
+        self.logger = log.getLogger()
 
 
     def on_post(self, req, resp):
@@ -85,7 +86,7 @@ class StatsResource:
 
 
     def on_get(self, req, resp):
-        logging.info("requested uri: %s" % req.url)
+        self.logger.info("requested uri: %s" % req.url)
         qn = req.get_param('q')
         vars = req.get_param('v') or ''
         vars = vars.split(',')
@@ -123,7 +124,7 @@ class StatsResource:
                 'var_levels': vars, 'results': stats
             })
         except KeyError as err:
-            raise sserr.SSInvalidUsage('KeyError: %s' % str(err), payload={
+            raise HTTPInvalidParam('KeyError: %s' % str(err), payload={
                 'traceback': traceback.format_exc().splitlines(),
                 'state': {'q': qn, 'svy_vars': svy.vars, 'm_vars': m_vars,
                           'filter': filt, 'response': resp, 'var_levels': var_levels
@@ -133,7 +134,7 @@ class StatsResource:
 def setup_app(db_conf):
     app = falcon.API()
     app.add_route('/stats', StatsResource())
-    app.req_options.db_conf = db_conf
+    db_conf = db_conf
     return app
 
 

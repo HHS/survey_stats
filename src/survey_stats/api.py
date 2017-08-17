@@ -181,9 +181,8 @@ async def fetch_survey_stats(req):
 
 
 
-def setup_app(db_url, data_dir, stats_svc):
-    app.config.db_url = db_url
-    app.config.data_dir = data_dir
+def setup_app(db_conf, stats_svc):
+    app.config.db_conf = db_conf
     app.config.stats_svc = stats_svc
     return app
 
