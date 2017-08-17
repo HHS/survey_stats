@@ -33,8 +33,7 @@ surveys:
 socrata:
   soda_api:
     - "https://chronicdata.cdc.gov/resource/fn2i-3j6c.json"
-  national_selector: UW
-  rename:
+  mapcols:
     questionid: qid
     locationabbr: sitecode
     sample_size: count
@@ -46,7 +45,7 @@ socrata:
     data_value_footnote_symbol: std_err
     class: topic
     topic: subtopic
-  remap:
+  mapvals:
     sitecode:
       UW: XX
     facet:
@@ -77,4 +76,5 @@ socrata:
     facet: facet_level
   fold_stats: null
   apply_fn: null
+  qn_meta: [qid, year, question, topic, subtopic, response]
   c_filter: [qid, question, topic, subtopic, response, facet, facet_level, sitecode, year, count, mean, std_err, ci_u, ci_l]
