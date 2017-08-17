@@ -18,93 +18,10 @@ app = Sanic(__name__)
 
 logger = log.getLogger()
 
-
-@app.route("/questions/v2")
-def fetch_questions(req):
-    dset=req.args.get('d')
-    national = True
-    combined = True
-    svy = st.dset[dset].fetch_survey(combined, national)
-    res = []
-    if svy:
-        res = {k: get_meta(k, v, dset) for k, v in svy.vars.items()}
-    else:
-        qnkey = st.meta[dset].config['qnkey']
-        res = st.meta[dset].qnmeta.reset_index(level=0)
-        sl_res =[]
-        sl_res = res[['facet', 'facet_description',
-            'facet_level', 'facet_level_value']].drop_duplicates()
-        sl_res = {f[0]: {
-            'facet':f[0],
-            'facet_description': f[1]['facet_description'].get_values()[0],
-            'levels': dict(list(f[1][['facet_level','facet_level_value']].to_records(index=False)))
-            } for f in sl_res.groupby('facet')}
-
-        qn_res = res[['questionid', 'topic', 'subtopic', 'question', 'response']].groupby('questionid').agg({
-            'topic': lambda x: x.head(1).get_values()[0],
-            'subtopic': lambda x: x.get_values()[0],
-            'question': lambda x: x.get_values()[0],
-            'response': lambda x: list(x.drop_duplicates())
-        })
-        qn_res = qn_res.to_dict(orient='index')
-        res = {'facets':sl_res, 'questions':qn_res}
-        #logger.info(res)
-    return json(res)
-
 @app.route("/questions")
 def fetch_questions(req):
-    def get_meta(k, v, dset):
-        key = k.lower()
-        res = (dict(st.meta[dset].qnmeta.ix[key].ix[0].to_dict(), **v, id=k) if key in
-               st.meta[dset].qnmeta.index else dict(v, id=k))
-        return res
-    dset=req.args.get('d')
-    national = True
-    combined = True
-    svy = st.dset[dset].fetch_survey(combined, national)
-    res = []
-    sl_res = {}
-    if svy:
-        res = {k: get_meta(k, v, dset) for k, v in svy.vars.items()}
-        # removed  responses
-        for key,value in res.items():
-            del value['responses']
-            del value['is_integer']
-            if 'response' in value:
-               del value['response']
-    else:
-        qnkey = st.meta[dset].config['qnkey']
-        res = st.meta[dset].qnmeta.reset_index()
-        sl_res =[]
-        sl_res = res[['facet', 'facet_description',
-            'facet_level', 'facet_level_value']].drop_duplicates()
-        sl_res = {f[0]: {
-            'facet':f[0],
-            'facet_description': f[1]['facet_description'].get_values()[0],
-            'levels': dict(list(f[1][['facet_level','facet_level_value']].to_records(index=False)))
-            } for f in sl_res.groupby('facet')}
-
-        qn_res = res[['questionid', 'topic', 'subtopic', 'question', 'response']].groupby('questionid').agg({
-            'topic': lambda x: x.head(1).get_values()[0],
-            'subtopic': lambda x: x.get_values()[0],
-            'question': lambda x: x.get_values()[0],
-            'response': lambda x: list(x.drop_duplicates())
-        })
-        qn_res['class'] = qn_res['topic']
-        qn_res['topic'] = qn_res['subtopic']
-        del qn_res['subtopic']
-        qn_res = qn_res.to_dict(orient='index')
-        res = qn_res
-        #logger.info(res)
-    # looping through dictionary and replacing all 'nan' values with empty string
-    for value in res.values():
-        for i in value.keys():
-            item = value[i]
-            if isinstance(item, float) and math.isnan(item):
-               value[i] = ''
-    res = {'questions': res, 'facets': sl_res}
+    res = {"hello":"hello"}
     return json(res)
-
 
 
 def gen_slices(k, svy, qn, resp, m_vars, m_filt):
