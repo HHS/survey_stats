@@ -1,35 +1,34 @@
 language: python
 python: '3.6'
 env:
-  - CODECLIMATE_REPO_TOKEN=286aac924e768f43d969ca629f36d2d7c911e40d5a3efb9b625b19ec6f481844
+- CODECLIMATE_REPO_TOKEN=286aac924e768f43d969ca629f36d2d7c911e40d5a3efb9b625b19ec6f481844
 install:
-  - sudo apt-get update
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
-    else
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-    fi
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  - conda info -a
-  # Replace dep1 dep2 ... with your dependencies
-  - conda config --add channels intel
-  - conda create -q -n test-environment -c intel/label/test python=3 r-base=3.4.1 pandas scikit-learn cython r-feather libiconv r-survival
-  - source activate test-environment
-  #- conda install -c intel/label/test --file requirements.txt
-  - pip install -r requirements-dev.txt
-  - R --vanilla -e 'install.packages("survey", repos="http://R-Forge.R-project.org")'
-  - pip install -e .
+- sudo apt-get update
+- if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh
+  -O miniconda.sh; else wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+  -O miniconda.sh; fi
+- bash miniconda.sh -b -p $HOME/miniconda
+- export PATH="$HOME/miniconda/bin:$PATH"
+- hash -r
+- conda config --set always_yes yes --set changeps1 no
+- conda update -q conda
+- conda info -a
+- conda config --add channels intel
+- conda create -q -n test-environment -c intel/label/test python=3 r-base=3.4.1 pandas
+  scikit-learn cython r-feather libiconv r-survival
+- source activate test-environment
+- pip install -r requirements-dev.txt
+- R --vanilla -e 'install.packages("survey", repos="http://R-Forge.R-project.org")'
+- pip install -e .
 before_script:
-	- cc-test-reporter before-build
+- cc-test-reporter before-build
 script:
-  - py.test --coverage-report= --cov src tests
-	- cc-test-reporter after-build --exit-code $?
+- py.test --coverage-report= --cov src tests
+- cc-test-reporter after-build --exit-code $?
 notifications:
   email:
     on_success: never
     on_failure: always
+  slack:
+    secure: HzwHGNv/6gyMFgcGLkXIRDHPJAW0WJU26OwjPKsaPktlrtemIJRymZmHawGigsSRMvYPWwT19oo4jWYIOkJevIgWdd+UZq3IdPFoQfdHsLzsgcpP/NI4qXz5NTXCFJmt3a8elv4ABXvo60Ex8G2bxCwiPjHy2wnNJ5PO6Q5x/Ze6FCuftWZQHkPxdg09jrcE91Eqtu9ttRcbhnNqJaEfd4H8bRyB610yWI7AQknOd+6tnhlu6eWmmOR7zgymJw7spd7tu/CVQWnIosnE5CNZbWNpOTdCzUsiW4aIZt0X8FDRChsYAubWo0AnCfFl6JLfgQ0HetOVllgLBMLFzwuG5MtcIK+o4RV2pwO4LErmcUErsUhwmMn5WDx39BY63FzGdY3P7HJpQWV6plqqGL8Nh5udYF7L1KtFSriy4R5jub5vIEixqeMOZQveUqvxA7wv+NGKz+lbdzrW8fRLLNQb4ag2n18D60JPZaeaGRhIII1f10u3vsQ/9H/5bXoJgx6k22Wk/0pHju0IpEGbwzsPT4uj8OWFHSGXtJ7ZLQ54VR3UvMYG8hrrKKrMd9Wkeg8ariN9L/7dG5xv3NwgTn61UGeCI1PkHJP1dg/i9J2emWVihnJyW8Z4rw3TxaPlmP84ifirYQZ5I9uLP3vX9KzJuAb7Is44TJ3xeI4JrXsiJoI=
 after_success: coveralls
