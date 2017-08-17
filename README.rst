@@ -19,9 +19,9 @@ Overview
     :target: https://readthedocs.org/projects/survey_stats
     :alt: Documentation Status
 
-.. |travis| image:: https://travis-ci.org/uhjish/survey_stats.svg?branch=master
+.. |travis| image:: https://travis-ci.org/semanticbits/survey_stats.svg?branch=master
     :alt: Travis-CI Build Status
-    :target: https://travis-ci.org/uhjish/survey_stats
+    :target: https://travis-ci.org/semanticbits/survey_stats
 
 .. |requires| image:: https://requires.io/github/uhjish/survey_stats/requirements.svg?branch=master
     :alt: Requirements Status
@@ -62,7 +62,6 @@ Installation
 ============
 
 ::
-
     pip install survey-stats
 
 Documentation
