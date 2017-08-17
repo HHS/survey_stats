@@ -1,8 +1,8 @@
 version: "2"
 services:
 
-  monetdb:
-    image: monetdb/monetdb-r-docker
+  statsdb:
+    image: ajish/survey_stats-db-monet
     ports:
       - 50000
 
@@ -11,7 +11,7 @@ services:
     ports:
       - 7788
     links:
-      - monetdb
+      - statsdb
     command: survey_stats work
 
   statsserver:
@@ -19,7 +19,7 @@ services:
     ports:
       - "7777:7777"
     links:
-      - monetdb
+      - statsdb
       - statsworker
     command: survey_stats serve --stats_uri http://statsworker:7788/
 
