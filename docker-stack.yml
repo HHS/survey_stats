@@ -1,10 +1,15 @@
-version: "3"
+version: "3.2"
 services:
 
   monetdb:
     image: monetdb/monetdb-r-docker
     ports:
-      - 50000
+      - target: 50000
+        published: 50000
+        protocol: tcp
+        mode: host
+    networks:
+      - backend
     deploy:
       replicas: 2
       update_config:
@@ -16,7 +21,12 @@ services:
   statsworker:
     image: ajish/survey_stats
     ports:
-      - 7788
+      - target: 7788
+        published: 7788
+        protocol: tcp
+        mode: host
+    networks:
+      - backend
     depends_on:
       - monetdb
     command: survey_stats work
@@ -32,7 +42,12 @@ services:
   statsserver:
     image: ajish/survey_stats
     ports:
-      - 7777
+      - target: 7777
+        published: 7777
+        protocol: tcp
+        mode: host
+    networks:
+      - backend
     depends_on:
       - monetdb
       - statsworker
@@ -46,4 +61,10 @@ services:
       restart_policy:
         condition: any
 
+networks:
+  backend:
+
+volumes:
+  cache:
+  db-data:
 

@@ -63,7 +63,8 @@ docs/_build
 .bootstrap
 .appveyor.token
 *.bak
+venv
 
 # Specific to survey_stats
 cache
-
+data
