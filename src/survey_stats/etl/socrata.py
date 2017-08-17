@@ -66,9 +66,14 @@ def coerce_dtypes(df):
     return df
 
 
-def process_socrata_url(yaml_f):
+def get_socrata_config(yaml_f):
+    y = None
     with open(yaml_f) as fh:
         y = yaml.load(fh)
+    return y['socrata']
+
+
+def fetch_socrata_stats(soda_api, mapcols, mapvals, apply_fn):
     url = '%s?$limit=%d' % (soda_api[0], MAX_SOCRATA_FETCH)
     logger.info('loading SODA data', url=url)
     df = (pd.read_json(url)

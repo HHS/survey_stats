@@ -2,19 +2,12 @@ import pandas as pd
 import logging
 from collections import OrderedDict
 
-import rpy2
-import rpy2.robjects as robjects
-from rpy2.robjects import pandas2ri
-from rpy2.robjects.packages import importr
-
 from survey_stats import helpr
 from survey_stats import log
 
-rbase = importr('base')
+logger = log.getLogger(__name__)
 
-logger = log.getLogger()
-
-def load_survey(dat_files, svy_cols, svy_vars):
+def load_combined_survey(dat_files, svy_cols, svy_vars):
     logger.info('parsing raw survey data: %s' % ','.join(dat_files))
     df = pd.concat(map(lambda dat_f: pd.read_fwf(dat_f,
                                                  colspecs=list(svy_cols.values()),
@@ -52,6 +45,7 @@ def load_survey(dat_files, svy_cols, svy_vars):
                                               (q, helpr.factor_summary(fac)))
             rdf[idx] = helpr.tobool(fac)
     return rdf
+
 
 def load_survey_py(dat_file, svy_cols, svy_vars):
     df = pd.read_fwf(dat_file, colspecs=list(svy_cols.values()),
