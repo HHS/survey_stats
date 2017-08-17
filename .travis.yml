@@ -23,8 +23,11 @@ install:
   - pip install -r requirements-dev.txt
   - R --vanilla -e 'install.packages("survey", repos="http://R-Forge.R-project.org")'
   - pip install -e .
+before_script:
+	- cc-test-reporter before-build
 script:
   - py.test --coverage-report= --cov src tests
+	- cc-test-reporter after-build --exit-code $?
 notifications:
   email:
     on_success: never
