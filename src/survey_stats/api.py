@@ -23,9 +23,9 @@ dbc = None
 
 logger = log.getLogger()
 
-async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):
+async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg, wrk):
     slices = gen_slices(k, svy, qn, resp, m_vars, m_filt)
-    results = await fetch.fetch_all(slices)
+    results = await fetch.fetch_all(slices, wrk)
     results = [remap_vars(cfg, x, into=False) for x in results]
     return results
 
@@ -97,7 +97,7 @@ async def fetch_survey_stats(req):
             raise SSEmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
         question = svy.vars[qn]['question']
         var_levels = remap_vars(cfg, {v: svy.vars[v] for v in m_vars}, into=False)
-        results = await fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg)
+        results = await fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg, app.config.stats_svc)
     else:
         results = fetch_socrata(qn, resp, vars, filt, meta)
     #except Exception as e:

@@ -29,8 +29,8 @@ async def fetch(url, data, session):
         return await response.json()
 
 
-async def fetch_all(slices):
-    rqurl = 'http://localhost:7788/stats'
+async def fetch_all(slices, worker_url):
+    rqurl = worker_url + '/stats'
     tasks = []
 
     # Create client session that will ensure we dont open new connection
