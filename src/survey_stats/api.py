@@ -1,4 +1,6 @@
 import pandas as pd
+import blaze as bz
+from odo import odo
 
 from toolz.dicttoolz import merge
 
@@ -12,25 +14,14 @@ from survey_stats import settings
 from survey_stats import fetch
 from survey_stats import state as st
 
+
+
 Config.REQUEST_TIMEOUT = 50000000
 
 app = Sanic(__name__)
+dbc = None
 
 logger = log.getLogger()
-
-@app.route("/questions")
-def fetch_questions(req):
-    res = {"hello":"hello"}
-    return json(res)
-
-
-def gen_slices(k, svy, qn, resp, m_vars, m_filt):
-    loc = {'svy_id': k, 'dset_id': 'yrbss'}
-    slices = [merge(loc, s)
-        for s in svy.generate_slices(qn, True, m_vars, m_filt) ]
-    slices += [merge(loc, s)
-        for s in svy.generate_slices(qn, False, m_vars, m_filt) ]
-    return slices
 
 async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):
     slices = gen_slices(k, svy, qn, resp, m_vars, m_filt)
@@ -38,11 +29,38 @@ async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):
     results = [remap_vars(cfg, x, into=False) for x in results]
     return results
 
-def fetch_socrata(qn, resp, vars, filt, meta):
+async def fetch_socrata(qn, resp, vars, filt, meta):
     precomp = meta.fetch_dash(qn, resp, vars, filt)
     precomp = pd.DataFrame(precomp).fillna(-1)
     precomp['method']='socrata'
     return precomp.to_dict(orient='records')
+
+
+@app.route("/questions")
+async def fetch_questions(req):
+    res = {"hello":"hello"}
+    return json(res)
+
+@app.route("/")
+async def check_status(req):
+	# verify that the upstream services are functional
+	import pymonetdb
+	import sqlalchemy_monetdb
+	import sqlalchemy as sa
+	import blaze as bz
+	import requests as rq
+	import json as js
+	engine = sa.create_engine(app.config.db_conf['url'])
+	dbc = bz.data(engine)
+	dbinfo = { 'host': dbc.data.engine.url.host,
+			   'engine': dbc.data.engine.name,
+			   'tables': dbc.fields
+			 }
+	r = rq.get(app.config.stats_svc)
+	wrkinfo = r.json()
+	return json({'db': dbinfo,
+				 'worker': wrkinfo})
+
 
 
 def parse_filter(f):

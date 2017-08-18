@@ -6,7 +6,9 @@ from falcon import HTTPInvalidParam, HTTPMissingParam
 from survey_stats import log
 from survey_stats import settings
 
-db_conf = None
+db_cfg = None
+
+logger = log.getLogger(__name__)
 
 def check_media_type(req, resp, params):
     if req.client_accepts_json:
@@ -42,6 +44,33 @@ def remap_vars(cfg, coll, into=True):
         res = coll
     return res
 
+
+class HealthResource:
+
+	def __init__(self):
+		self.logger = log.getLogger('statsworker.' + __name__)
+
+	def on_get(self, req, resp):
+		import pymonetdb
+		import sqlalchemy_monetdb
+		import sqlalchemy as sa
+		from rpy2 import robjects as ro
+		from rpy2.robjects import r
+		import blaze as bz
+		engine = sa.create_engine(db_cfg['url'])
+		dbc = bz.data(engine)
+		dbinfo = { 'host': dbc.data.engine.url.host,
+				   'engine': dbc.data.engine.name,
+				   'tables': dbc.fields
+				 }
+		clsf = r('''function(x){class(x)}''')
+		rclass = lambda x: list(clsf(ro.globalenv[x]))[-1]
+		robjs = dict(map(
+					lambda x: (x, rclass(x)),
+					r.ls(ro.globalenv)))
+		resp.body = json.dumps({'alive': True,
+					 'db': dbinfo,
+					 'r': robjs})
 
 class StatsResource:
 
@@ -132,9 +161,12 @@ class StatsResource:
 
 
 def setup_app(db_conf):
+    global db_cfg
     app = falcon.API()
     app.add_route('/stats', StatsResource())
-    db_conf = db_conf
+    app.add_route('/', HealthResource())
+    db_cfg = db_conf
+    logger.info('booting worker with db', db=db_conf)
     return app
 
 
