@@ -1,5 +1,6 @@
 import yaml
 import re
+import os
 
 import pandas as pd
 import pymonetdb
@@ -66,23 +67,44 @@ def load_csv_mariadb_columnstore(df, tblname, engine):
     logger.info('bulk loaded data using cfimport', name=tblname, rows=df.shape[0], elapsed=timer()-start)
 
 
+def load_csv_monetdb(df, tblname, engine):
+    copy_tmpl = "COPY {nrows} OFFSET 1 RECORDS INTO {tbl} from '{csvf}'" + \
+                " USING DELIMITERS ',','\n','\"' NULL AS '';"
+    logger.info('creating schema for column store', name=tblname)
+    start = timer()
+    q = pd.io.sql.get_schema(df[:0], tblname, con=engine)
+    q = q.replace('BIGINT', 'INT')
+    logger.info('dumping to csv for bulk load', q=q)
+    csvf = serdes.save_csv(tblname, df, index=False)
+    csvf = os.path.abspath(csvf)
+    csvtime = timer()
+    logger.info('bulk loading csv into monetdb', csvf=csvf, elapsed=csvtime-start)
+    with engine.connect() as con:
+        con.execute("DROP TABLE %s" % tblname)
+        con.execute(q)
+        con.execute(copy_tmpl.format(nrows=df.shape[0]+1000,
+                                     tbl=tblname,
+                                     csvf=csvf))
+    logger.info('bulk loaded data using cfimport', name=tblname,
+                rows=df.shape[0], elapsed_copy=timer()-csvtime,
+                elapsed=timer()-start)
+
+
 def load_sqlalchemy(df, engine, tbl):
     logger.info('loading df into monetdb table', name=tbl)
     start = timer()
-    with engine.connect() as con:
-        df.to_sql(tbl, con, chunksize=10000, if_exists='replace', index=False )
-    logger.info('loaded dataframe into monetdb', tbl=tbl, rows=df.shape[0], elapsed=timer()-start)
+    with engine.begin() as con:
+        df.to_sql(tbl, con, chunksize=10000, if_exists='replace', index=False)
+    logger.info('loaded dataframe into monetdb', tbl=tbl, rows=df.shape[0], elapsed_step=timer()-start)
 
 
 def bulk_load_df(tblname, engine):
     logger.info('loading data from feather', name=tblname)
     df = serdes.load_feather(tblname)
     if engine.name == 'mysql':
-        logger.info('saving data to csv for bulk load', name=tblname)
-        csvf = serdes.save_csv(tblname, df, index=False, header=False)
         load_csv_mariadb_columnstore(df, tblname, engine)
-    elif engine.name in ['monetdb', 'sqlite']:
-        load_sqlalchemy(df, engine, tblname)
+    elif engine.name == 'monetdb':
+        load_csv_monetdb(df, tblname, engine)
 
 
 def setup_tables(yaml_f, dburl):
@@ -101,10 +123,10 @@ if __name__ == '__main__':
     default_sql_conn = 'monetdb://monetdb:monetdb@localhost/survey'
     # load_survey_data('config/data/brfss.yaml')
     #load_survey_data('config/data/brfss.yaml')
-    #setup_tables(
-    #    'config/data/brfss.yaml',
-    #    default_sql_conn
-    #)
+    setup_tables(
+        'config/data/brfss.yaml',
+        default_sql_conn
+    )
     '''
     setup_tables(
         'config/data/brfss_pre2011.yaml',

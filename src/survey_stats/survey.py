@@ -24,6 +24,13 @@ DECIMALS = {
 
 logger = log.getLogger()
 
+def gen_slices(k, svy, qn, resp, m_vars, m_filt):
+    loc = {'svy_id': k, 'dset_id': 'yrbss'}
+    slices = [merge(loc, s)
+        for s in svy.generate_slices(qn, True, m_vars, m_filt) ]
+    slices += [merge(loc, s)
+        for s in svy.generate_slices(qn, False, m_vars, m_filt) ]
+    return slices
 
 def subset_survey(des, filt):
     # filt is a dict with vars as keys and list of acceptable values as levels
