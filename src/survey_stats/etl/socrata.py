@@ -1,9 +1,12 @@
 import pandas as pd
 import numpy as np
 import asteval
+import yaml
+import sys
+from cytoolz.curried import map, filter
+from cytoolz.functoolz import pipe, thread_first, thread_last
 from survey_stats import log
-
-MAX_SOCRATA_FETCH=2**32
+from survey_stats.etl import download as dl
 
 logger = log.getLogger(__name__)
 
@@ -73,10 +76,9 @@ def get_socrata_config(yaml_f):
     return y['socrata']
 
 
-def fetch_socrata_stats(soda_api, mapcols, mapvals, apply_fn):
-    url = '%s?$limit=%d' % (soda_api[0], MAX_SOCRATA_FETCH)
+def fetch_socrata_stats(url, mapcols, mapvals, apply_fn, c_filter, unstack, fold_stats):
     logger.info('loading SODA data', url=url)
-    df = (pd.read_json(url)
+    df = (dl.df_from_socrata_url(url+'?')
           .pipe(lambda xf: xf.rename(index=str, columns={ x: x.lower() for x in
                                                          xf.columns }))
           .pipe(lambda xf: xf if not mapcols else xf.rename(index=str,
@@ -84,38 +86,46 @@ def fetch_socrata_stats(soda_api, mapcols, mapvals, apply_fn):
           .pipe(lambda xf: xf if not mapvals else xf.replace(mapvals))
           .pipe(apply_fn2vals, fns=apply_fn)
           .pipe(lambda xf: xf if not c_filter else xf[c_filter])
-          .assign(response=lambda x: x.response.fillna('NA'),
-                  facet=lambda x: x.facet.fillna('NA'),
-                  facet_level=lambda x: x.facet_level.fillna('NA'))
+          .assign(response=lambda x: x.response,
+                  facet=lambda x: x.facet,
+                  facet_level=lambda x: x.facet_level)
           .pipe(coerce_dtypes)
           .pipe(unstack_facets, unstack=unstack)
           .pipe(fold_stats_cols, folds=fold_stats)
-          .pipe(lambda xf: xf.replace(
-              {col:{'NA':np.nan} for col in xf.columns}))
         )
     return df
 
 
 def get_qids_by_year(yaml_f):
-    url = '{api_url}?$limit={limit}&' + \
+    y = get_socrata_config(yaml_f)
+    mapcols = y['mapcols']
+    revmap = {v:k for k,v in mapcols.items()}
+    url = '{api_url}?' + \
             '$select=year,{qnkey},count(year)' + \
             '&$group=year,{qnkey}' + \
             '&$order={qnkey},year'
-    url = url.format(api_url=soda_api, limit=MAX_SOCRATA_FETCH, qnkey=qnkey)
-    df = pd.read_json(url)
-    pass
+    qid = revmap['qid']
+    df = thread_last(y['soda_api'],
+                     map(lambda x: url.format(api_url=x, qnkey=qid)),
+                     map(dl.df_from_socrata_url),
+                     pd.concat)
+    df.to_csv(sys.stdout)
 
 
 def get_questions_socrata(yaml_f):
     revmap = {v: k for k, v in mapcols.items()}
-    url = '{api_url}?$limit={limit}&' + \
+    url = '{api_url}?' + \
             '$select={cols},count(year)' + \
             '&$group={cols}' + \
             '&$order={ocols}'
-    url = url.format(api_url=soda_api,
-                     limit=MAX_SOCRATA_FETCH,
-                     cols=','.join([revmap[k] for k in QNCOLS]),
-                     ocols =','.join([revmap[k] for k in ['qid','year']]))
+
+    qncols=','.join([revmap[k] for k in QNCOLS])
+    ocols =','.join([revmap[k] for k in ['qid','year']])
+
+    res = thread_last(y['soda_api'],
+                      map(lambda x: url.format(api_url=x, cols=qncols, ocols=ocols)),
+                      map(dl.df_from_socrata_url),
+                      pd.concat)
     sl_res =[]
     sl_res = res[['facet', 'facet_description',
         'facet_level', 'facet_level_value']].drop_duplicates()
@@ -135,3 +145,8 @@ def get_questions_socrata(yaml_f):
     qn_res['topic'] = qn_res['subtopic']
     del qn_res['subtopic']
     qn_res = qn_res.to_dict(orient='index')
+    return qn_res
+
+if __name__ == "__main__":
+    get_qids_by_year('config/data/brfss_pre2011.yaml')
+    #get_qids_by_year('config/data/yrbss.yaml')

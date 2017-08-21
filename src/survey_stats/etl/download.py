@@ -1,3 +1,4 @@
+import os
 import io
 import zipfile
 import pandas as pd
@@ -7,11 +8,20 @@ from retry import retry
 import boto3
 from botocore import UNSIGNED
 from botocore.client import Config
+from botocore.vendored import requests
+import requests_cache
+import pandas as pd
 
 from survey_stats import log
 
-logger = log.getLogger(__name__)
 
+MAX_SOCRATA_FETCH=2**32
+TMP_API_KEY='Knx7W1eldgzkO9nUXNYfGXGBJ'
+#TODO: move to Vault/elsewhere
+
+
+requests_cache.install_cache()
+logger = log.getLogger(__name__)
 s3 = boto3.client('s3', config=Config(signature_version=UNSIGNED))
 
 
@@ -31,3 +41,9 @@ def fetch_data_from_url(url):
     else:
         return urllib.request.urlopen(url)
 
+
+def df_from_socrata_url(url):
+    url = url + "&$limit=%d" % (MAX_SOCRATA_FETCH)
+    r = requests.get(url, headers={'Accept': 'application/json', 'X-App-Token':TMP_API_KEY})
+    data = pd.DataFrame(r.json())
+    return data

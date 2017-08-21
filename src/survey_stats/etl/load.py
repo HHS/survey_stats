@@ -19,7 +19,7 @@ from survey_stats import serdes
 logger = log.getLogger(__name__)
 
 
-def load_socrata_data(params):
+def load_socrata_data(**params):
     dfs = [fetch_socrata_stats(url=url,
                               mapcols=params['mapcols'],
                               mapvals=params['mapvals'],
@@ -27,7 +27,7 @@ def load_socrata_data(params):
                               c_filter=params['c_filter'],
                               unstack=params['unstack'],
                               fold_stats=params['fold_stats'])
-          for url in soda_api]
+          for url in params['soda_api']]
     dfs = pd.concat(dfs, ignore_index=True)
     return dfs
 
@@ -37,11 +37,11 @@ def load_survey_data(yaml_f):
     with open(yaml_f) as fh:
         cfg = yaml.load(fh)
     logger.bind(dataset=cfg['id'])
-    logger.info('loading socrata data')
-    soda = load_socrata_data(**cfg['socrata'])
-    ksoda = serdes.socrata_key4id(cfg['id'])
-    logger.info('saving socrata data')
-    serdes.save_feather(ksoda,soda)
+    #logger.info('loading socrata data')
+    #soda = load_socrata_data(**cfg['socrata'])
+    #ksoda = serdes.socrata_key4id(cfg['id'])
+    #logger.info('saving socrata data')
+    #serdes.save_feather(ksoda,soda)
     logger.info('loading survey dfs')
     svydf = process_sas_survey(meta=cfg['surveys']['meta'],
                                prefix=cfg['surveys']['s3_url_prefix'],
@@ -121,8 +121,8 @@ def setup_tables(yaml_f, dburl):
 if __name__ == '__main__':
     default_sql_conn = 'mysql+pymysql://mcsuser:mcsuser@localhost:4306/survey'
     default_sql_conn = 'monetdb://monetdb:monetdb@localhost/survey'
-    # load_survey_data('config/data/brfss.yaml')
     #load_survey_data('config/data/brfss.yaml')
+    load_survey_data('config/data/brfss.yaml')
     setup_tables(
         'config/data/brfss.yaml',
         default_sql_conn

@@ -1,7 +1,9 @@
 #!/bin/bash
 
 setup_miniconda (){
+    PLATF=`uname`
     # setup miniconda3
+    # wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
     wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
         -O miniconda.sh
     chmod +x miniconda.sh
@@ -27,7 +29,7 @@ conda info -a
 conda config --add channels intel
 
 echo "create conda env with intel python 3.6 and gnu r 3.4.1"
-conda create -q -p venv -c intel/label/test python=3 r-base=3.4.1 pandas scikit-learn cython r-feather libiconv r-survival r-dbi
+conda create  -p venv -c intel/label/test python=3 r-base=3.4.1 pandas scikit-learn cython r-feather libiconv r-survival r-dbi
 
 echo "activate the env and install package and dev requirements with pip"
 source activate $CURDIR/venv

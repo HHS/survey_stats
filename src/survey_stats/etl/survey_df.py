@@ -4,9 +4,8 @@ import numpy as np
 from cytoolz.itertoolz import mapcat
 from cytoolz.functoolz import thread_last
 from cytoolz.curried import map, filter
-
 from survey_stats import log
-
+from survey_stats import pdutil
 
 logger = log.getLogger(__name__)
 
@@ -60,10 +59,9 @@ def eager_convert_categorical(s, lbls):
         return force_convert_categorical(s, lbls)
 
 
-def filter_columns(df, r, facets, qids):
+def filter_columns(df, facets, qids):
     set_union = lambda x,y: y.union(x)
     cols = thread_last(set(qids),
-                       (set_union, map(lambda x: r[x], SVYDESIGN_COLS)),
                        (set_union, facets.keys()),
                        lambda x: x.intersection(df.columns),
                        list,
@@ -71,29 +69,38 @@ def filter_columns(df, r, facets, qids):
     ndf = df[cols]
     logger.info("filtered df columns", qids=','.join(qids),
                 facets=','.join(facets.keys()),
-                fixed=','.join(map(lambda x: r[x], SVYDESIGN_COLS)),
                 filtered=','.join(cols),
                 missing=set(cols).difference(df.columns),
                 ncols=len(cols), old_shape=df.shape, new_shape=ndf.shape)
     return ndf
 
 
-def munge_df(df, lbls, facets, year, sitecode, weight, strata, psu):
+def munge_df(df, lbls, facets, year, sitecode, weight, strata, psu, qids):
     logger.info('filtering, applying varlabels, munging')
-    ndf = (filter_columns(df, r, facets, qids)
+    logger.info('completed SAS df munging',
+                summary=df.dtypes.value_counts(dropna=False).to_dict(),
+                shape=df.shape, dups=pdutil.duplicated_varnames(df),
+                weights=df[weight].describe().to_dict(),
+                sitecodes=df[sitecode].value_counts().to_dict(),
+                strata=df[strata].describe().to_dict())
+    ndf = (df.pipe(lambda xdf: filter_columns(xdf, facets, qids))
            .apply(lambda x: eager_convert_categorical(x, lbls))
-           .select_dtypes(include=['category'])
            .rename(index=str, columns=facets)
-           .assign(year = int(year) if year.isnumeric else df[year].astype(int),
+		   .reset_index(drop=True)
+           .assign(year = int(year) if type(year) == int else df[year].astype(int),
                    sitecode = df[sitecode].apply(
                         SITECODE_TRANSLATORS['fips']).astype('category'),
                    weight = df[weight].astype(float),
                    strata = df[strata].astype(int),
                    psu = df[psu].astype(int))
-    )
+           )
     logger.info('completed SAS df munging',
                 summary=ndf.dtypes.value_counts(dropna=False).to_dict(),
-                shape=ndf.shape, dups=pdutil.duplicated_varnames(df))
+                shape=ndf.shape, dups=pdutil.duplicated_varnames(df),
+                weights=ndf['weight'].describe().to_dict(),
+                years=ndf['year'].value_counts().to_dict(),
+                sitecodes=ndf['sitecode'].value_counts().to_dict(),
+                strata=ndf['strata'].describe().to_dict())
     return ndf
 
 
@@ -118,3 +125,4 @@ def merge_multiyear_surveys(dfs, na_syns):
                                                           in xf.columns})))
     logger.info('merged SAS dfs', shape=dfs.shape,
                  summary=dfs.dtypes.value_counts(dropna=False).to_dict())
+    return dfs

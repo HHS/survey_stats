@@ -2,8 +2,15 @@ import os
 import os.path
 import io
 import re
+import pandas as pd
+import numpy as np
+from cytoolz.itertoolz import concat, concatv, mapcat
+from cytoolz.curried import map, filter
+from cytoolz.functoolz import pipe, thread_first, thread_last
 
 from survey_stats import log
+from survey_stats.etl import survey_df as sdf
+from survey_stats.etl import download as dl
 
 logger = log.getLogger(__name__)
 
@@ -78,7 +85,7 @@ def load_variable_labels(formas_f, format_f, year=None):
     logger.info("loading format labels", file=format_f)
     labels = thread_last(
         format_f,
-        fetch_data_from_url,
+        dl.fetch_data_from_url,
         lambda x: x.read(),
         lambda t: (t.decode('utf-8', errors='ignore')
                    if type(t) is bytes else t),
@@ -87,7 +94,7 @@ def load_variable_labels(formas_f, format_f, year=None):
     logger.info("loading format assignments", file=formas_f)
     assignments = thread_last(
         formas_f,
-        fetch_data_from_url,
+        dl.fetch_data_from_url,
         lambda x: x.read(),
         lambda t: (t.decode('utf-8', errors='ignore')
                    if type(t) is bytes else t),
@@ -116,7 +123,7 @@ def load_sas_from_zip(fh, format):
 
 
 def load_sas_from_url(url, format):
-    fh = fetch_data_from_url(url)
+    fh = dl.fetch_data_from_url(url)
     df = (load_sas_from_zip(fh, format) if url[-3:].lower() == 'zip'
             else pd.read_sas(fh, format=format))
     logger.info("loaded SAS XPORT file", shape=df.shape)
@@ -130,9 +137,9 @@ def load_sas_xport_df(r, p, facets, qids, lbls, na_syns):
     lbls = {k:v for k,v in lbls.items() if k in df.columns}
     facets = {r[k]:k for k in facets}
     logger.unbind('year')
-    return munge_df(df, lbls, facets,
+    return sdf.munge_df(df, lbls, facets,
                     year=r.year, sitecode=r.sitecode,
-                    weight=r.weight, strata=r.strata, psu=r.psu)
+                    weight=r.weight, strata=r.strata, psu=r.psu, qids=qids)
 
 
 
@@ -144,7 +151,7 @@ def process_sas_survey(meta, facets, prefix, qids, na_syns):
             idx, r in list(flist.iterrows())}
     dfs = [load_sas_xport_df(r, prefix, facets, qids, lbls[r.year], na_syns) for
         idx, r in list(flist.iterrows())]
-    dfs = merge_multiyear_surveys(dfs, na_syns)
+    dfs = sdf.merge_multiyear_surveys(dfs, na_syns)
     logger.unbind('p')
     return dfs
 
