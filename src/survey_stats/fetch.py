@@ -12,6 +12,7 @@ asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 MAX_CONCURRENT_REQ = 100
 headers = {'content-type': 'application/json'}
 
+
 def key_from_data(*args, **kwargs):
     logger.info(args)
     logger.info(kwargs)
@@ -20,6 +21,7 @@ def key_from_data(*args, **kwargs):
     elif len(args)>2:
         return keys.hashkey(args[1])
     return keys.hashkey(*args, **kwargs)
+
 
 async def fetch(url, data, session):
     async with session.post(url, data=data, headers=headers) as response:
