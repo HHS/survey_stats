@@ -3,52 +3,29 @@ import numpy as np
 import asteval
 import yaml
 import sys
-from cytoolz.curried import map, filter
-from cytoolz.functoolz import pipe, thread_first, thread_last
+from cytoolz.curried import map, filter, curry
+from cytoolz.functoolz import pipe, thread_first, thread_last, do
+import dask
+from dask import dataframe as dd
+from dask.distributed import Executor
+from dask import delayed
+from dask.cache import Cache
 from survey_stats import log
 from survey_stats.etl import download as dl
 
 logger = log.getLogger(__name__)
 
-def unstack_facets(df, unstack):
-    if not unstack:
-        return df
-    logger.info('unstacking facet columns', shape=df.shape, unstack=unstack)
-    for k,v in unstack.items():
-        fcts = list(df[k].drop_duplicates())
-        for c in fcts:
-            df[c] = 'Total'
-            df[c][df[k] == c] = df[v][df[k] == c]
-            logger.info('unstacked facet column', col=c,
-                        facets=df[c].value_counts(dropna=False).to_dict())
-    logger.info('unstacking facet columns', shape=df.shape, cols=df.columns,
-                unstack=unstack)
-    return df
+MAX_SOCRATA_FETCH=2**32
 
 
-def fold_stats_cols(df, folds):
-    if not folds:
-        return df
-    logger.info('folding df stats', shape=df.shape, folds=folds,
-                cols='|'.join(df.columns))
-    cols = list(df.columns)
-    yes_cols = folds['y']
-    no_cols = folds['n']
-    fixed_cols = list( set(cols) - set(yes_cols + no_cols) )
-    yes_df = df[ fixed_cols + yes_cols ]
-    no_df = df[ fixed_cols + no_cols ]
-    yes_df['response'] = 'Yes'
-    no_df['response'] = 'No'
-    no_df.columns = yes_df.columns
-    df = pd.concat([yes_df, no_df], ignore_index=True).reset_index(drop=True)
-    logger.info('folded df stats', shape=df.shape, folds=folds,
-                cols='|'.join(df.columns))
-    return df
+def doif(signal_arg, fn):
+    if not signal_arg:
+        return lambda x: x
+    else:
+        return curry(fn)(signal_arg)
 
 
-def apply_fn2vals(df, fns):
-    if not fns:
-        return df
+def apply_fn2vals(fns, df):
     evalr = asteval.Interpreter()
     for k,v in fns:
         logger.info('transforming col w/ apply_fn', col=k,
@@ -69,31 +46,72 @@ def coerce_dtypes(df):
     return df
 
 
+def unstack_facets(df, unstack):
+    logger.info('unstacking facet columns', unstack=unstack)
+    for k,v in unstack.items():
+        fcts = set(list(df[k]))
+        logger.info('bagged distinct', f=fcts.compute())
+        for c in fcts:
+            df[c] = 'Total'
+            df[c][df[k] == c] = df[v][df[k] == c]
+            logger.info('unstacked facet column', col=c,
+                        facets=df[c].value_counts(dropna=False).to_dict())
+    logger.info('unstacking facet columns', cols=df.columns, unstack=unstack)
+    return df
+
+
+def fold_stats_cols(df, folds):
+    logger.info('folding df stats', shape=df.shape, folds=folds,
+                cols='|'.join(df.columns))
+    cols = list(df.columns)
+    yes_cols = folds['y']
+    no_cols = folds['n']
+    fixed_cols = list( set(cols) - set(yes_cols + no_cols) )
+    yes_df = df[ fixed_cols + yes_cols ]
+    no_df = df[ fixed_cols + no_cols ]
+    yes_df['response'] = 'Yes'
+    no_df['response'] = 'No'
+    no_df.columns = yes_df.columns
+    df = pd.concat([yes_df, no_df], ignore_index=True).reset_index(drop=True)
+    logger.info('folded df stats', shape=df.shape, folds=folds,
+                cols='|'.join(df.columns))
+    return df
+
+
+def munge_socrata_df(mapcols, mapvals, apply_fn, c_filter, df):
+    return (df.pipe(doif(mapcols,
+                        lambda m, df: df.rename(index=str, columns=m)))
+            .pipe(doif(mapvals,
+                       lambda m, df: df.replace(m)))
+            .pipe(doif(apply_fn, apply_fn2vals))
+            .pipe(doif(c_filter,
+                       lambda cols, df: df[cols]))
+            .pipe(delayed(coerce_dtypes)))
+
+
+def fetch_socrata_stats(soda_api, mapcols, mapvals, apply_fn,
+                        c_filter, unstack, fold_stats, qn_meta):
+    df = thread_last(soda_api,
+                     map(lambda u: u+'?'),
+                     map(delayed(
+                         dl.request_from_socrata_url)),
+                     map(delayed(
+                         lambda r: pd.DataFrame(r.json()))),
+                     map(curry(munge_socrata_df)(mapcols, mapvals,
+                                                 apply_fn, c_filter)),
+                     delayed(pd.concat),
+                     lambda x: x.compute(),
+                     doif(unstack, unstack_facets),
+                     doif(fold_stats, fold_stats_cols)
+          )
+    return df
+
+
 def get_socrata_config(yaml_f):
     y = None
     with open(yaml_f) as fh:
         y = yaml.load(fh)
     return y['socrata']
-
-
-def fetch_socrata_stats(url, mapcols, mapvals, apply_fn, c_filter, unstack, fold_stats):
-    logger.info('loading SODA data', url=url)
-    df = (dl.df_from_socrata_url(url+'?')
-          .pipe(lambda xf: xf.rename(index=str, columns={ x: x.lower() for x in
-                                                         xf.columns }))
-          .pipe(lambda xf: xf if not mapcols else xf.rename(index=str,
-                                                           columns=mapcols))
-          .pipe(lambda xf: xf if not mapvals else xf.replace(mapvals))
-          .pipe(apply_fn2vals, fns=apply_fn)
-          .pipe(lambda xf: xf if not c_filter else xf[c_filter])
-          .assign(response=lambda x: x.response,
-                  facet=lambda x: x.facet,
-                  facet_level=lambda x: x.facet_level)
-          .pipe(coerce_dtypes)
-          .pipe(unstack_facets, unstack=unstack)
-          .pipe(fold_stats_cols, folds=fold_stats)
-        )
-    return df
 
 
 def get_qids_by_year(yaml_f):

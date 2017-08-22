@@ -4,6 +4,12 @@ import numpy as np
 from cytoolz.itertoolz import mapcat
 from cytoolz.functoolz import thread_last
 from cytoolz.curried import map, filter
+
+import dask
+from dask import dataframe as dd
+from dask.distributed import Executor
+from dask.delayed import delayed
+
 from survey_stats import log
 from survey_stats import pdutil
 
@@ -24,6 +30,7 @@ SITECODE_TRANSLATORS = {
 
 SVYDESIGN_COLS = ['sitecode', 'strata', 'psu', 'weight']
 
+@dask.delayed
 def force_convert_categorical(s, lbls):
     c = (pd.to_numeric(s.fillna(-1), downcast='integer')
          .replace(to_replace=lbls[s.name])
@@ -32,7 +39,7 @@ def force_convert_categorical(s, lbls):
     #            c_desc=str(c.describe()))
     return c
 
-
+@dask.delayed
 def eager_convert_categorical(s, lbls):
     if not s.name in lbls.keys():
         return s
@@ -58,7 +65,7 @@ def eager_convert_categorical(s, lbls):
                     c_desc=c.describe())
         return force_convert_categorical(s, lbls)
 
-
+@dask.delayed
 def filter_columns(df, facets, qids):
     set_union = lambda x,y: y.union(x)
     cols = thread_last(set(qids),
@@ -67,22 +74,15 @@ def filter_columns(df, facets, qids):
                        list,
                        sorted)
     ndf = df[cols]
-    logger.info("filtered df columns", qids=','.join(qids),
-                facets=','.join(facets.keys()),
+    logger.info("filtered df columns",
                 filtered=','.join(cols),
                 missing=set(cols).difference(df.columns),
                 ncols=len(cols), old_shape=df.shape, new_shape=ndf.shape)
     return ndf
 
-
+@dask.delayed
 def munge_df(df, lbls, facets, year, sitecode, weight, strata, psu, qids):
     logger.info('filtering, applying varlabels, munging')
-    logger.info('completed SAS df munging',
-                summary=df.dtypes.value_counts(dropna=False).to_dict(),
-                shape=df.shape, dups=pdutil.duplicated_varnames(df),
-                weights=df[weight].describe().to_dict(),
-                sitecodes=df[sitecode].value_counts().to_dict(),
-                strata=df[strata].describe().to_dict())
     ndf = (df.pipe(lambda xdf: filter_columns(xdf, facets, qids))
            .apply(lambda x: eager_convert_categorical(x, lbls))
            .rename(index=str, columns=facets)
@@ -96,14 +96,11 @@ def munge_df(df, lbls, facets, year, sitecode, weight, strata, psu, qids):
            )
     logger.info('completed SAS df munging',
                 summary=ndf.dtypes.value_counts(dropna=False).to_dict(),
-                shape=ndf.shape, dups=pdutil.duplicated_varnames(df),
-                weights=ndf['weight'].describe().to_dict(),
-                years=ndf['year'].value_counts().to_dict(),
-                sitecodes=ndf['sitecode'].value_counts().to_dict(),
-                strata=ndf['strata'].describe().to_dict())
-    return ndf
+                shape=ndf.shape, dups=list(ndf.columns[ndf.columns.duplicated()]),
+                weights=ndf['weight'].describe().round(2).to_dict())
+    return ndf.reset_index(drop=True)
 
-
+@dask.delayed
 def find_na_synonyms(df, na_syns):
     df = df.applymap(
         lambda x: np.nan if
@@ -113,16 +110,20 @@ def find_na_synonyms(df, na_syns):
         else x)
     return df
 
-
 def merge_multiyear_surveys(dfs, na_syns):
     logger.info('merging SAS dfs')
     undash_fn = lambda x: 'x' + x if x[0] == '_' else x
-    dfs = (pd.concat(dfs, ignore_index=True)
+    dfs = (dd.concat(dfs, ignore_index=True, axis=0, join='outer')
            .pipe(lambda xf: find_na_synonyms(xf, na_syns))
-           .apply(lambda x: x.astype('category') if
-                 x.dtype.name in ['O','object'] else x)
+           .apply(lambda x: x.fillna('NA').astype('category') if
+                 x.dtype.name in ['O','object'] else (x.fillna('NA').astype('category') if x.dtype.name in ['category']
+										else x.fillna(-1)))
            .pipe(lambda xf: xf.rename(index=str, columns={x:undash_fn(x) for x
                                                           in xf.columns})))
     logger.info('merged SAS dfs', shape=dfs.shape,
-                 summary=dfs.dtypes.value_counts(dropna=False).to_dict())
+                 summary=dfs.dtypes.value_counts(dropna=False).to_dict(),
+				 n_levels=dfs.select_dtypes(include=['O','category']).apply(lambda x: x.value_counts()),
+				 levels=dfs.select_dtypes(include=['category']).apply(lambda x: x.categories),
+				 weights=dfs['weight'].describe(), strata=dfs['strata'].describe(),
+				 psu=dfs['psu'].describe(), desc=dfs.describe())
     return dfs

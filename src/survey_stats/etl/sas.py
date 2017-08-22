@@ -8,12 +8,18 @@ from cytoolz.itertoolz import concat, concatv, mapcat
 from cytoolz.curried import map, filter
 from cytoolz.functoolz import pipe, thread_first, thread_last
 
+import dask
+from dask import dataframe as dd
+from dask.distributed import Executor
+from dask.delayed import delayed
+
 from survey_stats import log
 from survey_stats.etl import survey_df as sdf
 from survey_stats.etl import download as dl
 
 logger = log.getLogger(__name__)
 
+@dask.delayed
 def parse_format_assignments(txt):
     format_lines = ''
     append = False
@@ -48,6 +54,7 @@ def parse_format_assignments(txt):
     )
     return assignments
 
+@dask.delayed
 def block2dict(lines):
     rqt = re.compile(r'[\"]')  # match quote chars
     rws = re.compile(r'\s')        # match whitespace
@@ -67,7 +74,7 @@ def block2dict(lines):
     d[-1] = 'NA' #use NA as a marker for unmapped vals
     return d
 
-
+@dask.delayed
 def parse_variable_labels(txt):
     labels = thread_last(
         txt.split(';'),
@@ -80,7 +87,7 @@ def parse_variable_labels(txt):
                 nlabeled=len(labels.keys()))
     return labels
 
-
+@dask.delayed
 def load_variable_labels(formas_f, format_f, year=None):
     logger.info("loading format labels", file=format_f)
     labels = thread_last(
@@ -102,7 +109,7 @@ def load_variable_labels(formas_f, format_f, year=None):
     )
     return {k: labels[v] for k, v in assignments.items() if v in labels}
 
-
+@dask.delayed
 def varlabels2df(vlbls, yr=None):
     return thread_last(
         vlbls.items(),
@@ -115,13 +122,13 @@ def varlabels2df(vlbls, yr=None):
                     if yr else df.set_index(['var','code']))
     )
 
-
+@dask.delayed
 def load_sas_from_zip(fh, format):
     with zipfile.ZipFile( io.BytesIO(fh.read())) as zipf:
         with zipf.open(zipf.namelist()[0]) as fh:
             return pd.read_sas(fh, format=format)
 
-
+@dask.delayed
 def load_sas_from_url(url, format):
     fh = dl.fetch_data_from_url(url)
     df = (load_sas_from_zip(fh, format) if url[-3:].lower() == 'zip'
@@ -129,7 +136,7 @@ def load_sas_from_url(url, format):
     logger.info("loaded SAS XPORT file", shape=df.shape)
     return df
 
-
+@dask.delayed
 def load_sas_xport_df(r, p, facets, qids, lbls, na_syns):
     logger.bind(year=r.year)
     df = load_sas_from_url(p+r.xpt, 'xport')
@@ -142,7 +149,7 @@ def load_sas_xport_df(r, p, facets, qids, lbls, na_syns):
                     weight=r.weight, strata=r.strata, psu=r.psu, qids=qids)
 
 
-
+@dask.delayed
 def process_sas_survey(meta, facets, prefix, qids, na_syns):
     logger.bind(p=prefix)
     flist = pd.DataFrame(meta['rows'], columns=meta['cols'])
