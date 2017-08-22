@@ -3,9 +3,15 @@ import pandas as pd
 import numpy as np
 from cytoolz.itertoolz import mapcat
 from cytoolz.functoolz import thread_last
-from cytoolz.curried import map, filter
+from cytoolz.curried import map, filter, curry
 from survey_stats import log
 from survey_stats import pdutil
+
+import dask
+from dask import distributed as dd
+from dask import delayed
+from dask import bag
+from dask.distributed import Client
 
 logger = log.getLogger(__name__)
 
@@ -28,8 +34,6 @@ def force_convert_categorical(s, lbls):
     c = (pd.to_numeric(s.fillna(-1), downcast='integer')
          .replace(to_replace=lbls[s.name])
          .astype('category'))
-    #logger.info('forced cat conversion', c=str(c.value_counts(dropna=False)),
-    #            c_desc=str(c.describe()))
     return c
 
 
@@ -39,17 +43,12 @@ def eager_convert_categorical(s, lbls):
     try:
         c = (pd.to_numeric(s.fillna(-1), downcast='integer')
              .astype('category'))
-        #logger.info('eager conv - 1', summ=c.value_counts(dropna=False).to_dict(),
-        #            labels=lbls[s.name])
         c = c.cat.rename_categories(
             [lbls[s.name][k] for k in sorted(c.unique())])
-        #logger.info('eager conv - 2', summ=c.value_counts(dropna=False).to_dict(),
-        #            keys=sorted(lbls[s.name].keys()))
-        c = (c.cat.set_categories(
-            [lbls[s.name][k] for k in sorted(lbls[s.name].keys())])
-            .astype('category'))
-        #logger.info('eager conv - 3', summ=c.value_counts(dropna=False).to_dict(),
-        #            desc = str(c.describe()))
+        c = (c.cat.set_categories([
+                lbls[s.name][k] for k in
+                sorted(lbls[s.name].keys())
+             ]).astype('category'))
         return c
     except KeyError:
         return s
@@ -75,54 +74,46 @@ def filter_columns(df, facets, qids):
     return ndf
 
 
-def munge_df(df, lbls, facets, year, sitecode, weight, strata, psu, qids):
-    logger.info('filtering, applying varlabels, munging')
-    logger.info('completed SAS df munging',
-                summary=df.dtypes.value_counts(dropna=False).to_dict(),
-                shape=df.shape, dups=pdutil.duplicated_varnames(df),
-                weights=df[weight].describe().to_dict(),
-                sitecodes=df[sitecode].value_counts().to_dict(),
-                strata=df[strata].describe().to_dict())
-    ndf = (df.pipe(lambda xdf: filter_columns(xdf, facets, qids))
-           .apply(lambda x: eager_convert_categorical(x, lbls))
-           .rename(index=str, columns=facets)
-		   .reset_index(drop=True)
-           .assign(year = int(year) if type(year) == int else df[year].astype(int),
-                   sitecode = df[sitecode].apply(
-                        SITECODE_TRANSLATORS['fips']).astype('category'),
-                   weight = df[weight].astype(float),
-                   strata = df[strata].astype(int),
-                   psu = df[psu].astype(int))
-           )
-    logger.info('completed SAS df munging',
-                summary=ndf.dtypes.value_counts(dropna=False).to_dict(),
-                shape=ndf.shape, dups=pdutil.duplicated_varnames(df),
-                weights=ndf['weight'].describe().to_dict(),
-                years=ndf['year'].value_counts().to_dict(),
-                sitecodes=ndf['sitecode'].value_counts().to_dict(),
-                strata=ndf['strata'].describe().to_dict())
-    return ndf
-
-
-def find_na_synonyms(df, na_syns):
+def find_na_synonyms(na_syns, df):
     df = df.applymap(
         lambda x: np.nan if
-        (x.lower() in na_syns if
-            type(x) == str else
-            False)
+        (x.lower() in na_syns if type(x) == str else False)
         else x)
     return df
 
+def undash(col):
+    return 'x' + col if col[0] == '_' else col
 
-def merge_multiyear_surveys(dfs, na_syns):
-    logger.info('merging SAS dfs')
-    undash_fn = lambda x: 'x' + x if x[0] == '_' else x
-    dfs = (pd.concat(dfs, ignore_index=True)
-           .pipe(lambda xf: find_na_synonyms(xf, na_syns))
-           .apply(lambda x: x.astype('category') if
-                 x.dtype.name in ['O','object'] else x)
-           .pipe(lambda xf: xf.rename(index=str, columns={x:undash_fn(x) for x
-                                                          in xf.columns})))
-    logger.info('merged SAS dfs', shape=dfs.shape,
-                 summary=dfs.dtypes.value_counts(dropna=False).to_dict())
-    return dfs
+def munge_df(df, r, lbls, facets, qids, na_syns):
+    logger.info('filtering, applying varlabels, munging')
+    ''', cols=df.columns,
+                shape=df.shape, dups=pdutil.duplicated_varnames(df))
+    '''
+    lbls = {k:v for k,v in lbls.items()} ## if k in delayed(df.columns)}
+    facets = {r[k]:k for k in facets}
+    year=r['year']
+    ndf = (df.pipe(lambda xdf: filter_columns(xdf, facets, qids))
+		   .reset_index(drop=True)
+           .apply(lambda x: eager_convert_categorical(x, lbls))
+           .rename(index=str, columns=facets)
+           .pipe(curry(find_na_synonyms)(na_syns))
+           .pipe(lambda xf: xf.rename(index=str, columns={x: undash(x) for x in xf.columns}))
+		   .reset_index(drop=True)
+           .assign(year = int(year) if type(year) == int else df[year].astype(int),
+                   sitecode = df[r['sitecode']].apply(
+                        SITECODE_TRANSLATORS['fips']).astype('category'),
+                   weight = df[r['weight']].astype(float),
+                   strata = df[r['strata']].astype(int),
+                   psu = df[r['psu']].astype(int))
+           .reset_index(drop=True))
+    logger.info('completed SAS df munging')
+    ''',
+                summary=ndf.dtypes.value_counts(dropna=False).to_dict(),
+                shape=ndf.shape, dups=pdutil.duplicated_varnames(df),
+                years=ndf['year'].value_counts().to_dict(),
+                sitecodes=ndf['sitecode'].value_counts().to_dict(),
+                strata=ndf['strata'].describe().to_dict())'''
+    return ndf
+
+
+

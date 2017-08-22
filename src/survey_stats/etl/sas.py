@@ -2,11 +2,18 @@ import os
 import os.path
 import io
 import re
+from collections import namedtuple
 import pandas as pd
 import numpy as np
 from cytoolz.itertoolz import concat, concatv, mapcat
-from cytoolz.curried import map, filter
+from cytoolz.curried import map, filter, curry
 from cytoolz.functoolz import pipe, thread_first, thread_last
+import dask
+from dask import distributed as dd
+from dask import delayed
+from dask import bag
+from dask.distributed import Client
+
 
 from survey_stats import log
 from survey_stats.etl import survey_df as sdf
@@ -129,30 +136,44 @@ def load_sas_from_url(url, format):
     logger.info("loaded SAS XPORT file", shape=df.shape)
     return df
 
-
-def load_sas_xport_df(r, p, facets, qids, lbls, na_syns):
-    logger.bind(year=r.year)
-    df = load_sas_from_url(p+r.xpt, 'xport')
+def load_sas_xport_df(url):
+    df = load_sas_from_url(url, 'xport')
     df.columns = [x.lower() for x in df.columns]
-    lbls = {k:v for k,v in lbls.items() if k in df.columns}
-    facets = {r[k]:k for k in facets}
-    logger.unbind('year')
-    return sdf.munge_df(df, lbls, facets,
-                    year=r.year, sitecode=r.sitecode,
-                    weight=r.weight, strata=r.strata, psu=r.psu, qids=qids)
+    return df
 
+IndexedRow = namedtuple('IndexedRow', ['i','r'])
 
-
-def process_sas_survey(meta, facets, prefix, qids, na_syns):
+def process_sas_survey(meta, facets, prefix, qids, na_syns, client=None):
     logger.bind(p=prefix)
     flist = pd.DataFrame(meta['rows'], columns=meta['cols'])
-    lbls = {r.year: load_variable_labels(prefix + r.formas,
-                                         prefix + r.format) for
-            idx, r in list(flist.iterrows())}
-    dfs = [load_sas_xport_df(r, prefix, facets, qids, lbls[r.year], na_syns) for
-        idx, r in list(flist.iterrows())]
-    dfs = sdf.merge_multiyear_surveys(dfs, na_syns)
+    fz = [IndexedRow(idx,r) for idx, r in list(flist.iterrows())]
+    lbls = {ir.r.year: load_variable_labels(prefix + ir.r.formas,
+                                            prefix + ir.r.format) for ir in fz}
+    df_munger = curry(sdf.munge_df)(facets=facets,qids=qids,na_syns=na_syns)
+    dfs = [delayed(load_sas_xport_df)(url=prefix+ir.r.xpt) for ir in fz]
+    rdfs = dask.persist(dfs)
+    munge_fns = [df_munger(r=ir.r, lbls=load_variable_labels(prefix + ir.r.formas,
+                                                             prefix + ir.r.format)) for ir in fz]
+    logger.info('pulling out columns', qids=qids, facets=facets, cols=dfs[0].columns.compute())
+    mdfs = [delayed(munge_fn)(df=df) for df, munge_fn in zip(dfs, munge_fns)]
+    logger.info('merging SAS dfs')
+    mdfs = delayed(pd.concat)(mdfs, ignore_index=True)
+    rdfs = dask.persist(mdfs)
+    scols = dfs.columns.intersection(qids+facets).compute()
+    logger.info('pulling out columns', qids=qids, facets=facets, cols=dfs.columns.compute())
+    scols = list(scols)
+    logger.info('re-filtering question and facet columns to cast to category dtype', cols=scols)
+    dfz = (mdfs[scols].astype('category')
+           .reset_index(drop=True)
+           .assign(year = dfs['year'].astype(int),
+                   sitecode = dfs['sitecode'].astype('category'),
+                   weight = dfs['weight'].astype(float),
+                   strata = dfs['strata'].astype(int, errors='ignore'),
+                   psu = dfs['psu'].astype(int, errors='ignore')))
+    dfz.visualize()
+    logger.info('merged SAS dfs')
     logger.unbind('p')
-    return dfs
+    # TODO: expand parallelism to include writing to feather and db
+    return dfz.compute()
 
 
