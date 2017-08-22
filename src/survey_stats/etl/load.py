@@ -9,7 +9,11 @@ import sqlalchemy as sa
 import subprocess as sp
 
 from timeit import default_timer as timer
-
+import dask
+from dask import distributed as dd
+from dask import delayed
+#from dask.cache import Cache
+from dask.distributed import Client
 from survey_stats import log
 from survey_stats.etl.sas import load_sas_xport_df, process_sas_survey
 from survey_stats.etl.socrata import fetch_socrata_stats
@@ -17,41 +21,46 @@ from survey_stats import serdes
 
 
 logger = log.getLogger(__name__)
+#cache = Cache(2e9)
+#cache.register()
 
-
-def load_socrata_data(**params):
-    dfs = [fetch_socrata_stats(url=url,
-                              mapcols=params['mapcols'],
-                              mapvals=params['mapvals'],
-                              apply_fn=params['apply_fn'],
-                              c_filter=params['c_filter'],
-                              unstack=params['unstack'],
-                              fold_stats=params['fold_stats'])
-          for url in params['soda_api']]
-    dfs = pd.concat(dfs, ignore_index=True)
+def load_socrata_data(id, **params):
+    logger.info('loading socrata data')
+    ksoda = serdes.socrata_key4id(cfg['id'])
+    dfs = [delayed(fetch_socrata_stats)(url=url,
+                                        mapcols=params['mapcols'],
+                                        mapvals=params['mapvals'],
+                                        apply_fn=params['apply_fn'],
+                                        c_filter=params['c_filter'],
+                                        unstack=params['unstack'],
+                                        fold_stats=params['fold_stats']) for url in params['soda_api']]
+    dfs = delayed(pd.concat)(dfs, ignore_index=True)
+    logger.info('saving socrata data')
+    res = soda.to_feather('cache/b-'+ksoda+'.feather')
     return dfs
 
 
-def load_survey_data(yaml_f):
+def load_survey_data(yaml_f, client=None):
     cfg = None
     with open(yaml_f) as fh:
         cfg = yaml.load(fh)
     logger.bind(dataset=cfg['id'])
-    #logger.info('loading socrata data')
-    #soda = load_socrata_data(**cfg['socrata'])
-    #ksoda = serdes.socrata_key4id(cfg['id'])
-    #logger.info('saving socrata data')
-    #serdes.save_feather(ksoda,soda)
+    ksvy = serdes.surveys_key4id(cfg['id'])
     logger.info('loading survey dfs')
     svydf = process_sas_survey(meta=cfg['surveys']['meta'],
                                prefix=cfg['surveys']['s3_url_prefix'],
                                qids=cfg['surveys']['qids'],
                                facets=cfg['facets'],
-                               na_syns=cfg['surveys']['na_synonyms'])
+                               na_syns=cfg['surveys']['na_synonyms'],
+                               client=client)
     logger.info('loaded survey dfs', shape=svydf.shape)
-    ksvy = serdes.surveys_key4id(cfg['id'])
-    logger.info('saving survey data to feather', name=ksvy)
-    serdes.save_feather(ksvy, svydf)
+    #logger.info('saving survey data to hdf5', name=ksvy)
+    #res = svydf.compute
+    #svydf.to_hdf('cache/survey_stats.h5',ksvy, format='table')
+    logger.info('saving survey data to_feather', name=ksvy)
+    res = svydf.to_feather('cache/'+ksvy+'.feather')
+    #logger.info('saving survey data feather.write_dataframe', name=ksvy)
+    #serdes.save_feather(ksvy, svydf)
     logger.unbind('dataset')
 
 
@@ -119,14 +128,21 @@ def setup_tables(yaml_f, dburl):
 
 
 if __name__ == '__main__':
+    from distributed import Client, LocalCluster
+    import dask.multiprocessing
+    from multiprocessing.pool import ThreadPool
     default_sql_conn = 'mysql+pymysql://mcsuser:mcsuser@localhost:4306/survey'
     default_sql_conn = 'monetdb://monetdb:monetdb@localhost/survey'
+    #lc = LocalCluster()
+    #client = Client(lc)
+    client=None
+    #dask.set_options(get=dask.threaded.get, pool=ThreadPool(16))
     #load_survey_data('config/data/brfss.yaml')
-    load_survey_data('config/data/brfss.yaml')
-    setup_tables(
-        'config/data/brfss.yaml',
-        default_sql_conn
-    )
+    load_survey_data('config/data/brfss.yaml', client)
+    #setup_tables(
+    #    'config/data/brfss.yaml',
+    #    default_sql_conn
+    #)
     '''
     setup_tables(
         'config/data/brfss_pre2011.yaml',
