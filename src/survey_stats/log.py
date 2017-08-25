@@ -26,7 +26,7 @@ logging.config.dictConfig({
 	},
 	"handlers": {
 		"default": {
-			"level": "INFO",
+			"level": "DEBUG",
 			"class": "logging.StreamHandler",
 			"formatter": "colored",
 		},

@@ -1,6 +1,12 @@
 import pandas as pd
-import blaze as bz
 from odo import odo
+
+import pymonetdb
+import sqlalchemy_monetdb
+import sqlalchemy as sa
+import blaze as bz
+import requests as rq
+import json as js
 
 from toolz.dicttoolz import merge
 
@@ -13,8 +19,6 @@ from survey_stats import log
 from survey_stats import settings
 from survey_stats import fetch
 from survey_stats import state as st
-
-
 
 Config.REQUEST_TIMEOUT = 50000000
 
@@ -44,12 +48,6 @@ async def fetch_questions(req):
 @app.route("/")
 async def check_status(req):
 	# verify that the upstream services are functional
-	import pymonetdb
-	import sqlalchemy_monetdb
-	import sqlalchemy as sa
-	import blaze as bz
-	import requests as rq
-	import json as js
 	engine = sa.create_engine(app.config.db_conf['url'])
 	dbc = bz.data(engine)
 	dbinfo = { 'host': dbc.data.engine.url.host,

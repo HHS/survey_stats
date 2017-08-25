@@ -71,7 +71,7 @@ def block2dict(lines):
         map(lambda x: (int(x[0]), x[1])), # cat codes will be ints
         dict
     )
-    d[-1] = 'NA' #use NA as a marker for unmapped vals
+    # d[-1] = np.nan #use NA as a marker for unmapped vals
     return d
 
 
@@ -141,29 +141,21 @@ def load_sas_xport_df(url):
     df.columns = [x.lower() for x in df.columns]
     return df
 
-IndexedRow = namedtuple('IndexedRow', ['i','r'])
-
 def process_sas_survey(meta, facets, prefix, qids, na_syns, client=None):
     logger.bind(p=prefix)
-    flist = pd.DataFrame(meta['rows'], columns=meta['cols'])
-    fz = [IndexedRow(idx,r) for idx, r in list(flist.iterrows())]
-    lbls = {ir.r.year: load_variable_labels(prefix + ir.r.formas,
-                                            prefix + ir.r.format) for ir in fz}
+    md = pd.DataFrame(meta['rows'], columns=meta['cols'])
     df_munger = curry(sdf.munge_df)(facets=facets,qids=qids,na_syns=na_syns)
-    dfs = [delayed(load_sas_xport_df)(url=prefix+ir.r.xpt) for ir in fz]
-    rdfs = dask.persist(dfs)
-    munge_fns = [df_munger(r=ir.r, lbls=load_variable_labels(prefix + ir.r.formas,
-                                                             prefix + ir.r.format)) for ir in fz]
-    logger.info('pulling out columns', qids=qids, facets=facets, cols=dfs[0].columns.compute())
-    mdfs = [delayed(munge_fn)(df=df) for df, munge_fn in zip(dfs, munge_fns)]
+    dfs = map(lambda r: pipe(prefix+r.xpt, delayed(load_sas_xport_df), delayed(df_munger(r=r,
+                                 lbls=load_variable_labels(prefix+r.formas,
+                                                           prefix+r.format)))),
+        [r for idx, r in md.iterrows()])
     logger.info('merging SAS dfs')
-    mdfs = delayed(pd.concat)(mdfs, ignore_index=True)
-    rdfs = dask.persist(mdfs)
-    scols = dfs.columns.intersection(qids+facets).compute()
-    logger.info('pulling out columns', qids=qids, facets=facets, cols=dfs.columns.compute())
-    scols = list(scols)
+    dfs = delayed(pd.concat)(dfs, ignore_index=True)
+    scols = dfs.columns.intersection(set(qids).union(facets))
+    scols = list(scols.compute())
     logger.info('re-filtering question and facet columns to cast to category dtype', cols=scols)
-    dfz = (mdfs[scols].astype('category')
+    dfz = (dfs[scols]
+           .apply(lambda x: x.astype('category'))
            .reset_index(drop=True)
            .assign(year = dfs['year'].astype(int),
                    sitecode = dfs['sitecode'].astype('category'),
