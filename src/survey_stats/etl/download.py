@@ -8,7 +8,7 @@ from retry import retry
 import boto3
 from botocore import UNSIGNED
 from botocore.client import Config
-from boto3.s3transfer import TransferConfig
+from boto3.s3.transfer import TransferConfig
 from botocore.vendored import requests
 #import requests_cache
 import pandas as pd
@@ -27,7 +27,8 @@ MB = KB * KB
 logger = log.getLogger(__name__)
 _s3 = boto3.client('s3', config=Config(signature_version=UNSIGNED))
 s3 = boto3.resource('s3', config=Config(signature_version=UNSIGNED))
-tcfg = TransferConfig(max_concurrency=4, multipart_chunksize=64*MB)
+tcfg = TransferConfig(max_concurrency=4, multipart_chunksize=256*MB, max_io_queue=1000000, io_chunksize=64*MB )
+
 def fetch_s3_bytes(url):
     bucket, key = url[5:].split('/', 1)
     logger.info('fetching s3 url', url=url, bucket=bucket, key=key)
@@ -37,12 +38,11 @@ def fetch_s3_bytes(url):
 def fetch_s3_file(url):
     bucket, key = url[5:].split('/', 1)
     logger.info('fetching s3 file', url=url, bucket=bucket, key=key)
-    bucket = s3.Bucket(bucket)
-    obj = bucket.Object(key)
-    with tempfile.NamedTemporaryFile(mode='w+b', delete=False) as tempf:
-        obj.download_fileobj(tempf, Config=tcfg)
-        tempf.close()
-    return fetch_data_from_url(tempf.name)
+    tempf = io.BytesIO()
+    obj = s3.Bucket(bucket).Object(key)
+    obj.download_fileobj(tempf, Config=tcfg)
+    tempf.seek(0)
+    return tempf
 
 #@retry(tries=5, delay=2, backoff=2, logger=logger)
 def fetch_data_from_url(url):
