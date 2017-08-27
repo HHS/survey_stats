@@ -86,11 +86,11 @@ def parse_variable_labels(txt, repl, lbls_to_lower=True):
         dict
     )
     logger.info('parsed varlabels from format txt',
-                nlabeled=len(labels.keys()), repl=repl)
+                nlabeled=len(labels.keys()), nrepl=len(repl.keys()))
     return labels
 
 
-def load_variable_labels(formas_f, format_f, repl, year=None):
+def load_variable_labels(format_f, formas_f, repl, year=None):
     logger.info("loading format labels", file=format_f)
     labels = thread_last(
         format_f,

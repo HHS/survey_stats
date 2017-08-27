@@ -57,15 +57,15 @@ def eager_convert(s, fmt, lgr=logger):
     c = s
     try:
         c = convert_cat_codes(s, fmt)
-        lgr.info('converted series with fmt', v=s.name, fmt=fmt,
-                 levels=s.value_counts().to_dict())
+        lgr.debug('converted series with fmt', v=s.name, fmt=fmt,
+                  levels=s.value_counts().to_dict())
     except ValueError as e:
-        lgr.warning('ValueError converting to category! Forcing...',
-                    err=e, col=s.name, fmt=fmt, levels=s.value_counts().to_dict())
+        lgr.info('ValueError converting to category! Forcing...',
+                 err=e, col=s.name, fmt=fmt, levels=s.value_counts().to_dict())
         c = convert_cat_force(s, fmt)
     except KeyError as e:
-        lgr.warning('KeyError casting to cat, check var labels! Passing...',
-                    err=e, col=s.name, fmt=fmt, levels=s.value_counts().to_dict())
+        lgr.info('KeyError casting to cat, check var labels! Passing...',
+                 err=e, col=s.name, fmt=fmt, levels=s.value_counts().to_dict())
     return c
 
 
@@ -78,7 +78,7 @@ def eager_convert_categorical(s, lbls, fmts, lgr=logger):
         lgr.info('found missing format to patch', v=s.name, fmt=fmt,
                  levels=s.value_counts().to_dict())
     if not fmt:
-        lgr.info('could not find fmt for var, skipping', v=s.name)
+        lgr.debug('could not find fmt for var, skipping', v=s.name)
         return s
     return eager_convert(s, fmt, lgr)
 
@@ -116,7 +116,7 @@ def undash(col):
 def munge_df(df, r, lbls, facets, qids, na_syns, fmts, lgr=logger):
     year = r['year']
     lgr.bind(year=year)
-    lgr.info('filtering, applying varlabels, munging', lbls=lbls.keys(), fmts=fmts.keys())
+    lgr.info('filtering, applying varlabels, munging', patch_fmts=fmts.keys())
     # lbls = {k:v for k,v in lbls.items()} ## if k in delayed(df.columns)}
     # get mapping into table for each facet
     facets = {r[k]: k for k in facets}
