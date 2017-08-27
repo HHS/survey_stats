@@ -6,11 +6,9 @@ import pandas.util.testing as pt
 from hypothesis import given, assume
 import hypothesis.strategies as hs
 import hypothesis.extra.numpy as hnp
-from faker import Faker
 
 from survey_stats.etl.survey_df import convert_cat_codes, convert_cat_force, eager_convert
 
-fake = Faker()
 
 FORMATS = {
     'VAR1' : {
