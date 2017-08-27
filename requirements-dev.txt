@@ -7,3 +7,4 @@ coveralls>=1.2.0
 flake8>=3.4.1
 pytest-xdist>=1.9.1
 codeclimate-test-reporter>=0.2.3
+hypothesis==3.22.0

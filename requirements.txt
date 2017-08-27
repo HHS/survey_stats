@@ -12,3 +12,5 @@ cytoolz>=0.8.2
 blaze>=0.10.1
 odo>=0.5.0
 SQLAlchemy>=1.1.13
+python-lzo==1.11
+requests-cache==0.4.13
