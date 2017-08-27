@@ -24,11 +24,11 @@ FORMATS = {
         9: 'DK/NS'
     }}
 
-
+'''
 fmtgen = hs.dictionaries(keys=hs.sets(hs.integers(min_value=1, max_value=100)),
                          values=hs.lists(hs.sampled_from(fake.words(nb=100))),
                          min_size=2, average_size=4, max_size=60)
-
+'''
 
 def gen_codes_for_fmt(fmt, include_nas=False, valid_only=True):
     elems = None if not valid_only \

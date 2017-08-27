@@ -4,7 +4,7 @@ import zipfile
 import pandas as pd
 from cytoolz.itertoolz import mapcat
 from cytoolz.curried import map, filter, curry
-from cytoolz.functoolz import pipe, thread_last
+from cytoolz.functoolz import pipe, thread_last, identity
 from dask import delayed
 
 from survey_stats import log
@@ -49,7 +49,13 @@ def parse_format_assignments(txt):
     return assignments
 
 
-def block2dict(lines, repl={}):
+def replace_if_keyed(k, repl):
+    return repl[k] if k in repl else k
+
+
+def block2dict(lines, repl, to_lower=False):
+    f_lwr = str.lower if to_lower else identity
+    f_repl = curry(lambda k, r: r[k] if k in r else k)(r=repl)
     rqt = re.compile(r'[\"\']')  # match quote chars
     rws = re.compile(r'\s')        # match whitespace
     # keep only alnum and a few unreserved symbols
@@ -58,20 +64,20 @@ def block2dict(lines, repl={}):
         lines,
         map(lambda x: x.replace('\x92', "'")),
         map(lambda x: rqt.sub('', x.strip()).split('=')),
-        map(lambda x: (rws.sub('', x[0].strip()), ruri.sub('', x[1].strip().lower()))),
+        map(lambda x: (rws.sub('', x[0].strip()), ruri.sub('', x[1].strip()))),
         filter(lambda x: x[0].find('-') == -1),  # no support for ranges
         (mapcat, lambda x: map(lambda y: (y, x[1]), x[0].split(','))),
         filter(lambda x: x[0].isnumeric()),  # remove non-numeric codes
         map(lambda x: (int(x[0]),  # cat codes are ints
-                       repl[x[1]] if x[1] in repl else x[1])),
+                       pipe(x[1], f_lwr, f_repl))),
         dict
     )
     # d[-1] = np.nan #use NA as a marker for unmapped vals
     return d
 
 
-def parse_variable_labels(txt, repl={}):
-    b2d = curry(block2dict)(repl=repl)
+def parse_variable_labels(txt, repl, lbls_to_lower=True):
+    b2d = curry(block2dict)(repl=repl, to_lower=lbls_to_lower)
     labels = thread_last(
         txt.split(';'),
         filter(lambda x: x.strip().lower().startswith('value')),
@@ -80,11 +86,11 @@ def parse_variable_labels(txt, repl={}):
         dict
     )
     logger.info('parsed varlabels from format txt',
-                nlabeled=len(labels.keys()))
+                nlabeled=len(labels.keys()), repl=repl)
     return labels
 
 
-def load_variable_labels(formas_f, format_f, repl={}, year=None):
+def load_variable_labels(formas_f, format_f, repl, year=None):
     logger.info("loading format labels", file=format_f)
     labels = thread_last(
         format_f,
@@ -140,8 +146,8 @@ def load_sas_xport_df(url, lgr=logger):
     return df
 
 
-def process_sas_survey(meta, facets, prefix, qids, na_syns=[],
-                       repl={}, fmts={}, client=None, lgr=logger):
+def process_sas_survey(meta, facets, prefix, qids, na_syns,
+                       repl, fmts, client=None, lgr=logger):
     lgr.bind(p=prefix)
     md = pd.DataFrame(meta['rows'], columns=meta['cols'])
     df_munger = curry(sdf.munge_df)(facets=facets, qids=qids,

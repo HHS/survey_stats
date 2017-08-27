@@ -80,7 +80,7 @@ def eager_convert_categorical(s, lbls, fmts, lgr=logger):
     if not fmt:
         lgr.info('could not find fmt for var, skipping', v=s.name)
         return s
-    return eager_convert(s, lbls[s.name], lgr)
+    return eager_convert(s, fmt, lgr)
 
 
 def filter_columns(df, facets, qids, lgr=logger):
@@ -116,7 +116,7 @@ def undash(col):
 def munge_df(df, r, lbls, facets, qids, na_syns, fmts, lgr=logger):
     year = r['year']
     lgr.bind(year=year)
-    lgr.info('filtering, applying varlabels, munging')
+    lgr.info('filtering, applying varlabels, munging', lbls=lbls.keys(), fmts=fmts.keys())
     # lbls = {k:v for k,v in lbls.items()} ## if k in delayed(df.columns)}
     # get mapping into table for each facet
     facets = {r[k]: k for k in facets}

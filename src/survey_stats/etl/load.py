@@ -66,6 +66,7 @@ def load_survey_data(yaml_f, client=None):
                                facets=cfg['facets'],
                                na_syns=cfg['surveys']['na_synonyms'],
                                repl=cfg['surveys']['replace_labels'],
+                               fmts=cfg['surveys']['patch_format'],
                                client=client, lgr=logger)
     logger.info('loaded survey dfs', shape=svydf.shape)
     svydf = svydf.compute()
