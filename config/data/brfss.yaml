@@ -18,18 +18,47 @@ surveys:
       - [2013, LLCP2013ASC.ZIP, LLCP2013XPT.ZIP, LLCP2013.ASC, LLCP2013.XPT, format13.sas, formas13.sas, sasout13_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
       - [2014, LLCP2014ASC.ZIP, LLCP2014XPT.ZIP, LLCP2014.ASC, LLCP2014.XPT, format14.sas, formas14.sas, sasout14_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
       - [2015, LLCP2015ASC.zip, LLCP2015XPT.zip, LLCP2015.ASC, LLCP2015.XPT, format15.sas, formas15.sas, sasout15_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
+  patch_format:
+    drnkany5:
+      1: "Yes"
+      2: "No"
+      7: "Dont know/Not Sure"
+      9: "Refused/Missing"
   na_synonyms:
-    - "not asked or missing"
-    - "dk/ns"
-    - "refused"
-    - "don't know/not sure"
-    - "refused"
     - "na"
+    - "ref"
+    - "dk/ns"
     - "unk/ref"
     - "missing"
-    - "ref"
+    - "refused"
+    - "refused/missing"
+    - "not asked or missing"
+    - "don't know/not sure"
+    - "dont know/not sure"
     - "don’t know/not sure/refused"
+    - "dont know/not sure/refused"
     - "don't know/refused/missing"
+    - "dont know/refused/missing"
+  replace_labels:
+    "white only non-hispanic": "White"
+    "black only non-hispanic": "Black"
+    "american indian or alaskan native only non-Hispanic": "AI/AN"
+    "asian only non-hispanic": "Asian"
+    "native hawaiian or other Pacific Islander only non-Hispanic": "NHOPI"
+    "other race only non-hispanic": "Other Race"
+    "multiracial non-hispanic": "Multiracial non-Hispanic"
+    "hispanic": "Hispanic"
+    "less than $15000": "<$15k"
+    "$15000 to less than $25000": "$15k-$25k"
+    "$25000 to less than $35000": "$25k-$35k"
+    "$35000 to less than $50000": "$35k-$50k"
+    "$50000 or more": "$50k+"
+    "did not graduate high school": "Less than High School"
+    "graduated high school": "High School Graduate"
+    "attended college or technical school": "Attended College/Technical School"
+    "graduated from college or technical school": "College/Technical School Graduate"
+    "male": "Male"
+    "female": "Female"
 socrata:
   soda_api:
     - "https://chronicdata.cdc.gov/resource/fn2i-3j6c.json"
@@ -45,6 +74,10 @@ socrata:
     data_value_unit: std_err
     class: topic
     topic: subtopic
+  apply_fn:
+    response: str.lower
+    facet_level: str.lower
+    qid: str.lower
   mapvals:
     sitecode:
       UW: XX
@@ -57,26 +90,49 @@ socrata:
       "Gender": sex
       "Race/Ethnicity": race
     facet_level:
-      "Overall": "Total"
-      "White, non-Hispanic": "White only non-Hispanic"
-      "Black, non-Hispanic": "Black only non-Hispanic"
-      "American Indian or Alaskan Native, non-Hispanic": "American Indian or Alaskan Native only Non-Hispanic"
-      "Asian, non-Hispanic": "Asian only non-Hispanic"
-      "Native Hawaiian or other Pacific Islander, non-Hispanic": "Native Hawaiian or other Pacific Islander only Non-Hispanic"
-      "Other, non-Hispanic": "Other race only non-Hispanic"
-      "Multiracial, non-Hispanic": "Multiracial non-Hispanic"
-      "Less than $15,000": "Less than $15000"
-      "$15,000-$24,999": "$15000 to less than $25000"
-      "$25,000-$34,999": "$25000 to less than $35000"
-      "$35,000-$49,999": "$35000 to less than $50000"
-      "$50,000+": "$50000 or more"
-      "Less than H.S.": "Did not graduate High School"
-      "H.S. or G.E.D.": "Graduated High School"
-      "Some post H.S.": "Attended College or Technical School"
-      "College graduate": "Graduated from College or Technical School"
+      "overall": "Total"
+      "white, non-hispanic": "White"
+      "black, non-hispanic": "Black"
+      "american indian or alaskan native, non-hispanic": "AI/AN"
+      "asian, non-hispanic": "Asian"
+      "native hawaiian or other Pacific Islander, non-Hispanic": "NHOPI"
+      "other, non-hispanic": "Other Race"
+      "multiracial, non-hispanic": "Multiracial non-Hispanic"
+      "hispanic": "Hispanic"
+      "less than $15,000": "<$15k"
+      "$15,000-$24,999": "$15k-$25k"
+      "$25,000-$34,999": "$25k-$35k"
+      "$35,000-$49,999": "$35k-$50k"
+      "$50,000+": "$50k+"
+      "less than h.s.": "Less than High School"
+      "h.s. or g.e.d.": "High School Graduate"
+      "some post h.s.": "Attended College/Technical School"
+      "college graduate": "College/Technical School Graduate"
+      "male": "Male"
+      "female": "Female"
+    response:
+      "overall": "Total"
+      "white, non-hispanic": "White"
+      "black, non-hispanic": "Black"
+      "american indian or alaskan native, non-hispanic": "AI/AN"
+      "asian, non-hispanic": "Asian"
+      "native hawaiian or other Pacific Islander, non-Hispanic": "NHOPI"
+      "other, non-hispanic": "Other Race"
+      "multiracial, non-hispanic": "Multiracial non-Hispanic"
+      "hispanic": "Hispanic"
+      "less than $15,000": "<$15k"
+      "$15,000-$24,999": "$15k-$25k"
+      "$25,000-$34,999": "$25k-$35k"
+      "$35,000-$49,999": "$35k-$50k"
+      "$50,000+": "$50k+"
+      "less than h.s.": "Less than High School"
+      "h.s. or g.e.d.": "High School Graduate"
+      "some post h.s.": "Attended College/Technical School"
+      "college graduate": "College/Technical School Graduate"
+      "male": "Male"
+      "female": "Female"
   unstack:
     facet: facet_level
   fold_stats: null
-  apply_fn: null
   qn_meta: [qid, year, question, topic, subtopic, response]
   c_filter: [qid, question, topic, subtopic, response, facet, facet_level, sitecode, year, count, mean, std_err, ci_u, ci_l]
