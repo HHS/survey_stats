@@ -30,7 +30,6 @@ class SurveyDataset(namedtuple('SurveyDataset',
             cfg = yaml.load(fh)
 
 
-
     @classmethod
     def from_db_urls(cls, svy_url, meta_url, cfg):
         return cls(svy=resolve_db_url(svy_url),

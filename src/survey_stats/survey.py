@@ -24,13 +24,6 @@ DECIMALS = {
 
 logger = log.getLogger()
 
-def gen_slices(k, svy, qn, resp, m_vars, m_filt):
-    loc = {'svy_id': k, 'dset_id': 'yrbss'}
-    slices = [merge(loc, s)
-        for s in svy.generate_slices(qn, True, m_vars, m_filt) ]
-    slices += [merge(loc, s)
-        for s in svy.generate_slices(qn, False, m_vars, m_filt) ]
-    return slices
 
 def subset_survey(des, filt):
     # filt is a dict with vars as keys and list of acceptable values as levels
@@ -94,8 +87,10 @@ def fetch_stats(des, qn, vars=[], filt={}):
 def sample_size(d):
     return rbase.dim(d[d.names.index('variables')])[0]
 
+
 def subset(d, filter):
     return d._replace(des=subset_survey(d, filter))
+
 
 def generate_slices(d, qn, vars=[], filt={}):
     # create the overall filter
@@ -138,6 +133,8 @@ def generate_slices(d, qn, vars=[], filt={}):
     logger.info(res)
     return res
 
+
+'''
 def fetch_stats_for_slice(d, q, r, f, s, cfg):
     # create formula for selected question and risk profile
     # create the overall filter
@@ -185,17 +182,18 @@ def fetch_stats_for_slice(d, q, r, f, s, cfg):
            res.items()}
     rbase.gc()
     return res
+'''
 
 
-def des_from_feather(cls, fthr_file):
+def des_from_feather(cls, fthr_file, use_strata='~strata'):
     rdf = rfeather.read_feather(fthr_file)
     logger.info('creating survey design from data and annotations')
     return rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
-                         strata=Formula('~strata'), data=rdf, nest=True)
+                          strata=Formula(use_strata), data=rdf, nest=True)
 
 
 def des_from_survey_db(cls, svydb):
     return rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
-                         strata=Formula('~strata'), nest=True,
-                         data=svydb['table'], dbname=svydb[''])
+                          strata=Formula('~strata'), nest=True,
+                          data=svydb['table'], dbname=svydb[''])
 

@@ -1,4 +1,3 @@
-import random
 import uvloop
 import asyncio
 import ujson as json
@@ -13,17 +12,7 @@ MAX_CONCURRENT_REQ = 100
 headers = {'content-type': 'application/json'}
 
 
-def key_from_data(*args, **kwargs):
-    logger.info(args)
-    logger.info(kwargs)
-    if 'data' in kwargs:
-        return keys.hashkey(kwargs['data'])
-    elif len(args)>2:
-        return keys.hashkey(args[1])
-    return keys.hashkey(*args, **kwargs)
-
-
-async def fetch(url, data, session):
+async def fetch_computed(url, data, session):
     async with session.post(url, data=data, headers=headers) as response:
         delay = response.headers.get('DELAY')
         date = response.headers.get('DATE')
@@ -41,7 +30,7 @@ async def fetch_all(slices, worker_url):
         for s in slices:
             print(json.dumps(s))
             # pass Semaphore and session to every GET request
-            task = asyncio.ensure_future(fetch(rqurl, json.dumps(s), session))
+            task = asyncio.ensure_future(fetch_computed(rqurl, json.dumps(s), session))
             tasks.append(task)
 
         responses = await asyncio.gather(*tasks)
