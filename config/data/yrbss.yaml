@@ -35,6 +35,10 @@ socrata:
     description: description
     greater_risk_question: greater_risk_question
     lesser_risk_question: lesser_risk_question
+  apply_fn:
+    qid: |
+      def fix_qid(x):
+          return ('qn' + x[1:] if x.startswith('H') else x)
   unstack: null
   fold_stats:
     y:
@@ -53,9 +57,5 @@ socrata:
       'American Indian or Alaska Native': 'Am Indian / Alaska Native'
       'Hispanic or Latino': 'Hispanic/Latino'
       'Multiple Race': 'Multiple - Non-Hispanic'
-  apply_fn:
-    qid: |
-      def fix_qid(x):
-          return ('qn' + x[1:] if x.startswith('H') else x)
   qn_meta: [qid, year, question, topic, subtopic, response, greater_risk_question, lesser_risk_question, description]
   c_filter: [qid, year, question, topic, subtopic, response, greater_risk_question, lesser_risk_question, description, facet, facet_level, sitecode, count, mean, std_err, ci_u, ci_l]
