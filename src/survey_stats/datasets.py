@@ -35,6 +35,7 @@ class SurveyDataset(namedtuple('Dataset', ['config', 'surveys'])):
 
     def fetch_or_load_dataset(id, spss_f, data_f):
         f = os.path.join(cache_dir, '%s.feather' % id)
+        logger.info('fetching cache: ' + f)
         ret = None
         rdf = None
         try:
