@@ -12,7 +12,7 @@ dset['prams'] = YRBSSDataset.load_dataset('data/prams.yaml')
 dset['yrbss'] = YRBSSDataset.load_dataset('data/yrbss.yaml')
 
 #fetch the state.metadata from Socrata
-dset['brfss'] = SurveyMetadata.load_metadata('data/brfss.yaml')
+meta['brfss'] = SurveyMetadata.load_metadata('data/brfss.yaml')
 meta['prams'] = SurveyMetadata.load_metadata('data/prams.yaml')
 meta['yrbss'] = SurveyMetadata.load_metadata('data/yrbss.yaml')
 
