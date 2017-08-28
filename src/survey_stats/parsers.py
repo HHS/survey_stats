@@ -2,11 +2,8 @@ import pandas as pd
 import logging
 from collections import OrderedDict
 
-import rpy2
-import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
-import pandas.rpy.common as com
 
 from survey_stats import helpr
 
@@ -18,13 +15,6 @@ def strip_line(l):
     # strip whitespace and trailing period
     # and remove double quotes
     return l.strip().strip('.').replace('"','').replace("'","")
-
-
-class ParseSPSSException(Exception):
-    pass
-
-class ParseCDCSurveyException(Exception):
-    pass
 
 
 def parse_fwfcols_spss(spss_file):
@@ -48,7 +38,7 @@ def parse_fwfcols_spss(spss_file):
             (st, en) = span.split('-')
             ret = (int(st)-1,int(en))
         except Exception as e:
-            raise ParseSPSSException("Improperly formed span in SPSS" +
+            raise ValueError("Improperly formed span in SPSS" +
                                      "file! %s -> %s" % (span, str(e)))
         return ret
 
@@ -72,7 +62,7 @@ def parse_fwfcols_spss(spss_file):
             #split on two consec spaces
             widths = strip_line(line).replace('(A)','').split()
             if not len(widths) % 2 == 0:
-                raise ParseSPSSException("Invalid fixed-width field" +
+                raise ValueError("Invalid fixed-width field" +
                                     " definitions on line: %s" %
                                     strip_line(line))
             for i in range(0,len(widths),2):
@@ -170,9 +160,6 @@ def parse_surveyvars_spss(spss_file):
     return survey_vars
 
 
-class ParseCDCSurveyException(Exception):
-    pass
-
 def load_survey(dat_files, svy_cols, svy_vars):
     logging.info('parsing raw survey data: %s' % ','.join(dat_files))
     df = pd.concat(map(lambda dat_f: pd.read_fwf(dat_f,
@@ -181,7 +168,7 @@ def load_survey(dat_files, svy_cols, svy_vars):
                                                  na_values=['.','']),
                        dat_files), ignore_index=True, copy=False)
     logging.info('converting survey data to R object')
-    rdf = com.convert_to_r_dataframe(df)
+    rdf = pandas2ri.py2ri(df)
     logging.info('coercing variables to annotated types')
     for q, v in svy_vars.items():
         if v['is_integer']:
@@ -196,8 +183,7 @@ def load_survey(dat_files, svy_cols, svy_vars):
                 logging.error(rbase.summary(rdf[idx]))
                 logging.error(helpr.factor_summary(rdf[idx]))
                 logging.error(rbase.summary(fac))
-                bt.send_last_exception()
-                raise ParseCDCSurveyException('parsing problems: %s -> %s'
+                raise ValueError('parsing problems: %s -> %s'
                                               % (q, v))
         elif q.startswith('qn'):
             idx = rdf.colnames.index(q)
@@ -210,7 +196,7 @@ def load_survey(dat_files, svy_cols, svy_vars):
                                 ' %s\n%s' % (q, coerced))
             if rbase.min(fac, na_rm=True)[0] < 1 or \
                rbase.max(fac, na_rm=True)[0] > 2:
-                raise ParseCDCSurveyException('Found invalid levels for' +
+                raise ValueError('Found invalid levels for' +
                                               ' boolean var: %s -> %s' %
                                               (q, helpr.factor_summary(fac)))
             rdf[idx] = helpr.tobool(fac)
