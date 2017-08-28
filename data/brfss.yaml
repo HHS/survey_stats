@@ -1,9 +1,9 @@
-id: brfs
+id: brfss
 surveys:
 dash:
-  id: brfs_dash
+  id: brfss_dash
   files:
-    - data/brfs/socrata/prevalence-2011-2015.csv.gz
+    - data/brfss/socrata/prevalence-2011-2015.csv.gz
   qnkey: questionid
   qnpfx: null
   response:
