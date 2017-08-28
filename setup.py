@@ -87,7 +87,8 @@ setup(
         'uvloop>=0.7.2',
         'xmltodict>=0.10.2',
         'falcon>=1.0.0',
-        'py-lru-cache>=0.1.4'
+        'py-lru-cache>=0.1.4',
+        'aiocache>0.1.0'
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={
