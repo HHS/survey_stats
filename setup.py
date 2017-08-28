@@ -91,7 +91,8 @@ setup(
         'SQLAlchemy>=1.1.13',
         'pymonetdb>=1.0.6',
         'sqlalchemy-monetdb>=0.9.3',
-        'pymysql>=0.7.11'
+        'pymysql>=0.7.11',
+        'dask==0.15.2'
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={
