@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # TODO: fetch static db files from network into survey dir
-
 monetdbd start /data
 
 sleep 5
