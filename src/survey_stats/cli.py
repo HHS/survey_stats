@@ -18,10 +18,13 @@ Also see (1) from http://click.pocoo.org/5/setuptools/#setuptools-integration
 import os
 import yaml
 import argparse
-import logging
 import multiprocessing
-import survey_stats.log
-import sanic.worker
+from survey_stats import log
+import tarfile as tf
+from survey_stats.etl.load import restore_data
+import urllib.request
+
+logger = log.getLogger('cli')
 
 DEFAULT_NUM_WORKERS = int(multiprocessing.cpu_count() / 2.0)
 
@@ -30,13 +33,13 @@ subparsers = parser.add_subparsers()
 
 parser_serve = subparsers.add_parser('serve')
 parser_serve.add_argument('--host', default=os.environ.get('HOST', '0.0.0.0'),
-        				  help='interface to bind API service, default: 0.0.0.0')
+                          help='interface to bind API service, default: 0.0.0.0')
 parser_serve.add_argument('--port', type=int, default=os.environ.get('PORT', 7777),
-        				  help='port for API service, default: 7777')
+                          help='port for API service, default: 7777')
 parser_serve.add_argument('--processes', type=int, default=DEFAULT_NUM_WORKERS,
-        				  help='number of processes to use for server, default: num_cores/2')
+                          help='number of processes to use for server, default: num_cores/2')
 parser_serve.add_argument('--stats_uri', type=str, default='http://localhost:7788',
-        				  help='stats worker uri, default: http://localhost:7788')
+                          help='stats worker uri, default: http://localhost:7788')
 parser_serve.add_argument('--db_conf', type=argparse.FileType('r'),
                           help='database connection info yaml, default: config/db-default.yaml')
 parser_serve.add_argument('--debug', action='store_true',
@@ -71,6 +74,19 @@ def serve_api(args):
     dbc = args.db_conf if args.db_conf else open('config/db-default.yaml')
     dbconf = yaml.load(dbc)
     dbc.close()
+    def_url = 'monetdb://monetdb:monetdb@localhost/survey'
+    dburl = os.getenv('DBURL', def_url)
+
+    if not os.path.isfile('.cache.lock'):
+        # need to download data and setup db
+        data_f = "https://s3.amazonaws.com/cdc-survey-data/cache-04Sep2017.tgz"
+        logger.info('fetching data cache', url=data_f)
+        urllib.request.urlretrieve(data_f, 'cache.tar.gz')
+        dat = tf.open('cache.tar.gz', mode='r:gz')
+        dat.extractall()
+        logger.info('extracted data cache, now setting up dbs')
+        restore_data(dburl)
+
     options = {
         'bind': '%s:%s' % (args.host, str(args.port)),
         'db_conf': dbconf,
