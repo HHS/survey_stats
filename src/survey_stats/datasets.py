@@ -4,6 +4,7 @@ import feather
 import json
 import pandas as pd
 from cytoolz.itertoolz import mapcat
+from cytoolz.curried import map
 from collections import namedtuple
 from survey_stats import log
 from survey_stats.types import load_config_from_yaml
@@ -18,7 +19,7 @@ TMPL_SVYFTH = 'cache/{id}_surveys.feather'
 TMPL_SOCFTH = 'cache/{id}_socrata.feather'
 
 
-STATS_COLUMNS = ['count', 'mean', 'ci_u', 'ci_l', 'std_err']
+STATS_COLUMNS = ['mean', 'ci_u', 'ci_l', 'std_err']
 
 logger = log.getLogger()
 
@@ -73,7 +74,6 @@ class SurveyDataset(namedtuple('SurveyDataset',
             lambda xf: xf.astype(float).fillna(-1))
         return dfz
 
-
     def facets(self):
         return self.cfg.facets
 
@@ -83,5 +83,6 @@ class SurveyDataset(namedtuple('SurveyDataset',
 
     def fetch_stats(self, qn, vars=[], filt={}):
         lvls = self.meta.ix[qn]['response'].iloc[0]
-        res = mapcat(lambda r: fetch_stats(self.des, qn, r, vars, filt), lvls)
-        return pd.concat(res)
+        res = map(lambda r:
+                  fetch_stats(self.des, qn, r, vars, filt), lvls)
+        return pd.concat(res).fillna(-1)

@@ -1,6 +1,7 @@
 import pandas as pd
 from cytoolz.functoolz import thread_first, thread_last
 from cytoolz.itertoolz import concat
+from cytoolz.curried import curry, map
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
 from rpy2.robjects import Formula
@@ -22,8 +23,7 @@ DECIMALS = {
     'mean': 4,
     'se': 4,
     'ci_l': 4,
-    'ci_u': 4,
-    'count': 0
+    'ci_u': 4
 }
 
 logger = log.getLogger()
@@ -41,61 +41,71 @@ def subset_survey(des, filt):
     return rsvy.subset_survey_design(des, filtered)
 
 
-def fetch_stats_by(des, r, qn_f, vars):
-    lvl_f = Formula('~%s' % ' + '.join(vars))
-    df = svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs) #.round(DECIMALS)
-    df = pandas2ri.ri2py(df) if df else df
-    logger.info('create svyby df', df=df, vars=vars)
-    df.columns = vars + ['mean', 'se', 'ci_l', 'ci_u']
-    #del df['se2']
-    df['response'] = r
-    df['level'] = len(vars)
-    df['count'] = 100
+def fetch_stats_by(des, r, qn_f, vs):
+    lvl_f = Formula('~%s' % ' + '.join(vs))
+    logger.info('gen stats for interaction level', vs=vs)
+    cols = vs + ['mean', 'se', 'ci_l', 'ci_u']
+    df = svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs) 
+    df = pandas2ri.ri2py(df) if df is not None else pd.DataFrame(
+        columns=['level','response']+cols)
+    df.columns = cols
+    logger.info('create svyby df', df=df, vars=vs)
+    if df.shape[0] > 0:
+        df['response'] = r
+        df['level'] = len(vs)
     return df.fillna(-1)
 
+def fetch_stats_totals(des, qn_f, r):
+    total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
+    # extract stats
+    res = {'level': 0,
+           'response': r,
+           'mean': u.guard_nan(
+               rbase.as_numeric(total_ci)[0]) if total_ci else -1,
+           'se': u.guard_nan(
+               rsvy.SE(total_ci)[0]) if total_ci else -1,
+           'ci_l': u.guard_nan(
+               rbase.attr(total_ci, 'ci')[0]) if total_ci else -1,
+           'ci_u': u.guard_nan(
+               rbase.attr(total_ci, 'ci')[1]) if total_ci else -1
+           }
+    # round as appropriate
+    logger.info('finished computation lvl1', res=res, total_ci=total_ci)
+    res = pd.DataFrame([res]).fillna(-1)
+    return res
 
-def fetch_stats(des, qn, r, vars=[], filt={}):
+
+def mask_df(df, filt):
+    # return a mask over the df for the given
+    msk = df['yr'] > 1000
+    for k, v in filt:
+        if k == 'year':
+            msk = msk & msk['yr'].isin(v) if len(v) > 1 else msk & msk['yr'] == v
+        else:
+            msk = msk & msk[k].isin(v) if len(v) > 1 else msk & msk[k] == v
+    return msk
+
+def fetch_sample_sizes(df, qn, vs, filt):
+    msk = mask_df(rdf, filt)
+    msk = msk & rdf[qn].where(pd.notnull)
+    msk = msk & rdf[qn] == r
+    rdf = df[msk][['yr',qn]+vs]
+    
+
+def fetch_stats(des, qn, r, vs=[], filt={}):
     # ex: ~qn8
     qn_f = Formula('~I(%s=="%s")' % (qn, r))
     logger.info('subsetting des with filter', filt=filt)
     des = subset_survey(des, filt)
     logger.info('done subsetting')
-    # count = rbase.as_numeric(rsvy.unwtd_count(qn_f, des, na_rm=True, multicore=True))[0]
-    count = 100
-    total_ci = None
-    if count > 0:
-        logger.info('fetching ciprop for qn', qn=qn)
-        total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
-
-    # extract stats
-    res = {'level': 0,
-           'response': r,
-           'mean': u.guard_nan(
-               rbase.as_numeric(total_ci)[0]) if total_ci else None,
-           'se': u.guard_nan(
-               rsvy.SE(total_ci)[0]) if total_ci else None,
-           'ci_l': u.guard_nan(
-               rbase.attr(total_ci, 'ci')[0]) if total_ci else None,
-           'ci_u': u.guard_nan(
-               rbase.attr(total_ci, 'ci')[1]) if total_ci else None,
-           'count': count}
-    # round as appropriate
-    logger.info('finished computation lvl1', res=res, total_ci=total_ci)
-    #res = {k: round(v, DECIMALS[k]) if (v and k in DECIMALS) else v for k, v in
-    #       res.items()}
-    # setup the result list
-
-    res = pd.DataFrame([res])
-    dfs = [res]
-    vstack = vars[:]
-    while len(vstack) > 0:
-        # get stats for each level of interactions in vars
-        # using svyby to compute across combinations of loadings
-        logger.info('gen stats for interaction level', vstack=vstack)
-        dfs.append(fetch_stats_by(des, qn_f, r, vstack))
-        vstack.pop()
-
-    return pd.concat(dfs)
+    dfs = [fetch_stats_totals(des, qn_f, r)]
+    levels = [vs[:k+1] for k in range(len(vs))]
+    dfs = dfs + list(map(
+        lambda lvl: fetch_stats_by(des, r, qn_f, lvl), levels))
+    # get stats_by_fnats for each level of interactions in vars
+    # using svyby to compute across combinations of loadings
+    logger.info('finished computations, appending dfs', dfs=dfs)
+    return pd.concat(dfs).round(DECIMALS)
 
 
 def sample_size(d):
