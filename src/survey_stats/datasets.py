@@ -14,9 +14,11 @@ from dask import delayed
 TMPL_METAF = 'cache/{id}.schema.json'
 TMPL_SOCTBL = '{id}_socrata'
 TMPL_SVYTBL = '{id}_surveys'
+TMPL_SVYFTH = 'cache/{id}_surveys.feather'
+TMPL_SOCFTH = 'cache/{id}_socrata.feather'
 
 
-STATS_COLUMNS = ['count', 'mean', 'ci_u', 'ci_l', 'se']
+STATS_COLUMNS = ['count', 'mean', 'ci_u', 'ci_l', 'std_err']
 
 logger = log.getLogger()
 
@@ -43,29 +45,33 @@ class SurveyDataset(namedtuple('SurveyDataset',
         meta = pd.DataFrame(meta)
         meta.index = meta.qid
         svytbl = dbc[TMPL_SVYTBL.format(id=id)]
-        soctbl = dbc[TMPL_SOCTBL.format(id=id)]
+        soctbl = resolve_db_url(TMPL_SOCFTH.format(id=id))
         logger.info('set up urls for svytbl, soctbl', svytbl, soctbl, id)
-        des = des_from_survey_db(id+'_surveys', db='survey', host='127.0.0.1', port=50000, denovo=True)
+        des = None # des_from_survey_db(id+'_surveys', db='survey', host='127.0.0.1', port=50000, denovo=True)
         # des = des_from_survey_df(id+'_surveys', db='survey', host='127.0.0.1', port=50000, denovo=True)
         # des = des_from_feather('cache/'+id+'_surveys.feather', denovo=True)
         return cls(cfg=cfg, meta=meta, svy=svytbl, soc=soctbl, des=des)
 
     def fetch_socrata(self, qn, vars, filt={}):
+        sel = None
         df = self.soc
-        sel = df.qid == qn
+        sel = df['qid'] == qn
         if 'sitecode' in filt.keys():
             sel = sel & df.sitecode.isin(filt['sitecode'])
         if 'year' in filt.keys():
-            sel = sel & df.year.isin(map(int, filt['year']))
+            sel = sel & df.year.isin(filt['year'])
         for v in self.cfg.facets:
             if v in filt.keys():
                 sel = sel & df[v].isin(filt[v])
+        for v in self.cfg.facets:
             if v not in vars:
                 sel = sel & (df[v] == 'Total')
         cols = ['qid', 'response', 'sitecode', 'year'] + \
             self.cfg.facets + STATS_COLUMNS
-        dfz = odo(df[sel], pd.DataFrame)
-        return dfz.to_dict(orient='records')
+        dfz = df[sel][cols]
+        dfz[STATS_COLUMNS] = dfz[STATS_COLUMNS].apply(
+            lambda xf: xf.astype(float).fillna(-1))
+        return dfz
 
 
     def facets(self):

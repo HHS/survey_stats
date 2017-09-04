@@ -1,5 +1,5 @@
 import pandas as pd
-
+from odo import odo
 import sqlalchemy as sa
 import blaze as bz
 import requests as rq
@@ -106,7 +106,7 @@ def fetch_survey_stats(req):
         'filter': filt,
         'question': question,
         'vars': vars,
-        'results': results.to_dict(orient='records') # .compute()
+        'results': results.to_dict(orient='records')
     })
 
 

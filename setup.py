@@ -75,7 +75,6 @@ setup(
         'rpy2>=2.8.4',
         'Sanic>=0.3.0',
         'toolz>=0.8.2',
-        'ujson>=1.35',
         'uvloop>=0.7.2',
         'falcon>=1.0.0',
         'feather-format>=0.4.0',
