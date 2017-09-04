@@ -44,7 +44,7 @@ def subset_survey(des, filt):
 def fetch_stats_by(des, r, qn_f, vars):
     lvl_f = Formula('~%s' % ' + '.join(vars))
     df = svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs) #.round(DECIMALS)
-    df = pandas2ri.ri2py(df)
+    df = pandas2ri.ri2py(df) if df else df
     logger.info('create svyby df', df=df, vars=vars)
     df.columns = vars + ['mean', 'se', 'ci_l', 'ci_u']
     #del df['se2']
