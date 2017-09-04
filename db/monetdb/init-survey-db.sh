@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # TODO: fetch static db files from network into survey dir
-monetdbd start /data
+monetdbd start /home/monetdb
 
 sleep 5
-if [ ! -d "/data/survey" ]; then
+if [ ! -d "/home/monetdb/survey" ]; then
     monetdb create survey && \
     monetdb set embedr=true survey && \
     monetdb set embedpy=true survey && \
     monetdb release survey
 else
-    echo "Existing database found in '/data/survey'"
+    echo "Existing database found in '/home/monetdb/survey'"
 fi
 
 for i in {30..0}; do
