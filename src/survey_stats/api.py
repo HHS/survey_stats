@@ -52,8 +52,8 @@ async def fetch_questions(req):
                 columns={'qid':' facet',
                          'response': 'facet_levels'}
             ))
-    facs.index = facs.ix['qid']
-    return json({'facets': facs.to_dict(orient='index'),
+    #facs.index = facs.ix['qid']
+    return json({'facets': facs.to_dict(orient='records'),
                  'questions': res.to_dict(orient='index')})
 
 

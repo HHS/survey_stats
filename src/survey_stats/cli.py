@@ -81,9 +81,9 @@ def serve_api(args):
         # need to download data and setup db
         data_f = "https://s3.amazonaws.com/cdc-survey-data/cache-04Sep2017.tgz"
         logger.info('fetching data cache', url=data_f)
-        urllib.request.urlretrieve(data_f, 'cache.tar.gz')
+        urllib.request.urlretrieve(data_f, './cache.tar.gz')
         dat = tf.open('cache.tar.gz', mode='r:gz')
-        dat.extractall()
+        dat.extractall('.')
         logger.info('extracted data cache, now setting up dbs')
         restore_data(dburl)
 
