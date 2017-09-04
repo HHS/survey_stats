@@ -99,7 +99,7 @@ def fetch_survey_stats(req):
             results = d.fetch_socrata(qn, vars, filt)
     except Exception as e:
         raise ServerError(e)
-    logger.info('dumping result', res=results)
+    # logger.info('dumping result', res=results)
     return json({
         'error': error,
         'q': qn,
