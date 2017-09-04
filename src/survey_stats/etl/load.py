@@ -139,6 +139,16 @@ def process_dataset(yaml_f):
     setup_tables(cfg, default_sql_conn)
     logger.unbind('dataset')
 
+def restore_data(sql_conn):
+    configs = map(lambda x: os.path.join('config/data', x),
+                  os.listdir('config/data'))
+    logger.info('restoring tables to survey database')
+    for yaml_f in configs:
+        cfg = load_config_from_yaml(yaml_f)
+        logger.bind(dataset=cfg.id)
+        setup_tables(cfg, default_sql_conn)
+        logger.unbind('dataset')
+
 
 if __name__ == '__main__':
     default_sql_conn = 'mysql+pymysql://mcsuser:mcsuser@localhost:4306/survey'
