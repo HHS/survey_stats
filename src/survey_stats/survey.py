@@ -8,11 +8,15 @@ from survey_stats.helpr import svyciprop_yrbs, svybyci_yrbs, subset_des_wexpr
 from survey_stats.helpr import filter_survey_var
 from survey_stats import pdutil as u
 from survey_stats import log
+from dask import delayed
 
 rbase = importr('base')
 rstats = importr('stats')
+rpar = importr('parallel')
 rsvy = importr('survey')
+
 rfeather = importr('feather', on_conflict='warn')
+rmonet = importr('MonetDB.R')
 
 DECIMALS = {
     'mean': 4,
@@ -37,27 +41,35 @@ def subset_survey(des, filt):
     return rsvy.subset_survey_design(des, filtered)
 
 
-def fetch_stats_by(des, qn_f, vars):
+def fetch_stats_by(des, r, qn_f, vars):
     lvl_f = Formula('~%s' % ' + '.join(vars))
-    df = pandas2ri.ri2py(rbase.merge(
-        svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs),
-        rsvy.svyby(qn_f, lvl_f, des, rsvy.unwtd_count, na_rm=True,
-                   na_rm_by=True, na_rm_all=True, multicore=False)
-    )).round(DECIMALS)
-    df.columns = vars + ['mean', 'se', 'ci_l', 'ci_u', 'count']
+    df = svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs) #.round(DECIMALS)
+    df = pandas2ri.ri2py(df)
+    logger.info('create svyby df', df=df, vars=vars)
+    df.columns = vars + ['mean', 'se', 'ci_l', 'ci_u']
+    #del df['se2']
+    df['response'] = r
+    df['level'] = len(vars)
+    df['count'] = 100
+    return df.fillna(-1)
 
 
-def fetch_stats(des, qn, vars=[], filt={}):
+def fetch_stats(des, qn, r, vars=[], filt={}):
     # ex: ~qn8
-    qn_f = Formula('~%s' % (qn))
-    count = rbase.as_numeric(rsvy.unwtd_count(qn_f, des, na_rm=True,
-                                              multicore=False))[0]
+    qn_f = Formula('~I(%s=="%s")' % (qn, r))
+    logger.info('subsetting des with filter', filt=filt)
+    des = subset_survey(des, filt)
+    logger.info('done subsetting')
+    # count = rbase.as_numeric(rsvy.unwtd_count(qn_f, des, na_rm=True, multicore=True))[0]
+    count = 100
     total_ci = None
     if count > 0:
-        total_ci = svyciprop_yrbs(qn_f, des, multicore=False)
+        logger.info('fetching ciprop for qn', qn=qn)
+        total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
 
     # extract stats
     res = {'level': 0,
+           'response': r,
            'mean': u.guard_nan(
                rbase.as_numeric(total_ci)[0]) if total_ci else None,
            'se': u.guard_nan(
@@ -68,20 +80,22 @@ def fetch_stats(des, qn, vars=[], filt={}):
                rbase.attr(total_ci, 'ci')[1]) if total_ci else None,
            'count': count}
     # round as appropriate
-    res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k, v in
-           res.items()}
+    logger.info('finished computation lvl1', res=res, total_ci=total_ci)
+    #res = {k: round(v, DECIMALS[k]) if (v and k in DECIMALS) else v for k, v in
+    #       res.items()}
     # setup the result list
-    res = [res]
+
+    res = pd.DataFrame([res])
+    dfs = [res]
     vstack = vars[:]
     while len(vstack) > 0:
         # get stats for each level of interactions in vars
         # using svyby to compute across combinations of loadings
-        res.extend(fetch_stats_by(des, qn_f, vstack)
-                   .assign(level=len(vars),
-                           q=qn))
+        logger.info('gen stats for interaction level', vstack=vstack)
+        dfs.append(fetch_stats_by(des, qn_f, r, vstack))
         vstack.pop()
 
-    return res
+    return pd.concat(dfs)
 
 
 def sample_size(d):
@@ -113,7 +127,7 @@ def generate_slices(d, qn, vars=[], filt={}):
         lambda df: df.apply(
             lambda z: thread_last(
                 z.to_dict(),
-                lambda y: [(v,y[v]) for v in vars],
+                lambda y: [(v, y[v]) for v in vars],
                 list,
                 lambda x: [
                     tuple(x[:i + 1]) for
@@ -132,6 +146,25 @@ def generate_slices(d, qn, vars=[], filt={}):
     res = [{'q': qn, 'f': filt, 's': s} for s in [{}, *calls]]
     logger.info(res)
     return res
+
+
+def des_from_feather(fthr_file, denovo=False):
+    rdf = rfeather.read_feather(fthr_file)
+    logger.info('creating survey design from data and annotations')
+    strata = '~strata'
+    if denovo:
+        strata = '~year+sitecode'
+    return rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
+                          strata=Formula(strata), data=rdf, nest=True)
+
+
+def des_from_survey_db(tbl, db, host, port, denovo=False):
+    strata = '~strata'
+    if denovo:
+        strata = '~yr+sitecode'
+    return rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
+                          strata=Formula(strata), nest=True,
+                          data=tbl, dbname=db, host=host, port=port, dbtype='MonetDB.R')
 
 
 '''
@@ -156,11 +189,11 @@ def fetch_stats_for_slice(d, q, r, f, s, cfg):
     des = subset_des_wexpr(d, subs_f) if len(
         subs_f) > 0 else d
     count = rbase.as_numeric(rsvy.unwtd_count(qn_f, des, na_rm=True,
-                                              multicore=False))[0]
+                                              multicore=True))[0]
     logger.info("FORMULA: %s, %s, %d" % (q, subs_f, count))
     total_ci = None
     if count > 0:
-        total_ci = svyciprop_yrbs(qn_f, des, multicore=False)
+        total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
 
     # extract stats
     res = {'level': slice_f.count('&') + 1 if len(slice_f) > 0 else 0,
@@ -184,16 +217,4 @@ def fetch_stats_for_slice(d, q, r, f, s, cfg):
     return res
 '''
 
-
-def des_from_feather(cls, fthr_file, use_strata='~strata'):
-    rdf = rfeather.read_feather(fthr_file)
-    logger.info('creating survey design from data and annotations')
-    return rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
-                          strata=Formula(use_strata), data=rdf, nest=True)
-
-
-def des_from_survey_db(cls, svydb):
-    return rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
-                          strata=Formula('~strata'), nest=True,
-                          data=svydb['table'], dbname=svydb[''])
 

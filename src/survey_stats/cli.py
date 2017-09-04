@@ -77,6 +77,7 @@ def serve_api(args):
         'stats_svc': args.stats_uri,
         'worker_class': "sanic.worker.GunicornWorker",
         'workers': args.processes,
+        'timeout': 5000,
         'debug': args.debug
         #'when_ready': boot_when_ready
     }

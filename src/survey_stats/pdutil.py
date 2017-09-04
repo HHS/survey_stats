@@ -5,22 +5,30 @@ from cytoolz.functoolz import do
 
 logger = log.getLogger()
 
-#extend Series with fill_none method
+
+def undash(col):
+    return 'x' + col.lower() if col[0] == '_' else col.lower()
+
+
+# extend Series with fill_none method
 # to take care of json/mysql conversion
 def fill_none(df):
-    return df.where(pd.notnull(df),None)
+    return df.where(pd.notnull(df), None)
+
 
 def guard_nan(val):
     return None if np.isnan(val) else val
 
+
 def factor_summary(df):
     return df.dtypes.value_counts(dropna=False)
+
 
 def duplicated_varnames(df):
     """Return a dict of all variable names that
     are duplicated in a given dataframe."""
     repeat_dict = {}
-    var_list = list(df) # list of varnames as strings
+    var_list = list(df)  # list of varnames as strings
     for varname in var_list:
         # make a list of all instances of that varname
         test_list = [v for v in var_list if v == varname]
@@ -28,6 +36,7 @@ def duplicated_varnames(df):
         if len(test_list) > 1:
             repeat_dict[varname] = len(test_list)
     return repeat_dict
+
 
 def fmla_for_filt(filt):
     """
@@ -40,10 +49,9 @@ def fmla_for_filt(filt):
     return ' & '.join([
         '{var} %in% c({lvls})'.format(
             var=k,
-            lvls= ','.join(map(lambda x:'"%s"' %x, v)) if
-                type(v) == list else
-                '"%s"' % v
-        ) for k,v in filt.items()
+            lvls=','.join(map(lambda x:'"%s"' % x, v)) if
+            type(v) == list else '"%s"' % v
+        ) for k, v in filt.items()
     ])
 
 
@@ -57,7 +65,8 @@ def fmla_for_slice(z):
         'varX == "lvl1" & varY == "lvl3" & varZ == "lvl0"'
     """
     logger.info('creating formula for slice', slice=z)
-    return ' & '.join(['%s == "%s"' % (k,v) for k,v in z.items()])
+    return ' & '.join(['%s == "%s"' % (k, v) for k, v in z.items()])
+
 
 def tee_logfn(lgr, x):
     """

@@ -1,95 +1,51 @@
-import yaml
 import re
 import os
+import json
 
+import asteval
 import pandas as pd
 import sqlalchemy as sa
-# import pyarrow as pa
-import fastparquet as fpq
 import dask
-import dask.delayed as delayed
 import dask.multiprocessing
 import dask.cache
 # from dask.distributed import LocalCluster, Client
+from cytoolz.functoolz import thread_last
+from cytoolz.itertoolz import interpose
+from cytoolz.curried import map, curry
 from multiprocessing.pool import ThreadPool
 from timeit import default_timer as timer
 
 from survey_stats import log
-from survey_stats.etl.sas import process_sas_survey
-from survey_stats.etl.socrata import fetch_socrata_stats
 from survey_stats import serdes
-
+from survey_stats.types import load_config_from_yaml
+from survey_stats.etl.sas import process_sas_survey
+from survey_stats.etl.socrata import load_socrata_data, get_metadata_socrata
 
 logger = log.getLogger(__name__)
 
 
-def load_socrata_data(yaml_f, client=None):
-    cfg = None
-    with open(yaml_f) as fh:
-        cfg = yaml.load(fh)
-    params = cfg['socrata']
-    logger.bind(dataset=cfg['id'])
-    logger.info('loading socrata data')
-    ksoda = serdes.socrata_key4id(cfg['id'])
-    dfs = [delayed(fetch_socrata_stats)(url=url,
-                                        mapcols=params['mapcols'],
-                                        mapvals=params['mapvals'],
-                                        apply_fn=params['apply_fn'],
-                                        c_filter=params['c_filter'],
-                                        unstack=params['unstack'],
-                                        fold_stats=params['fold_stats']
-                                        ) for url in params['soda_api']]
-    dfs = delayed(pd.concat)(dfs, ignore_index=True)
-    dfs = dfs.compute()
-    # logger.info('converting df to csv table', name=ksoda)
-    # serdes.save_csv(ksoda, dfs, index=False)
-    # logger.info('converting df to pyarrow table', name=ksoda)
-    # tbl = pa.Table.from_pandas(dfs)
-    logger.info('saving survey data to parquet', name=ksoda)
-    fpq.write('cache/'+ksoda+'.parquet', data=dfs, write_index=False,
-              has_nulls=True)
-    logger.info('saving socrata data')
-    dfs.to_feather('cache/'+ksoda+'.feather')
-    return dfs
+def undash(col):
+    return 'x' + col if col[0] == '_' else col
 
 
-def load_survey_data(yaml_f, client=None):
-    cfg = None
-    with open(yaml_f) as fh:
-        cfg = yaml.load(fh)
-    logger.bind(dataset=cfg['id'])
-    ksvy = serdes.surveys_key4id(cfg['id'])
-    logger.info('loading survey dfs', sk=cfg['surveys'].keys())
-    svydf = process_sas_survey(meta=cfg['surveys']['meta'],
-                               prefix=cfg['surveys']['s3_url_prefix'],
-                               qids=cfg['surveys']['qids'],
-                               facets=cfg['facets'],
-                               na_syns=cfg['surveys']['na_synonyms'],
-                               repl=cfg['surveys']['replace_labels'],
-                               fmts=cfg['surveys']['patch_format'],
+def load_survey_data(cfg, client=None):
+    logger.info('loading survey dfs')
+    svydf = process_sas_survey(cfg.surveys,
+                               facets=cfg.facets,
                                client=client, lgr=logger)
     logger.info('loaded survey dfs', shape=svydf.shape)
     svydf = svydf.compute()
     svydf = svydf.reset_index(drop=True)
-    logger.info('dumping to csv for bulk load',
-                df=(svydf.select_dtypes(include=['object', 'category'])
-                         .apply(lambda xf: xf.value_counts().to_dict())
-                         .to_json(orient='index')))
-    # csvf = serdes.save_csv(ksvy, svydf, index=False)
-    csvt = timer()
-    # logger.info('dumped to csv for bulk load', elapsed=csvt-st)
-    # logger.info('converting df to pyarrow table', name=ksvy)
-    # tbl = pa.Table.from_pandas(svydf)
-    # logger.info('saving survey data to parquet', name=ksvy)
-    # pa.write_table(tbl, 'cache/'+ksvy+'.parquet')
-    fpq.write(filename='cache/'+ksvy+'_2.parquet', data=svydf,
-              has_nulls=True)
-    pqt = timer()
-    logger.info('finally, saving survey data to feather', name=ksvy, elapsed=pqt-csvt)
-    logger.info('saving survey data feather.write_dataframe', name=ksvy)
-    svydf.to_feather('cache/'+ksvy+'.feather')
-    logger.info('saved survey data feather.write_dataframe', name=ksvy, elapsed=timer()-pqt)
-    logger.unbind('dataset')
+    mx = (svydf.select_dtypes(include=['object', 'category'])
+               .apply(lambda xf: xf.value_counts().to_dict()
+                      )[svydf.apply(lambda yf: yf.dropna().apply(lambda q: type(q) != str))
+                             .dropna().any(0)])
+    mx2 = (svydf.applymap(lambda yf: type(yf).__name__)[list(mx.keys())]).apply(lambda xf: xf.value_counts())
+    mx = mx.to_dict()
+    if len(mx) > 0:
+        logger.error('Found category columns with non-str labels!', mx=mx, mx2=mx2)
+        # TODO: check formats list in advance to see if expected fmts missing
+        raise LookupError('Found categoricals with non-string labels!', mx.keys())
     return svydf
 
 
@@ -107,22 +63,27 @@ def load_csv_mariadb_columnstore(df, tblname, engine):
 
 def load_csv_monetdb(df, tblname, engine):
     copy_tmpl = "COPY {nrows} OFFSET 2 RECORDS INTO {tbl} from '{csvf}'" + \
-                " USING DELIMITERS ', '"
+                " USING DELIMITERS ',','\n','\"' NULL AS ''"
     logger.info('creating schema for column store', name=tblname)
     start = timer()
     q = pd.io.sql.get_schema(df[:0], tblname, con=engine)
-    q = q.replace('\n', ' ').replace('\t', ' ')
+    q = q.replace('\n', ' ').replace('\t', ' ').replace('year', 'yr')
     logger.info('dumping to csv for bulk load', q=q)
-    csvf = serdes.save_csv(tblname, df, index=False)
+    csvf = serdes.save_csv(tblname, df, index=False, header=True)
     csvf = os.path.abspath(csvf)
     csvtime = timer()
     logger.info('bulk loading csv into monetdb', csvf=csvf, elapsed=csvtime-start)
     with engine.begin() as con:
-        con.execute("DROP TABLE %s" % tblname)
+        try:
+            con.execute("DROP TABLE %s" % tblname)
+        except Exception as e:
+            # continue if table non-existent,
+            # else, what happened?!
+            if str(e).find('no such table') == -1:
+                raise
         con.execute(q)
         con.execute(copy_tmpl.format(nrows=df.shape[0]+1000,
-                                     tbl=tblname,
-                                     csvf=csvf))
+                                     tbl=tblname, csvf=csvf))
     logger.info('bulk loaded data using cfimport', name=tblname,
                 rows=df.shape[0], elapsed_copy=timer()-csvtime,
                 elapsed=timer()-start)
@@ -145,15 +106,38 @@ def bulk_load_df(tblname, engine):
         load_csv_monetdb(df, tblname, engine)
 
 
-def setup_tables(yaml_f, dburl):
-    cfg = None
-    with open(yaml_f) as fh:
-        cfg = yaml.load(fh)
+def setup_tables(cfg, dburl):
     engine = sa.create_engine(dburl)
-    ksvy = serdes.surveys_key4id(cfg['id'])
+    ksvy = serdes.surveys_key4id(cfg.id)
     bulk_load_df(ksvy, engine)
-    ksoc = serdes.socrata_key4id(cfg['id'])
+    ksoc = serdes.socrata_key4id(cfg.id)
     bulk_load_df(ksoc, engine)
+
+
+def process_dataset(yaml_f):
+    cfg = load_config_from_yaml(yaml_f)
+    logger.bind(dataset=cfg.id)
+    schema_f = 'cache/' + cfg.id + '.schema.json'
+    qns = get_metadata_socrata(cfg.socrata)
+    logger.info('created schema for socrata', sch=json.dumps(qns[:2]))
+    with open(schema_f, 'w') as fh:
+        fh.write('[\n')
+        for it in thread_last(qns,
+                              map(json.dumps),
+                              curry(interpose)(',\n')):
+            fh.write(it)
+        fh.write('\n]\n')
+    dsoc = load_socrata_data(cfg.socrata, client)
+    logger.info('saving socrata data to feather')
+    ksoc = serdes.socrata_key4id(cfg.id)
+    dsoc.to_feather('cache/'+ksoc+'.feather')
+    svydf = load_survey_data(cfg, client)
+    ksvy = serdes.surveys_key4id(cfg.id)
+    logger.info('saving survey data to feather', name=ksvy)
+    svydf.to_feather('cache/'+ksvy+'.feather')
+    logger.info('saved survey data to feather', name=ksvy)
+    setup_tables(cfg, default_sql_conn)
+    logger.unbind('dataset')
 
 
 if __name__ == '__main__':
@@ -165,23 +149,5 @@ if __name__ == '__main__':
     # cache = dask.cache.Cache(8e9)
     # cache.register()
     dask.set_options(get=dask.threaded.get, pool=ThreadPool())
-    # load_socrata_data('config/data/brfss.yaml', client)
-    load_survey_data('config/data/brfss.yaml', client)
-    load_socrata_data('config/data/brfss_pre2011.yaml', client)
-    load_survey_data('config/data/brfss_pre2011.yaml', client)
-    load_socrata_data('config/data/yrbss.yaml', client)
-    load_survey_data('config/data/yrbss.yaml', client)
-    '''
-    setup_tables(
-        'config/data/brfss.yaml',
-        default_sql_conn
-    )
-    setup_tables(
-        'config/data/brfss_pre2011.yaml',
-        'mysql+pymysql://mcsuser:mcsuser@localhost:4306/survey'
-    )'''
-    '''
-    setup_tables(
-        'config/data/brfss_pre2011.yaml',
-        'mysql+://mcsuser:mcsuser@localhost:4306/survey'
-    )'''
+    configs = map(lambda x: os.path.join(os.listdir('config/data')))
+    process_dataset('config/data/brfss.yaml')

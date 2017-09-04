@@ -4,6 +4,7 @@ import numpy as np
 from cytoolz.itertoolz import unique
 from cytoolz.functoolz import thread_last
 from cytoolz.curried import map, filter, curry
+from survey_stats import pdutil
 # import sys
 # import traceback as tb
 
@@ -22,10 +23,10 @@ US_STATES_FIPS_INTS = thread_last(
     list
 )
 
-SITECODE_TRANSLATORS = {
-    'fips': lambda x: (us.states.lookup('%.2d' % x).abbr if
-                       int(x) in US_STATES_FIPS_INTS else 'NA')
-}
+
+SITECODE_TRANSLATORS = {'fips':
+                        lambda x: (us.states.lookup('%.2d' % x).abbr if
+                                   int(x) in US_STATES_FIPS_INTS else 'NA')}
 
 SVYDESIGN_COLS = ['sitecode', 'strata', 'psu', 'weight']
 
@@ -106,26 +107,23 @@ def find_na_synonyms(na_syns, df):
         lambda x: np.nan if
         (x.lower() in na_syns if type(x) == str else False)
         else x)
+    logger.info("replaced NA synonyms", shp=df.shape)
     return df
 
 
-def undash(col):
-    return 'x' + col if col[0] == '_' else col
-
-
-def munge_df(df, r, lbls, facets, qids, na_syns, fmts, lgr=logger):
+def munge_df(df, r, lbls, facets, qids, na_syns, col_fn, fmts, lgr=logger):
     year = r['year']
     lgr.bind(year=year)
-    lgr.info('filtering, applying varlabels, munging', patch_fmts=fmts.keys())
-    # lbls = {k:v for k,v in lbls.items()} ## if k in delayed(df.columns)}
+    lgr.info('filtering, applying varlabels, munging', patch_fmts=fmts.keys(), colfn=col_fn)
     # get mapping into table for each facet
     facets = {r[k]: k for k in facets}
-    ndf = (df.pipe(lambda xdf: filter_columns(xdf, facets, qids))
+    ncols = {k: k.lower() for k in list(df.columns)}
+    ndf = (df.rename(index=str, columns=ncols)
+           .pipe(lambda xdf: filter_columns(xdf, facets, qids))
            .reset_index(drop=True)
            .apply(lambda x: eager_convert_categorical(x, lbls, fmts, lgr))
            .rename(index=str, columns=facets)
            .pipe(curry(find_na_synonyms)(na_syns))
-           .pipe(lambda xf: xf.rename(index=str, columns={x: undash(x) for x in xf.columns}))
            .reset_index(drop=True)
            .assign(year=int(year) if type(year) == int else df[year].astype(int),
                    sitecode=df[r['sitecode']].apply(
@@ -134,6 +132,7 @@ def munge_df(df, r, lbls, facets, qids, na_syns, fmts, lgr=logger):
                    strata=df[r['strata']].astype(int),
                    psu=df[r['psu']].astype(int))
            .reset_index(drop=True))
+    ndf.columns = list(map(pdutil.undash, list(ndf.columns)))
     lgr.info('completed SAS df munging')
     lgr.unbind('year')
     return ndf

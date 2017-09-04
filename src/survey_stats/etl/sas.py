@@ -2,11 +2,11 @@ import io
 import re
 import zipfile
 import pandas as pd
+import asteval
 from cytoolz.itertoolz import mapcat
 from cytoolz.curried import map, filter, curry
 from cytoolz.functoolz import pipe, thread_last, identity
 from dask import delayed
-
 from survey_stats import log
 from survey_stats.etl import survey_df as sdf
 from survey_stats.etl import download as dl
@@ -146,13 +146,18 @@ def load_sas_xport_df(url, lgr=logger):
     return df
 
 
-def process_sas_survey(meta, facets, prefix, qids, na_syns,
-                       repl, fmts, client=None, lgr=logger):
+def process_sas_survey(svy_cfg, facets, client=None, lgr=logger):
+    g = svy_cfg
+    prefix = g.s3_url_prefix
     lgr.bind(p=prefix)
-    md = pd.DataFrame(meta['rows'], columns=meta['cols'])
-    df_munger = curry(sdf.munge_df)(facets=facets, qids=qids,
-                                    na_syns=na_syns, fmts=fmts, lgr=lgr)
-    lbl_loader = curry(load_variable_labels)(repl=repl)
+    evalr = asteval.Interpreter()
+    evalr.symtable['pd.util'] = pd.util
+    fn = g.rename_cols
+    map_fn = evalr(fn)
+    df_munger = curry(sdf.munge_df)(facets=facets, qids=g.qids,
+                                    na_syns=g.na_synonyms, col_fn=map_fn,
+                                    fmts=g.patch_format, lgr=lgr)
+    lbl_loader = curry(load_variable_labels)(repl=g.replace_labels)
     xpt_loader = curry(load_sas_xport_df)(lgr=lgr)
     dfs = map(
         lambda r: pipe(prefix+r.xpt,
@@ -160,14 +165,15 @@ def process_sas_survey(meta, facets, prefix, qids, na_syns,
                        delayed(df_munger(r=r,
                                          lbls=lbl_loader(prefix+r.format,
                                                          prefix+r.formas)))),
-        [r for idx, r in md.iterrows()])
+        [r for idx, r in g.meta.iterrows()])
     lgr.info('merging SAS dfs')
     dfs = delayed(pd.concat)(dfs, ignore_index=True)
     scols = delayed(
         lambda xf: list(xf.columns
-                          .intersection(set(qids).union(facets))))(dfs)
+                          .intersection(set(g.qids)
+                                        .union(facets))))(dfs)
     lgr.info('re-filtering question and facet columns to cast to category dtype', cols=scols)
-    dfz = (dfs[scols]
+    dfz = (dfs
            .apply(lambda x: x.astype('category'))
            .reset_index(drop=True)
            .assign(year=dfs['year'].astype(int),
@@ -179,6 +185,22 @@ def process_sas_survey(meta, facets, prefix, qids, na_syns,
     dfz.visualize()
     lgr.info('merged SAS dfs')
     lgr.unbind('p')
-    # TODO: expand parallelism to include writing to feather and db
     return dfz
 
+
+'''
+TODO: fetch questions from SAS files
+and join with those from socrata_key4id
+def parse_qn_meta()
+    logger.info("loading format assignments", file=formas_f)
+def process_sas_metadata(meta, facets, prefix, qids, na_syns,
+                       repl, fmts, client=None, lgr=logger):
+    lgr.bind(p=prefix)
+    md = pd.DataFrame(meta['rows'], columns=meta['cols'])
+    lbl_loader = curry(load_variable_labels)(repl=repl)
+    dfs = thread_last([r for idx, r in md.iterrows()],
+                      map(lambda r: lbl_loader(prefix+r.format, prefix+r.parse_format_assignments)),
+
+    lgr.info('merging SAS dfs')
+    dfs = delayed(pd.concat)(dfs, ignore_index=True)
+'''

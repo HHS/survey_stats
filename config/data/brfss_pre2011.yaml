@@ -27,6 +27,137 @@ surveys:
       - [2008, CDBRFS08ASC.ZIP, CDBRFS08XPT.ZIP, CDBRFS08.ASC, CDBRFS08.XPT, format08.sas, formas08.sas, sasout08.sas, _finalwt, _psu, _ststr, _state, fips, sex, race2, _age_g, _incomg, _educag]
       - [2009, CDBRFS09ASC.ZIP, CDBRFS09XPT.ZIP, CDBRFS09.ASC, CDBRFS09.XPT, format09.sas, formas09.sas, sasout09.sas, _finalwt, _psu, _ststr, _state, fips, sex, race2, _age_g, _incomg, _educag]
       - [2010, CDBRFS10ASC.zip, CDBRFS10XPT.zip, CDBRFS10.ASC, CDBRFS10.XPT, format10.sas, formas10.sas, sasout10.sas, _finalwt, _psu, _ststr, _state, fips, sex, race2, _age_g, _incomg, _educag]
+  patch_format: {}
+  {"bloodcho": {"yes": 1495158,
+		 "no": 269578,
+		 "do not know/not sure": 7122}
+	,
+	"cvdcrhd3": {"no": 664705,
+		 "yes": 40885}
+	,
+	"cvdcrhd4": {"no": 1605992,
+		 "yes": 106308}
+	,
+	"cvdinfr3": {"no": 669288,
+		 "yes": 39054}
+	,
+	"cvdinfr4": {"no": 1615467,
+		 "yes": 104600}
+	,
+	"cvdstrk3": {"no": 2339472,
+		 "yes": 94668}
+	,
+	"diabete2": {"no": 2380899,
+		 "yes": 300479,
+		 "yes but female told only during pregnancy": 23354,
+		 "no pre-diabetes or boarderline diabetes": 22731,
+		 "no pre-diabetes or borderline diabetes": 14438,
+		 "do not know/not sure": 178}
+	,
+	"diabetes": {"no": 832762,
+		 "yes": 66788,
+		 "yes but female told only during pregnancy": 4829,
+		 "yes during pregnancy": 2342,
+		 "yes but female told during pregnancy": 1815,
+		 "do not know/not sure": 419}
+	,
+	"drinkany": {"yes": 21145,
+		 "no": 16998}
+	,
+	"drnkany2": {"yes": 108164,
+		 "no": 101877}
+	,
+	"drnkany3": {"yes": 294031,
+		 "no": 271408,
+		 1.0: 128871,
+		 2.0: 117689,
+		 "do not know/not sure": 2212,
+		 7.0: 1048,
+		 9.0: 356}
+	,
+	"drnkany4": {"no": 1239130,
+		 "yes": 1175400}
+	,
+	"educa": {"college 4 years or more (college graduate)": 985429,
+		 "grade 12 or ged (high school graduate)": 911285,
+		 "college 1 year to 3 years (some college or technical school)": 795170,
+		 "grades 9 through 11 (some high school)": 109810,
+		 "grades 9 - 11 (some high school)": 88702,
+		 "grades 1 through 8 (elementary)": 57695,
+		 "grades 1 - 8 (elementary)": 47294,
+		 "never attended school or only kindergarten": 5062}
+	,
+	"education": {"high school grad": 124566,
+		 "college grad": 116137,
+		 "some college": 107980,
+		 "grade 12 or ged (high school graduate)": 78230,
+		 "college 4 years or more (college graduate)": 75342,
+		 "college 1 year to 3 years (some college or technical school)": 65960,
+		 "less than high school graduate": 29498,
+		 "grades 9 - 11 (some high school)": 17761,
+		 "less than 9th grade": 16867,
+		 "grades 1 - 8 (elementary)": 9635,
+		 "kindergarten or less": 811,
+		 "never attended school or only kindergarten": 451}
+	,
+	"employ": {"employed for wages": 1589197,
+		 "retired": 847465,
+		 "self-employed": 303628,
+		 "a homemaker": 258854,
+		 "unable to work": 212716,
+		 1.0: 101515,
+		 "out of work for less that 1 year": 84172,
+		 "out of work for more than 1 year": 65777,
+		 "a student": 64962,
+		 7.0: 33112,
+		 "homemaker": 16134,
+		 2.0: 15905,
+		 5.0: 14105,
+		 "out of work  1 year": 8256,
+		 8.0: 7982,
+		 "student": 6427,
+		 6.0: 5410,
+		 4.0: 3751,
+		 3.0: 2343,
+		 9.0: 327}
+	,
+	"genhlth": {"very good": 1054270,
+		 "good": 989304,
+		 "excellent": 633094,
+		 "fair": 425707,
+		 "poor": 182853,
+		 2.0: 114128,
+		 3.0: 106993,
+		 1.0: 67711,
+		 4.0: 45826,
+		 5.0: 20198,
+		 "do not know/not sure": 1829,
+		 7.0: 881,
+		 9.0: 370}
+	,
+   "havarth": {"no": 247573,
+		 "yes": 82087}
+	,
+	"havarth2": {"no": 1080738,
+		 "yes": 584850,
+		 "do not know/not sure": 1488}
+	,
+	"hlthplan": {"yes": 3219785,
+		 "no": 425089,
+		 "do not know/not sure": 1483} ,
+	"marital": {"married": 2011999,
+		 "divorced": 507993,
+		 "never married": 485192,
+		 "widowed": 463083,
+		 "separated": 84135,
+		 "a member of an unmarried couple": 77821,
+		 "member of unmarried couple": 9882} ,
+	"qlactlm2": {"no": 2498514,
+		 "yes": 767069,
+		 "do not know/not sure": 1885} ,
+  "useequip": {"no": 2968485,
+		 "yes": 307235,
+		 "do not know/not sure": 238}}
   na_synonyms:
     - "na"
     - "ref"
