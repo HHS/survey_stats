@@ -5,6 +5,7 @@ import blaze as bz
 import sqlalchemy as sa
 import tarfile as tf
 from survey_stats.etl.load import restore_data
+import urllib.request
 
 lgr = log.getLogger(__name__)
 
@@ -14,7 +15,8 @@ dburl = os.getenv('DBURL', def_url)
 if not os.path.isfile('.cache.lock'):
     # need to download data and setup db
     data_f = "https://s3.amazonaws.com/cdc-survey-data/cache-04Sep2017.tgz"
-    dat = tf.open(data_f, mode='r:gz')
+    urllib.request.urlretrieve(data_f, 'cache.tar.gz')
+    dat = tf.open('cache.tar.gz', mode='r:gz')
     dat.extractall()
     lgr.info('extracted data cache, now setting up dbs')
     restore_data(dburl)
