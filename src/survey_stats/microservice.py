@@ -5,8 +5,8 @@ import traceback
 from falcon import HTTPInvalidParam, HTTPMissingParam
 from survey_stats import log
 from survey_stats import settings
+from survey_stats import state as st
 
-db_cfg = None
 
 logger = log.getLogger(__name__)
 
@@ -19,30 +19,7 @@ def check_media_type(req, resp, params):
         'http://docs.examples.com/api/json')
 
 
-def fetch_svy_stats_for_slice(dset_id, svy_id, q, r, f, s):
-    (k, cfg) = st.dset[dset_id].fetch_config(national=True, year=None)
-    svy = st.dset[dset_id].surveys[k]
-    res = svy.fetch_stats_for_slice(q, r, f, s, cfg)
-    return res
 
-
-def remap_vars(cfg, coll, into=True):
-    def map_if(pv, k):
-        return pv[k] if k in pv else k
-    pv = ({v: k for k, v in cfg['pop_vars'].items()} if
-          not into else cfg['pop_vars'])
-    res = None
-    typ = type(coll)
-    if isinstance(coll, str):
-        res = coll
-    elif isinstance(coll, Sequence):
-        res = [map_if(pv, k) for k in coll]
-    elif isinstance(coll, Mapping):
-        res = {map_if(pv, k): remap_vars(cfg, v, into) for
-               k, v in coll.items()}
-    else:
-        res = coll
-    return res
 
 
 class HealthResource:
@@ -97,7 +74,13 @@ class StatsResource:
                 'Could not decode the request body. The ' +
                 'JSON was incorrect.')
         try:
-            result = fetch_svy_stats_for_slice(**slice)
+            d = slice['d']
+            q = slice['q']
+            r = slice['r']
+            vs = slice['vs']
+            f = slice['f']
+            svy = st.dset[d]
+            result = svy.fetch_stats_for_slice(q, r, vs, f).to_dict(orient='records')
         except Exception as ex:
             self.logger.error(ex)
             description = ('Aliens have attacked our base! We will '
@@ -116,6 +99,7 @@ class StatsResource:
 
     def on_get(self, req, resp):
         self.logger.info("requested uri: %s" % req.url)
+        d = req.get_param('d')
         qn = req.get_param('q')
         vars = req.get_param('v') or ''
         vars = vars.split(',')
@@ -126,39 +110,17 @@ class StatsResource:
                             fv.split(':')[1].split(',')),
                 filt.split(';')
         )) if len(filt) > 0 else {}
-        combined = True
-        # update vars and filt column names according to pop_vars
-        ds = st.dset['yrbss']
-        (k, cfg) = ds.fetch_config(national=True, year=None)
-        m_filt = remap_vars(cfg, filt, into=True)
-        m_vars = remap_vars(cfg, vars, into=True)
-        svy = ds.surveys[k]
-        svy = svy.subset(m_filt)
-
-        if not svy.sample_size > 1:
-            raise ValueError('given filter is empty: %s' % (str(m_filt)))
         try:
-            question = svy.vars[qn]['question']
-
-        except KeyError as err:
-            raise HTTPInvalidParam('invalid %s' % str(err), payload={
-                'traceback': traceback.format_exc().splitlines(),
-                'state': {'q': qn, 'svy_vars': svy.vars, 'm_vars': m_vars
-                          }})
-        try:
-            results = svy.fetch_stats(qn, resp, m_vars, m_filt)
-            results = [remap_vars(cfg, x, into=False) for x in results]
-            return json({
-                'response': resp, 'vars': vars,
-                'var_levels': vars, 'results': stats
-            })
+            svy = st.dset[d]
+            result = svy.fetch_stats_for_slice(q, r, vs, f).to_dict(orient='records')
         except KeyError as err:
             raise HTTPInvalidParam('KeyError: %s' % str(err), payload={
                 'traceback': traceback.format_exc().splitlines(),
-                'state': {'q': qn, 'svy_vars': svy.vars, 'm_vars': m_vars,
-                          'filter': filt, 'response': resp, 'var_levels': var_levels
+                'state': {'q': qn, 'filter': filt, 'response': resp, 'var_levels': var_levels
                           }})
-
+        resp.set_header('X-Powered-By', 'Ninjas')
+        resp.status = falcon.HTTP_200
+        resp.body = json.dumps(result)
 
 def setup_app(db_conf):
     global db_cfg
@@ -166,7 +128,7 @@ def setup_app(db_conf):
     app.add_route('/stats', StatsResource())
     app.add_route('/', HealthResource())
     db_cfg = db_conf
-    logger.info('booting worker with db', db=db_conf)
+    st.initialize()
     return app
 
 

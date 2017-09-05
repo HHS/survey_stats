@@ -8,7 +8,7 @@ logger = log.getLogger()
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
-MAX_CONCURRENT_REQ = 100
+MAX_CONCURRENT_REQ = 5
 headers = {'content-type': 'application/json'}
 
 

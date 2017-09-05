@@ -11,23 +11,24 @@ from sanic.exceptions import InvalidUsage, ServerError
 import dask
 import dask.multiprocessing
 import dask.cache
+from dask.distributed import Client, LocalCluster
 from multiprocessing.pool import ThreadPool
 from survey_stats import log
 from survey_stats import state as st
+from survey_stats import fetch
+import asyncio
 
 Config.REQUEST_TIMEOUT = 50000000
 
 app = Sanic(__name__)
 dbc = None
-
 logger = log.getLogger()
-
 
 async def fetch_socrata(qn, resp, vars, filt, meta):
     precomp = meta.fetch_dash(qn, resp, vars, filt)
     precomp = pd.DataFrame(precomp).fillna(-1)
     precomp['method'] = 'socrata'
-    return precomp.to_dict(orient='records')
+    return precomp.to_dict(orient='record')
 
 
 @app.route("/questions")
@@ -76,13 +77,13 @@ def parse_filter(f):
                                 fv.split(':')[1].split(',')),
                     f.split('|')))
 
-
-def fetch_survey(dset, qn, filt, vars):
-    ds = st.dset[dset]
-    return ds.fetch_stats(qn, filt, vars)
+async def fetch_stats(dset, qn, vars, filt):
+    d = st.dset[dset]
+    slices = d.generate_slices(qn, vars, filt)
+    return await fetch.fetch_all(slices, st.worker_url)
 
 @app.route('/stats')
-def fetch_survey_stats(req):
+async def fetch_survey_stats(req):
     dset = req.args.get('d')
     qn = req.args.get('q')
     vars = [] if 'v' not in req.args else req.args.get('v').split(',')
@@ -94,9 +95,10 @@ def fetch_survey_stats(req):
     error = None
     try:
         if not use_socrata:
-            results = d.fetch_stats(qn, vars, filt)
+            results = await fetch_stats(dset, qn, vars, filt)
         else:
             results = d.fetch_socrata(qn, vars, filt)
+            results = results.to_dict(orient='records')
     except Exception as e:
         raise ServerError(e)
     # logger.info('dumping result', res=results)
@@ -106,14 +108,14 @@ def fetch_survey_stats(req):
         'filter': filt,
         'question': question,
         'vars': vars,
-        'results': results.to_dict(orient='records')
+        'results': results
     })
 
 
 def setup_app(db_conf, stats_svc):
     app.config.db_conf = db_conf
     app.config.stats_svc = stats_svc
-    dask.set_options(get=dask.threaded.get, pool=ThreadPool())
+    st.initialize()
     return app
 
 
