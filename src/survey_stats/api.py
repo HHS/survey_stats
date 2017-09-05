@@ -80,7 +80,7 @@ def parse_filter(f):
 async def fetch_stats(dset, qn, vars, filt):
     d = st.dset[dset]
     slices = d.generate_slices(qn, vars, filt)
-    return await fetch.fetch_all(slices, st.worker_url)
+    return await fetch.fetch_all(slices, app.config.stats_svc)
 
 @app.route('/stats')
 async def fetch_survey_stats(req):
