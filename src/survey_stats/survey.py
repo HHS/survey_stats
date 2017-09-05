@@ -55,7 +55,7 @@ def fetch_stats_by(des, qn_f, r, vs):
     if df.shape[0] > 0:
         df['response'] = r
         df['level'] = len(vs)
-    return df.fillna(-1).round(DECIMALS)
+    return u.fill_none(df.round(DECIMALS))
 
 def fetch_stats_totals(des, qn_f, r):
     logger.info('fetching stats totals', r=r)
@@ -64,18 +64,18 @@ def fetch_stats_totals(des, qn_f, r):
     res = {'level': 0,
            'response': r,
            'mean': u.guard_nan(
-               rbase.as_numeric(total_ci)[0]) if total_ci else -1,
+               rbase.as_numeric(total_ci)[0]) if total_ci else None,
            'se': u.guard_nan(
-               rsvy.SE(total_ci)[0]) if total_ci else -1,
+               rsvy.SE(total_ci)[0]) if total_ci else None,
            'ci_l': u.guard_nan(
-               rbase.attr(total_ci, 'ci')[0]) if total_ci else -1,
+               rbase.attr(total_ci, 'ci')[0]) if total_ci else None,
            'ci_u': u.guard_nan(
-               rbase.attr(total_ci, 'ci')[1]) if total_ci else -1
+               rbase.attr(total_ci, 'ci')[1]) if total_ci else None
            }
     # round as appropriate
     logger.info('finished computation lvl1', res=res, total_ci=total_ci)
-    res = pd.DataFrame([res]).fillna(-1).round(DECIMALS)
-    return res
+    res = pd.DataFrame([res]).round(DECIMALS)
+    return u.fill_none(res)
 
 
 def mask_df(df, filt):
@@ -108,7 +108,7 @@ def fetch_stats(des, qn, r, vs=[], filt={}):
     # get stats_by_fnats for each level of interactions in vars
     # using svyby to compute across combinations of loadings
     logger.info('finished computations, appending dfs', dfs=dfs)
-    return dfz #.round(DECIMALS)
+    return u.fill_none(dfz) #.round(DECIMALS)
 
 
 def sample_size(d):
