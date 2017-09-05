@@ -3,7 +3,7 @@ from odo import odo
 import sqlalchemy as sa
 import blaze as bz
 import requests as rq
-
+from cytoolz.itertoolz import concatv
 from sanic import Sanic
 from sanic.config import Config
 from sanic.response import json
@@ -96,6 +96,7 @@ async def fetch_survey_stats(req):
     try:
         if not use_socrata:
             results = await fetch_stats(dset, qn, vars, filt)
+            results = concatv(*results)
         else:
             results = d.fetch_socrata(qn, vars, filt)
             results = results.to_dict(orient='records')
