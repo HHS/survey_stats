@@ -73,8 +73,6 @@ class SurveyDataset(namedtuple('SurveyDataset',
     def fetch_socrata(self, qn, vars, filt={}):
         vars = self.mapper(vars)
         filt = self.mapper(filt)
-        if self.mapper:
-            vars = map_vars(vars)
         sel = None
         df = self.soc
         sel = df['qid'] == qn
