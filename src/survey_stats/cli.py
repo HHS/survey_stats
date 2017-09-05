@@ -122,6 +122,13 @@ def serve_workers(args):
     APIServer(app, options).run()
 
 
+
+
+parser_process = subparsers.add_parser('load')
+parser_serve.add_argument('--dataset', default='brfss',
+                          help='dataset to process, default: brfss')
+parser_serve.add_argument('--db', type=argparse.FileType('r'),
+                          help='database connection info yaml, default: config/db-default.yaml')
 parser_serve.set_defaults(func=serve_api)
 parser_prole.set_defaults(func=serve_workers)
 parser.set_defaults(func=default_action)

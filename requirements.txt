@@ -19,3 +19,4 @@ cloudpickle==0.4.0
 attrs==17.2.0
 cattrs>=0.4.0
 cachey==0.1.1
+click==6.7

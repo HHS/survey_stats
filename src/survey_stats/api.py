@@ -4,6 +4,7 @@ import sqlalchemy as sa
 import blaze as bz
 import requests as rq
 from cytoolz.itertoolz import concatv
+from cytoolz.dicttoolz import assoc
 from sanic import Sanic
 from sanic.config import Config
 from sanic.response import json
@@ -26,7 +27,7 @@ logger = log.getLogger()
 
 async def fetch_socrata(qn, resp, vars, filt, meta):
     precomp = meta.fetch_dash(qn, resp, vars, filt)
-    precomp = pd.DataFrame(precomp).fillna(-1)
+    precomp = pd.DataFrame(precomp).fillna(None)
     precomp['method'] = 'socrata'
     return precomp.to_dict(orient='record')
 
@@ -97,6 +98,8 @@ async def fetch_survey_stats(req):
         if not use_socrata:
             results = await fetch_stats(dset, qn, vars, filt)
             results = concatv(*results)
+            for v in vars:
+                results = map(lambda d: d if v in d else assoc(d, v, 'Total'), results)
         else:
             results = d.fetch_socrata(qn, vars, filt)
             results = results.to_dict(orient='records')
