@@ -59,7 +59,7 @@ def fetch_stats_by(des, qn_f, r, vs):
 
 def fetch_stats_totals(des, qn_f, r):
     logger.info('fetching stats totals', r=r)
-    total_ci = svyciprop_yrbs(qn_f, des, multicore=True)
+    total_ci = svyciprop_yrbs(qn_f, des, multicore=True, na_rm=True)
     # extract stats
     res = {'level': 0,
            'response': r,
@@ -124,7 +124,7 @@ def des_from_feather(fthr_file, denovo=False):
     logger.info('creating survey design from data and annotations', cols=list(rbase.colnames(rdf)))
     strata = '~strata'
     if denovo:
-        strata = '~year+sitecode'
+        strata = '~year+strata'
     return rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
                           strata=Formula(strata), data=rdf, nest=True)
 

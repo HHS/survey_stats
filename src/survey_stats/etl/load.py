@@ -36,16 +36,16 @@ def load_survey_data(cfg, client=None):
     logger.info('loaded survey dfs', shape=svydf.shape)
     svydf = svydf.compute()
     svydf = svydf.reset_index(drop=True)
-    mx = (svydf.select_dtypes(include=['object', 'category'])
-               .apply(lambda xf: xf.value_counts().to_dict()
-                      )[svydf.apply(lambda yf: yf.dropna().apply(lambda q: type(q) != str))
-                             .dropna().any(0)])
-    mx2 = (svydf.applymap(lambda yf: type(yf).__name__)[list(mx.keys())]).apply(lambda xf: xf.value_counts())
-    mx = mx.to_dict()
-    if len(mx) > 0:
-        logger.error('Found category columns with non-str labels!', mx=mx, mx2=mx2)
-        # TODO: check formats list in advance to see if expected fmts missing
-        raise LookupError('Found categoricals with non-string labels!', mx.keys())
+    # mx = (svydf.select_dtypes(include=['object', 'category'])
+    #            .apply(lambda xf: xf.value_counts().to_dict()
+    #                   )[svydf.apply(lambda yf: yf.dropna().apply(lambda q: type(q) != str))
+    #                          .dropna().any(0)])
+    # mx2 = (svydf.applymap(lambda yf: type(yf).__name__)[list(mx.keys())]).apply(lambda xf: xf.value_counts())
+    # mx = mx.to_dict()
+    # if len(mx) > 0:
+    #     logger.error('Found category columns with non-str labels!', mx=mx, mx2=mx2)
+    #     # TODO: check formats list in advance to see if expected fmts missing
+    #     raise LookupError('Found categoricals with non-string labels!', mx.keys())
     return svydf
 
 
@@ -117,9 +117,13 @@ def setup_tables(cfg, dburl):
 def process_dataset(yaml_f):
     cfg = load_config_from_yaml(yaml_f)
     logger.bind(dataset=cfg.id)
-    schema_f = 'cache/' + cfg.id + '.schema.json'
-    qns = get_metadata_socrata(cfg.socrata)
-    logger.info('created schema for socrata', sch=json.dumps(qns[:2]))
+    schema_f = 'cache/' + cfg.id + '.schema.feather'
+    facets_f = 'cache/' + cfg.id + '.facets.feather'
+    (qns, facs) = get_metadata_socrata(cfg.socrata)
+    logger.info('created schema for socrata')
+    qns.to_feather(schema_f)
+    facs.to_feather(facets_f)
+    '''
     with open(schema_f, 'w') as fh:
         fh.write('[\n')
         for it in thread_last(qns,
@@ -127,16 +131,19 @@ def process_dataset(yaml_f):
                               curry(interpose)(',\n')):
             fh.write(it)
         fh.write('\n]\n')
-    dsoc = load_socrata_data(cfg.socrata, client)
-    logger.info('saving socrata data to feather')
-    ksoc = serdes.socrata_key4id(cfg.id)
-    dsoc.to_feather('cache/'+ksoc+'.feather')
+    '''
+    # dsoc = load_socrata_data(cfg.socrata, client)
+    # logger.info('saving socrata data to feather')
+    # ksoc = serdes.socrata_key4id(cfg.id)
+    # dsoc.to_feather('cache/'+ksoc+'.feather')
+    '''
     svydf = load_survey_data(cfg, client)
     ksvy = serdes.surveys_key4id(cfg.id)
     logger.info('saving survey data to feather', name=ksvy)
     svydf.to_feather('cache/'+ksvy+'.feather')
     logger.info('saved survey data to feather', name=ksvy)
     setup_tables(cfg, default_sql_conn)
+    '''
     logger.unbind('dataset')
 
 def restore_data(sql_conn):

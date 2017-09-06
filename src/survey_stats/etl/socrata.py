@@ -58,6 +58,9 @@ def apply_fn2vals(df, fns):
     for k, v in fns.items():
         logger.info('transforming col w/ apply_fn', col=k,
                     fn=v.replace('\n', '\\n'))
+        if not k in df.columns:
+            logger.info('skipping absent column', k=k)
+            continue
         map_fn = evalr(v)
         df[k] = df[k].map(map_fn)
     return df
@@ -143,35 +146,29 @@ def get_metadata_socrata(soc_cfg):
                                                       columns=g.mapcols),
         curry(apply_fn2vals)(fns=g.apply_fn),
         lambda xf: xf if not g.mapvals else xf.replace(g.mapvals),
-        lambda xf: xf if not g.mapvals else xf.applymap(lambda x: g.mapvals[x.lower().strip()] if x.lower().strip() in g.mapvals else x),
-        lambda xf: xf if not g.qn_meta else xf[g.qn_meta],
-        lambda xf: xf.assign(response=lambda x: x.response,
-                             facet=lambda x: x.facet,
-                             facet_level=lambda x: x.facet_level))
+        lambda xf: xf if not g.mapvals else 
+            xf.applymap(lambda x: g.mapvals[x.lower().strip()] if 
+                        x.lower().strip() in g.mapvals else x),
+        lambda xf: xf[g.qn_meta])
     logger.info('finished transformations', res=res.head())
     # pull out question -> response breakouts
-    qns = (res.groupby(['qid', 'year', 'sitecode'])
-           .agg({'topic': lambda x: x.get_values()[0],
-                 'subtopic': lambda x: x.get_values()[0],
-                 'question': lambda x: x.get_values()[0],
-                 'response': lambda x: list(x.drop_duplicates())
-                 })
-           .reset_index()
-           .to_dict(orient='records'))
-    fct = (res[['facet', 'facet_level']]
-           .groupby(['facet'])
-           .agg({'facet_level': lambda x: list(x.drop_duplicates())})
-           .rename(index=str, columns={'facet_level': 'response'})
-           .to_dict())
+    qns = res[['qid', 'year', 'topic',  
+              'subtopic', 'question', 'response']].drop_duplicates().reset_index(drop=True)
     # since facets are questions as well
     # update the dict with response value from fc_res
     # overriding the original var (N.B.)
-    qns = map(lambda d:
-              assoc_in(d, ['response'],
-                       fct[d['qid']] if d['qid'] in
-                       fct else d['response']),
-              qns)
-    return list(qns)
+    yrvec = (res[['year']]
+             .drop_duplicates()
+             .assign(facet='year')
+             .rename(index=str, columns={'year':'facet_level'}))
+    stvec = (res[['sitecode']]
+             .drop_duplicates()
+             .assign(facet='sitecode')
+             .rename(index=str, columns={'sitecode':'facet_level'}))
+    facs = pd.concat( [res[['facet', 'facet_level']].drop_duplicates(),
+                       yrvec, stvec], axis=0).reset_index(drop=True)
+    logger.info('created qn and facs', qn=qns.head(), fac=facs.head())
+    return (qns, facs)
 
 
 if __name__ == "__main__":

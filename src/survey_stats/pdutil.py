@@ -9,6 +9,8 @@ logger = log.getLogger()
 def undash(col):
     return 'x' + col.lower() if col[0] == '_' else col.lower()
 
+def div100(col):
+    return pd.to_numeric(col, errors='coerce') / 100.0
 
 # extend Series with fill_none method
 # to take care of json/mysql conversion

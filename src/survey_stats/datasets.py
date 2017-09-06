@@ -12,17 +12,19 @@ from survey_stats import log
 from survey_stats.types import load_config_from_yaml
 from survey_stats.survey import fetch_stats, des_from_survey_db, subset_survey
 from survey_stats.survey import fetch_stats_by, fetch_stats_totals, des_from_feather
+from survey_stats import pdutil as u
 from dask import delayed
 from rpy2.robjects import Formula
 
-TMPL_METAF = 'cache/{id}.schema.json'
+TMPL_METAF = 'cache/{id}.schema.feather'
+TMPL_FCTF = 'cache/{id}.facets.feather'
 TMPL_SOCTBL = '{id}_socrata'
 TMPL_SVYTBL = '{id}_surveys'
 TMPL_SVYFTH = 'cache/{id}_surveys.feather'
 TMPL_SOCFTH = 'cache/{id}_socrata.feather'
 
 
-STATS_COLUMNS = ['mean', 'ci_u', 'ci_l', 'std_err']
+STATS_COLUMNS = ['mean', 'ci_u', 'ci_l', 'se']
 
 logger = log.getLogger()
 
@@ -44,6 +46,20 @@ def map_with_dict(d, val):
         return keymap(repl_f, val)
         
 
+class SurveyMeta(namedtuple('SurveyMeta', ['qns','facets'])):
+    __slots__ = ()
+    
+    @classmethod
+    def load_metadata(cls, cfg):
+        id = cfg.id
+        qn_f = TMPL_METAF.format(id=id)
+        qns = feather.read_dataframe(qn_f)
+        qns.index = qns.qid
+        facets_f = TMPL_FCTF.format(id=id)
+        facets = feather.read_dataframe(facets_f)
+        return cls(qns=qns, facets=facets)
+
+
 class SurveyDataset(namedtuple('SurveyDataset',
                                ['cfg', 'meta', 'soc', 'svy', 'des', 'mapper'])):
     __slots__ = ()
@@ -54,11 +70,7 @@ class SurveyDataset(namedtuple('SurveyDataset',
         # work some magic
         cfg = load_config_from_yaml(cfg_f)
         id = cfg.id
-        meta_f = TMPL_METAF.format(id=id)
-        with open(meta_f, 'r+') as mh:
-            meta = json.load(mh)
-        meta = pd.DataFrame(meta)
-        meta.index = meta.qid
+        meta = SurveyMeta.load_metadata(cfg)
         svytbl = dbc[TMPL_SVYTBL.format(id=id)]
         soctbl = resolve_db_url(TMPL_SOCFTH.format(id=id))
         logger.info('set up urls for svytbl, soctbl', id)
@@ -78,8 +90,12 @@ class SurveyDataset(namedtuple('SurveyDataset',
         sel = df['qid'] == qn
         if 'sitecode' in filt.keys():
             sel = sel & df.sitecode.isin(filt['sitecode'])
+        else:
+            sel = sel & (df['sitecode'] == 'XX')
         if 'year' in filt.keys():
             sel = sel & df.year.isin(filt['year'])
+        else:
+            sel = sel & (df['year']=='Total')
         for v in self.cfg.facets:
             if v in filt.keys():
                 sel = sel & df[v].isin(filt[v])
@@ -87,11 +103,11 @@ class SurveyDataset(namedtuple('SurveyDataset',
             if v not in vars:
                 sel = sel & (df[v] == 'Total')
         cols = ['qid', 'response', 'sitecode', 'year'] + \
-            self.cfg.facets + STATS_COLUMNS
+            vars + STATS_COLUMNS
         dfz = df[sel][cols]
         dfz[STATS_COLUMNS] = dfz[STATS_COLUMNS].apply(
-            lambda xf: xf.astype(float).fillna(-1))
-        return dfz
+            lambda xf: xf.astype(float))
+        return u.fill_none(dfz)
 
     def facets(self):
         return self.cfg.facets
@@ -100,13 +116,16 @@ class SurveyDataset(namedtuple('SurveyDataset',
         return {k: list(self.meta_db[k]
                         .cat.categories) for k in self.facets}
 
+    def responses_for_qn(self, qn):
+        return self.meta.qns.ix[qn]['response'].drop_duplicates()
+
     def fetch_stats(self, qn, vars=[], filt={}):
         vars = self.mapper(vars)
         filt = self.mapper(filt)
-        lvls = self.meta.ix[qn]['response'].iloc[0]
+        lvls = self.responses_for_qn(qn)
         res = map(lambda r: fetch_stats(self.des, qn, r, vars, filt), lvls)
         dfz = pd.concat(res)
-        return dfz # .compute()
+        return dfz
     
     def fetch_stats_for_slice(self, qn, r, vars=[], filt={}):
         vars = self.mapper(vars)
@@ -124,7 +143,7 @@ class SurveyDataset(namedtuple('SurveyDataset',
     def generate_slices(self, qn, vars=[], filt={}):
         vars = self.mapper(vars)
         filt = self.mapper(filt)
-        resps = self.meta.ix[qn]['response'].iloc[0]
+        resps = self.responses_for_qn(qn)
         vlvls = [vars[:k+1] for k in range(len(vars))]
         res = []
         d = self.cfg.id

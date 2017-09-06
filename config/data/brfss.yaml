@@ -72,18 +72,23 @@ socrata:
     confidence_limit_low: ci_l
     break_out_category: facet
     break_out: facet_level
-    data_value_unit: std_err
+    data_value_unit: se
     class: topic
     topic: subtopic
   apply_fn:
     response: str.lower
     facet_level: str.lower
     qid: pdutil.undash
+    ci_u: pdutil.div100
+    ci_l: pdutil.div100
+    mean: pdutil.div100
   mapvals:
     sitecode:
       UW: XX
-    std_err:
+    se:
       "%": -1
+    qid:
+      "race8": race
     facet:
       "Household Income": income
       "Age Group": age
@@ -121,12 +126,16 @@ socrata:
       "overall": "Total"
       "white, non-hispanic": "White"
       "black, non-hispanic": "Black"
+      "white": "White"
+      "black": "Black"
       "american indian or alaskan native, non-hispanic": "AI/AN"
       "asian, non-hispanic": "Asian"
-      "native hawaiian or other pacific islander, non-Hispanic": "NHOPI"
+      "native hawaiian or other pacific islander, non-hispanic": "NHOPI"
       "other, non-hispanic": "Other Race"
       "other race, non-hispanic": "Other Race"
+      "other": "Other Race"
       "multiracial, non-hispanic": "Multiracial non-Hispanic"
+      "multiracial": "Multiracial non-Hispanic"
       "hispanic": "Hispanic"
       "less than $15,000": "<$15k"
       "$15,000-$24,999": "$15k-$25k"
@@ -147,4 +156,4 @@ socrata:
     facet: facet_level
   fold_stats: null
   qn_meta: [qid, year, sitecode, question, topic, subtopic, response, facet, facet_level]
-  c_filter: [qid, question, topic, subtopic, response, facet, facet_level, sitecode, year, count, mean, std_err, ci_u, ci_l]
+  c_filter: [qid, question, topic, subtopic, response, facet, facet_level, sitecode, year, count, mean, se, ci_u, ci_l]

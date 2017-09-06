@@ -87,18 +87,15 @@ def eager_convert_categorical(s, lbls, fmts, lgr=logger):
 def filter_columns(df, facets, qids, lgr=logger):
     # should drop columns w/ facet names
     # unless the mapped value is the same
-    drop_cols = set(facets.values()).difference(facets.keys())
-
+    drop_cols = set(facets.keys()).difference(facets.values())
     # include columns in qids and facets
-    fcols = set(qids).union(facets.values())
-
+    fcols = set(qids).union(facets.keys())
     # iff they are found in this sub-df and not in drop_cols
-    cols = sorted(fcols.intersection(df.columns).difference(drop_cols))
-
+    cols = sorted(fcols.intersection(df.columns))  # .difference(drop_cols))
     ndf = df[cols]
     lgr.info('filtered df columns using facets, qids',
              old_shape=df.shape, new_shape=ndf.shape,
-             missing=fcols.difference(cols), dropped=drop_cols)
+             missing=fcols.difference(cols), f=facets, cols=cols) 
     return ndf
 
 

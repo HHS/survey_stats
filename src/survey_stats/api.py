@@ -36,24 +36,22 @@ async def fetch_socrata(qn, resp, vars, filt, meta):
 async def fetch_questions(req):
     dset = req.args.get('d')
     d = st.dset[dset]
-    res = d.meta.groupby(['qid']).agg({
+    res = d.meta.qns.groupby(['qid']).agg({
         'topic': lambda x: x.get_values()[0],
         'subtopic': lambda x: x.get_values()[0],
         'question': lambda x: x.get_values()[0],
-        'response': lambda x: x.get_values()[0],
+        'response': lambda x: list(x.drop_duplicates()),
         'year': lambda x: list(x.drop_duplicates()),
-        'sitecode': lambda x: list(x.drop_duplicates())
     }).reset_index()
     res.index = res['qid']
-    facs = (d.meta.ix[d.cfg.facets]
-            .groupby(['qid']).agg({
-                'response': lambda x: x.get_values()[0]
+    facs = d.meta.facets.groupby(['facet']).agg({
+                'facet_level': lambda x: list(x.drop_duplicates())
             }).reset_index()
-            .rename(
-                index=str,
-                columns={'qid':' facet',
-                         'response': 'facet_levels'}
-            ))
+    facs.index = facs['facet']
+    try:
+        facs = facs[facs.facet != 'Overall']
+    except:
+        pass
     #facs.index = facs.ix['qid']
     return json({'facets': facs.to_dict(orient='records'),
                  'questions': res.to_dict(orient='index')})
