@@ -30,15 +30,12 @@ socrata:
     lesser_risk_high_confidence_limit: ci_u_no
     lesser_risk_low_confidence_limit: ci_l_no
     lesser_risk_data_value_footnote_symbol: se_no
-    sample_size: count
     shortquestiontext: question
     description: description
     greater_risk_question: greater_risk_question
     lesser_risk_question: lesser_risk_question
   apply_fn:
-    qid: |
-      def fix_qid(x):
-          return ('qn' + x[1:] if x.startswith('H') else x)
+    qid: fix_qid_yrbss
   unstack: null
   fold_stats:
     y:

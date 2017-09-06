@@ -42,9 +42,9 @@ surveys:
   replace_labels:
     "white only non-hispanic": "White"
     "black only non-hispanic": "Black"
-    "american indian or alaskan native only non-Hispanic": "AI/AN"
+    "american indian or alaskan native only non-hispanic": "AI/AN"
     "asian only non-hispanic": "Asian"
-    "native hawaiian or other Pacific Islander only non-Hispanic": "NHOPI"
+    "native hawaiian or other pacific islander only non-hispanic": "NHOPI"
     "other race only non-hispanic": "Other Race"
     "multiracial non-hispanic": "Multiracial non-Hispanic"
     "hispanic": "Hispanic"

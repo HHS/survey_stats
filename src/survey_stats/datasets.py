@@ -3,6 +3,7 @@ from odo import odo
 import feather
 import json
 import pandas as pd
+import numpy as np
 from cytoolz.itertoolz import mapcat
 from cytoolz.curried import map, curry
 from cytoolz.functoolz import identity
@@ -15,7 +16,6 @@ from survey_stats.survey import fetch_stats_by, fetch_stats_totals, des_from_fea
 from survey_stats import pdutil as u
 from dask import delayed
 from rpy2.robjects import Formula
-
 TMPL_METAF = 'cache/{id}.schema.feather'
 TMPL_FCTF = 'cache/{id}.facets.feather'
 TMPL_SOCTBL = '{id}_socrata'
@@ -24,7 +24,7 @@ TMPL_SVYFTH = 'cache/{id}_surveys.feather'
 TMPL_SOCFTH = 'cache/{id}_socrata.feather'
 
 
-STATS_COLUMNS = ['mean', 'ci_u', 'ci_l', 'se']
+STATS_COLUMNS = ['mean', 'ci_u', 'ci_l', 'se', 'count', 'sample_size']
 
 logger = log.getLogger()
 
@@ -101,11 +101,12 @@ class SurveyDataset(namedtuple('SurveyDataset',
                 sel = sel & df[v].isin(filt[v])
             elif v not in vars:
                 sel = sel & (df[v] == 'Total')
-        cols = set(['qid', 'response', 'sitecode', 'year']).union(vars)
-        cols = list(cols) + STATS_COLUMNS
+        cols = set(['qid', 'response', 'sitecode', 'year']).union(vars).union(STATS_COLUMNS).intersection(df.columns)
+        cols = list(cols)
         dfz = df[sel][cols]
-        dfz[STATS_COLUMNS] = dfz[STATS_COLUMNS].apply(
-            lambda xf: xf.astype(float))
+        stats_sub = list(set(STATS_COLUMNS).intersection(dfz.columns))
+        dfz[stats_sub] = dfz[stats_sub].apply(
+            lambda xf: xf.astype(float).replace(-1.0, np.nan))
         # logger.info('done filtering, replacing NaNs', dfz=dfz)
         return u.fill_none(dfz.reset_index(drop=True))
 
@@ -133,12 +134,15 @@ class SurveyDataset(namedtuple('SurveyDataset',
         qn_f = Formula('~I(%s=="%s")' % (qn, r))
         logger.info('subsetting des with filter', filt=filt)
         des = subset_survey(self.des, filt)
+        ret = None
         if len(vars) > 0:
             logger.info('fetching stats with var levels', vs=vars, qn=qn, r=r)
-            return fetch_stats_by(des, qn_f, r, vars)
+            ret = fetch_stats_by(des, qn_f, r, vars)
         else:
             logger.info('fetching top level stats', qn=qn, r=r)
-            return fetch_stats_totals(des, qn_f, r)
+            ret = fetch_stats_totals(des, qn_f, r)
+        ret = ret.assign(sample_size = None, count = None)
+        return ret
 
     def generate_slices(self, qn, vars=[], filt={}):
         vars = self.mapper(vars)

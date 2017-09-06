@@ -12,6 +12,9 @@ def undash(col):
 def div100(col):
     return pd.to_numeric(col, errors='coerce') / 100.0
 
+def fix_qid_yrbss(x):
+    return ('qn' + x[1:] if x.startswith('H') else x)
+
 # extend Series with fill_none method
 # to take care of json/mysql conversion
 def fill_none(df):

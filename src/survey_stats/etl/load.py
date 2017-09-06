@@ -117,6 +117,7 @@ def setup_tables(cfg, dburl):
 def process_dataset(yaml_f):
     cfg = load_config_from_yaml(yaml_f)
     logger.bind(dataset=cfg.id)
+    '''
     schema_f = 'cache/' + cfg.id + '.schema.feather'
     facets_f = 'cache/' + cfg.id + '.facets.feather'
     (qns, facs) = get_metadata_socrata(cfg.socrata)
@@ -124,26 +125,16 @@ def process_dataset(yaml_f):
     qns.to_feather(schema_f)
     facs.to_feather(facets_f)
     '''
-    with open(schema_f, 'w') as fh:
-        fh.write('[\n')
-        for it in thread_last(qns,
-                              map(json.dumps),
-                              curry(interpose)(',\n')):
-            fh.write(it)
-        fh.write('\n]\n')
-    '''
     # dsoc = load_socrata_data(cfg.socrata, client)
     # logger.info('saving socrata data to feather')
     # ksoc = serdes.socrata_key4id(cfg.id)
     # dsoc.to_feather('cache/'+ksoc+'.feather')
-    '''
     svydf = load_survey_data(cfg, client)
     ksvy = serdes.surveys_key4id(cfg.id)
     logger.info('saving survey data to feather', name=ksvy)
     svydf.to_feather('cache/'+ksvy+'.feather')
     logger.info('saved survey data to feather', name=ksvy)
     setup_tables(cfg, default_sql_conn)
-    '''
     logger.unbind('dataset')
 
 def restore_data(sql_conn):
