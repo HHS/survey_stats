@@ -90,24 +90,24 @@ class SurveyDataset(namedtuple('SurveyDataset',
         sel = df['qid'] == qn
         if 'sitecode' in filt.keys():
             sel = sel & df.sitecode.isin(filt['sitecode'])
-        else:
+        elif 'sitecode' not in vars:
             sel = sel & (df['sitecode'] == 'XX')
         if 'year' in filt.keys():
             sel = sel & df.year.isin(filt['year'])
-        else:
+        elif 'year' not in vars:
             sel = sel & (df['year']=='Total')
         for v in self.cfg.facets:
             if v in filt.keys():
                 sel = sel & df[v].isin(filt[v])
-        for v in self.cfg.facets:
-            if v not in vars:
+            elif v not in vars:
                 sel = sel & (df[v] == 'Total')
-        cols = ['qid', 'response', 'sitecode', 'year'] + \
-            vars + STATS_COLUMNS
+        cols = set(['qid', 'response', 'sitecode', 'year']).union(vars)
+        cols = list(cols) + STATS_COLUMNS
         dfz = df[sel][cols]
         dfz[STATS_COLUMNS] = dfz[STATS_COLUMNS].apply(
             lambda xf: xf.astype(float))
-        return u.fill_none(dfz)
+        # logger.info('done filtering, replacing NaNs', dfz=dfz)
+        return u.fill_none(dfz.reset_index(drop=True))
 
     def facets(self):
         return self.cfg.facets
