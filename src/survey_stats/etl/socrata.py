@@ -77,10 +77,11 @@ def coerce_dtypes(df):
     return df
 
 
-def fetch_socrata_stats(url, soc_cfg):
+def fetch_socrata_stats(url, soc_cfg, facets):
     g = soc_cfg
+    url = url + '?' if url.find('?') == -1 else url
     logger.info('loading SODA data', url=url)
-    df = (dl.df_from_socrata_url(url+'?')
+    df = (dl.df_from_socrata_url(url)
           .pipe(lambda xf: xf.applymap(lambda x: (re.sub('\xa0', '', x)).strip() if type(x) == str else x))
           .pipe(lambda xf: xf.rename(index=str, columns={x: x.lower() for x in
                                                          xf.columns}))
@@ -88,18 +89,19 @@ def fetch_socrata_stats(url, soc_cfg):
                                                               columns=g.mapcols))
           .pipe(apply_fn2vals, fns=g.apply_fn)
           .pipe(lambda xf: xf if not g.mapvals else xf.replace(g.mapvals))
-          .pipe(lambda xf: xf if not g.c_filter else xf[g.c_filter])
-          .assign(response=lambda x: x.response,
-                  facet=lambda x: x.facet,
-                  facet_level=lambda x: x.facet_level)
-          .pipe(coerce_dtypes)
           .pipe(unstack_facets, unstack=g.unstack)
           .pipe(fold_stats_cols, folds=g.fold_stats))
+
+    cols = g.c_filter + list(set(facets).intersection(df.columns))
+    miss_facets = list(set(facets).difference(df.columns))
+    logger.warn('missing facets after filtering socrata columns', f=miss_facets)
+    df = (df.pipe(lambda xf: xf[cols])
+          .pipe(coerce_dtypes))
     return df
 
 
-def load_socrata_data(cfg, client=None):
-    dfs = [delayed(fetch_socrata_stats)(url=url, soc_cfg=cfg) for
+def load_socrata_data(cfg, facets, client=None):
+    dfs = [delayed(fetch_socrata_stats)(url=url, soc_cfg=cfg, facets=facets) for
            url in cfg.soda_api]
     dfs = delayed(pd.concat)(dfs, ignore_index=True)
     dfs = dfs.compute()
@@ -121,15 +123,54 @@ def get_qids_by_year(soc_cfg):
     df.to_csv(sys.stdout)
 
 
-def get_metadata_socrata(soc_cfg):
+def summarize_column(df, k):
+    res = (df[[k]].drop_duplicates()
+                  .assign(facet=k)
+                  .rename(index=str, columns={k: 'facet_level'}))
+    logger.info('summarized a facet', k=k, res=res)
+    return res
+
+
+def get_metadata_socrata(soc_cfg, soc_df, facets):
+    g = soc_cfg
+    # pull out question -> response breakouts
+    qns = soc_df[g.qn_meta].drop_duplicates().reset_index(drop=True)
+    # since facets are questions as well
+    # update the dict with response value from fc_res
+    # overriding the original var (N.B.)
+    yrvec = summarize_column(soc_df, 'year')
+    stvec = summarize_column(soc_df, 'sitecode')
+    in_facets = list(set(facets).intersection(soc_df.columns))
+    miss_facets = list(set(facets).difference(soc_df.columns))
+    logger.warn('missing facets in generating socrata metadata', f=miss_facets)
+    logger.warn('generating summary columns for facets', f=in_facets)
+    facs = None
+    if 'facet' in soc_df.columns:
+        facs = pd.concat([soc_df[['facet', 'facet_level']].drop_duplicates(),
+                          yrvec, stvec], axis=0).reset_index(drop=True)
+    else:
+        summs = map(lambda k: summarize_column(soc_df, k), in_facets)
+        logger.info('summarized facet columns', f=in_facets, s=list(summs), y=yrvec, st=stvec)
+        summs = list(summs) + [yrvec, stvec]
+        facs = pd.concat(list(summs) + [yrvec, stvec], axis=0).reset_index(drop=True)
+    logger.info('created qn and fac metadata',
+                qn=qns.dtypes.to_dict(),
+                fac=list(facs.facet.drop_duplicates()))
+    return (qns, facs)
+
+
+    
+def get_metadata_socrata_denovo(soc_cfg):
     g = soc_cfg
     revmap = {v: k for k, v in g.mapcols.items()}
     url = '{api_url}?' + \
           '$select={cols}' + \
           '&$order={ocols}'
+    meta_diff = set(g.qn_meta).difference(g.computed)
+    meta_diff = list(meta_diff)
     qncols = ','.join([(revmap[k] if
                         k in revmap else k) for
-                       k in g.qn_meta])
+                       k in meta_diff])
 
     ocols = ','.join([revmap['qid'], 'year'])
 
@@ -138,7 +179,8 @@ def get_metadata_socrata(soc_cfg):
         g.soda_api,
         map(lambda x: url.format(api_url=x, cols=qncols, ocols=ocols)),
         map(dl.df_from_socrata_url),
-        pd.concat,
+        pd.concat)
+    '''
         lambda xf: xf.applymap(lambda x: (re.sub('\xa0', '', x)).strip()),
         lambda xf: xf.rename(index=str, columns={x: x.lower() for x in
                                                  xf.columns}),
@@ -150,6 +192,7 @@ def get_metadata_socrata(soc_cfg):
             xf.applymap(lambda x: g.mapvals[x.lower().strip()] if 
                         x.lower().strip() in g.mapvals else x),
         lambda xf: xf[g.qn_meta])
+    '''
     logger.info('finished transformations', res=res.head())
     # pull out question -> response breakouts
     qns = res[['qid', 'year', 'topic',  

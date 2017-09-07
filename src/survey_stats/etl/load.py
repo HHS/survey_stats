@@ -19,6 +19,7 @@ from survey_stats import log
 from survey_stats import serdes
 from survey_stats.types import load_config_from_yaml
 from survey_stats.etl.sas import process_sas_survey
+from survey_stats.etl.spss import process_fwf_w_spss_loader
 from survey_stats.etl.socrata import load_socrata_data, get_metadata_socrata
 
 logger = log.getLogger(__name__)
@@ -30,9 +31,18 @@ def undash(col):
 
 def load_survey_data(cfg, client=None):
     logger.info('loading survey dfs')
-    svydf = process_sas_survey(cfg.surveys,
-                               facets=cfg.facets,
-                               client=client, lgr=logger)
+    svydf = None
+    if cfg.surveys.parse_mode == 'sas':
+        svydf = process_sas_survey(cfg.surveys,
+                                   facets=cfg.facets,
+                                   client=client, lgr=logger)
+    elif cfg.surveys.parse_mode == 'spss':
+        svydf = process_fwf_w_spss_loader(cfg.surveys,
+                                   facets=cfg.facets,
+                                   client=client, lgr=logger)
+    else:
+        raise NotImplementedError('Config parse_mode must be spss or sas!')
+
     logger.info('loaded survey dfs', shape=svydf.shape)
     svydf = svydf.compute()
     svydf = svydf.reset_index(drop=True)
@@ -117,18 +127,16 @@ def setup_tables(cfg, dburl):
 def process_dataset(yaml_f):
     cfg = load_config_from_yaml(yaml_f)
     logger.bind(dataset=cfg.id)
-    '''
-    schema_f = 'cache/' + cfg.id + '.schema.feather'
-    facets_f = 'cache/' + cfg.id + '.facets.feather'
-    (qns, facs) = get_metadata_socrata(cfg.socrata)
-    logger.info('created schema for socrata')
-    qns.to_feather(schema_f)
-    facs.to_feather(facets_f)
-    '''
-    # dsoc = load_socrata_data(cfg.socrata, client)
-    # logger.info('saving socrata data to feather')
-    # ksoc = serdes.socrata_key4id(cfg.id)
-    # dsoc.to_feather('cache/'+ksoc+'.feather')
+    #dsoc = load_socrata_data(cfg.socrata, cfg.facets, client)
+    #logger.info('saving socrata data to feather')
+    #ksoc = serdes.socrata_key4id(cfg.id)
+    #dsoc.to_feather('cache/'+ksoc+'.feather')
+    #schema_f = 'cache/' + cfg.id + '.schema.feather'
+    #facets_f = 'cache/' + cfg.id + '.facets.feather'
+    #(qns, facs) = get_metadata_socrata(cfg.socrata, dsoc, cfg.facets)
+    #logger.info('created schema for socrata')
+    #qns.to_feather(schema_f)
+    #facs.to_feather(facets_f)
     svydf = load_survey_data(cfg, client)
     ksvy = serdes.surveys_key4id(cfg.id)
     logger.info('saving survey data to feather', name=ksvy)
@@ -158,4 +166,4 @@ if __name__ == '__main__':
     # cache.register()
     dask.set_options(get=dask.threaded.get, pool=ThreadPool())
     configs = map(lambda x: os.path.join(os.listdir('config/data')))
-    process_dataset('config/data/brfss.yaml')
+    process_dataset('config/data/yrbss.yaml')

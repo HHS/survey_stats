@@ -1,5 +1,17 @@
+import io
+import re
+import zipfile
+import pandas as pd
+import asteval
+from collections import OrderedDict
+from cytoolz.itertoolz import mapcat
+from cytoolz.curried import map, filter, curry
+from cytoolz.functoolz import pipe, thread_last, identity
+from dask import delayed
 from survey_stats import log
-
+from survey_stats.etl import survey_df as sdf
+from survey_stats.etl import download as dl
+from survey_stats.etl.sas import load_variable_labels
 
 logger = log.getLogger(__name__)
 
@@ -11,7 +23,7 @@ def strip_line(l):
     return l.strip().strip('.').replace('"','').replace("'","")
 
 
-def parse_fwfcols_spss(spss_file):
+def parse_fwfcols_spss(spss_file, lgr=logger):
     # type: (str) -> OrderedDict
     """Extracts dat metadata from CDC YRBS SPSS files
 
@@ -38,9 +50,10 @@ def parse_fwfcols_spss(spss_file):
 
     # if arg is filename, call self with open fh
     if not getattr(spss_file, 'read', False):
-        with open(spss_file, 'r') as fh:
-            return parse_fwfcols_spss(fh)
-
+        x = dl.fetch_data_from_url(spss_file)
+        t = x.read()
+        t = t.decode('utf-8', errors='ignore') if type(t) is bytes else t
+        spss_file = t.split('\n')
     col_specs = OrderedDict()
     widths_flag = False
     # extract fixed-width-field length rows
@@ -67,10 +80,11 @@ def parse_fwfcols_spss(spss_file):
         else:
             continue
     # - end for line in readline()...
+    lgr.info('parsed col specs', cols=col_specs)
     return col_specs
 
 
-def parse_surveyvars_spss(spss_file):
+def parse_surveyvars_spss(spss_file, lgr=logger):
     """Extracts dat metadata from CDC YRBS SPSS files
 
     Extracts the survey questions and responses from the
@@ -87,10 +101,12 @@ def parse_surveyvars_spss(spss_file):
         `question` containing the survey question, and `responses`
         containing a list of tuples of the form (resp_num, resp_label)
     """
-    # if arg is filename, call self with open fh
+    # if arg is filename, open it
     if not getattr(spss_file, 'read', False):
-        with open(spss_file, 'r') as fh:
-            return parse_surveyvars_spss(fh)
+        x = dl.fetch_data_from_url(spss_file)
+        t = x.read()
+        t = t.decode('utf-8', errors='ignore') if type(t) is bytes else t
+        spss_file = t.split('\n')
 
     survey_vars = OrderedDict()
     vars_flag = False
@@ -151,6 +167,55 @@ def parse_surveyvars_spss(spss_file):
             #default
             continue
     # - end for line in fh.readline()...
+    lgr.info('parsed survey vars', v=survey_vars)
     return survey_vars
 
+
+def load_survey_data(dat_f, svy_cols, lgr=logger):
+    lgr.info('parsing raw survey data', f=dat_f, cols=svy_cols)
+    df = pd.read_fwf(dat_f, 
+                     colspecs=list(svy_cols.values()), 
+                     names=list(svy_cols.keys()), 
+                     na_values=['.',''])
+
+
+def process_fwf_w_spss_loader(svy_cfg, facets, client=None, lgr=logger):
+    g = svy_cfg
+    prefix = g.s3_url_prefix
+    lgr.bind(p=prefix)
+    evalr = asteval.Interpreter()
+    evalr.symtable['pd.util'] = pd.util
+    fn = g.rename_cols
+    map_fn = evalr(fn)
+    df_munger = curry(sdf.munge_df)(facets=facets, qids=g.qids,
+                                    na_syns=g.na_synonyms, col_fn=map_fn,
+                                    fmts=g.patch_format, lgr=lgr)
+    lbl_loader = curry(load_variable_labels)(repl=g.replace_labels)
+    fwf_loader = curry(load_survey_data)(lgr=lgr)
+    dfs = map(
+        lambda r: pipe(prefix+r.fwf,
+                       fwf_loader(svy_cols=parse_fwfcols_spss(prefix+r.spss, lgr=lgr)),
+                       delayed(df_munger(r=r, lbls=lbl_loader(prefix+r.format, 
+                                                              prefix+r.formas)))),
+        [r for idx, r in g.meta.iterrows()])
+    lgr.info('merging SAS dfs')
+    dfs = delayed(pd.concat)(dfs, ignore_index=True)
+    scols = delayed(
+        lambda xf: list(xf.columns
+                          .intersection(set(g.qids)
+                                        .union(facets))))(dfs)
+    lgr.info('re-filtering question and facet columns to cast to category dtype', cols=scols)
+    dfz = (dfs
+           .apply(lambda x: x.astype('category'))
+           .reset_index(drop=True)
+           .assign(year=dfs['year'].astype(int),
+                   sitecode=dfs['sitecode'].astype('category'),
+                   weight=dfs['weight'].astype(float),
+                   strata=dfs['strata'].astype(int, errors='ignore'),
+                   psu=dfs['psu'].astype(int, errors='ignore'))
+           .reset_index(drop=True))
+    dfz.visualize()
+    lgr.info('merged SAS dfs')
+    lgr.unbind('p')
+    return dfz
 

@@ -17,7 +17,7 @@ TMP_API_KEY = 'Knx7W1eldgzkO9nUXNYfGXGBJ'
 KB = 1024
 MB = KB * KB
 
-requests_cache.install_cache()
+requests_cache.install_cache('requests.sqlite')
 logger = log.getLogger(__name__)
 _s3 = boto3.client('s3', config=Config(signature_version=UNSIGNED))
 s3 = boto3.resource('s3', config=Config(signature_version=UNSIGNED))
@@ -71,4 +71,5 @@ def df_from_socrata_url(url):
     r = requests.get(url, headers={'Accept': 'application/json',
                                    'X-App-Token': TMP_API_KEY})
     data = pd.DataFrame(r.json())
+    logger.info('fetched socrata url', shape=data.shape, cols=list(data.columns))
     return data
