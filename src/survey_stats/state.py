@@ -22,3 +22,4 @@ def initialize():
     dbc = bz.data(ngin)
     lgr.info('was summoned into being, loading up some data', dbc=dbc)
     dset['brfss'] = SurveyDataset.load_dataset('config/data/brfss.yaml', dbc)
+    dset['yrbss'] = SurveyDataset.load_dataset('config/data/yrbss.yaml', dbc)

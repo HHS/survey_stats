@@ -3,6 +3,7 @@ import asteval
 from collections import OrderedDict
 from cytoolz.curried import map, curry
 from cytoolz.functoolz import pipe
+from cytoolz.dicttoolz import valmap
 from dask import delayed
 from survey_stats import log
 from survey_stats import pdutil
@@ -79,6 +80,10 @@ def parse_fwfcols_spss(spss_file, lgr=logger):
     # - end for line in readline()...
     lgr.info('parsed col specs', n_cols=len(col_specs))
     return col_specs
+
+
+def eager_float(x):
+    return float(x) if x.isnumeric() else x
 
 
 def parse_surveyvars_spss(spss_file, lgr=logger):
@@ -161,7 +166,10 @@ def parse_surveyvars_spss(spss_file, lgr=logger):
             # default
             continue
     # end for line in fh.readline()...
-    lgr.info('parsed survey vars', n_keys=len(survey_vars))
+    survey_vars = {k: v['responses'] for k, v in survey_vars.items()}
+    survey_vars = valmap(lambda v: {1.0: "Yes", 2.0: "No"} if len(v)==0 else 
+           {eager_float(t[0]): t[1] for t in v}, survey_vars)
+    lgr.info('parsed survey vars', n_keys=len(survey_vars), v=survey_vars)
     return survey_vars
 
 
@@ -172,7 +180,7 @@ def load_survey_data(dat_f, svy_cols, lgr=logger):
                      colspecs=list(svy_cols.values()),
                      names=list(svy_cols.keys()),
                      na_values=['.', ''])
-    lgr.info('loaded survey data', shp=df.shape, cols=list(df.columns))
+    lgr.info('loaded survey data', shp=df.shape, cols=list(df.columns)[:10])
     return df
 
 
@@ -187,13 +195,11 @@ def process_fwf_w_spss_loader(svy_cfg, facets, client=None, lgr=logger):
     df_munger = curry(sdf.munge_df)(facets=facets, qids=g.qids,
                                     na_syns=g.na_synonyms, col_fn=map_fn,
                                     fmts=g.patch_format, lgr=lgr)
-    lbl_loader = curry(load_variable_labels)(repl=g.replace_labels)
     fwf_loader = curry(load_survey_data)(lgr=lgr)
     dfs = map(
         lambda r: pipe(prefix+r.fwf,
                        fwf_loader(svy_cols=parse_fwfcols_spss(prefix+r.spss, lgr=lgr)),
-                       delayed(df_munger)(r=r, lbls=lbl_loader(prefix+r.format,
-                                                               prefix+r.formas))),
+                       delayed(df_munger)(r=r, lbls=parse_surveyvars_spss(prefix+r.spss))),
         [r for idx, r in g.meta.iterrows()])
     lgr.info('merging SAS dfs')
     dfs = delayed(pd.concat)(dfs, ignore_index=True)

@@ -84,6 +84,7 @@ class SurveyDataset(namedtuple('SurveyDataset',
         filt = self.mapper(filt)
         sel = None
         df = self.soc
+        fcts = list(set(self.cfg.facets).intersection(df.columns))
         sel = df['qid'] == qn
         if 'sitecode' in filt.keys():
             sel = sel & df.sitecode.isin(filt['sitecode'])
@@ -93,7 +94,7 @@ class SurveyDataset(namedtuple('SurveyDataset',
             sel = sel & df.year.isin(filt['year'])
         elif 'year' not in vars:
             sel = sel & (df['year'] == 'Total')
-        for v in self.cfg.facets:
+        for v in fcts:
             if v in filt.keys():
                 sel = sel & df[v].isin(filt[v])
             elif v not in vars:
@@ -115,7 +116,7 @@ class SurveyDataset(namedtuple('SurveyDataset',
                         .cat.categories) for k in self.facets}
 
     def responses_for_qn(self, qn):
-        return remove(lambda x: x is None,
+        return remove(lambda x: x[0] is None,
                       self.svy[qn].distinct())
 
     def fetch_stats(self, qn, vars=[], filt={}):

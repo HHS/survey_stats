@@ -125,6 +125,7 @@ def get_qids_by_year(soc_cfg):
 
 def summarize_column(df, k):
     res = (df[[k]].drop_duplicates()
+                  .apply(lambda xf: xf.astype(str))
                   .assign(facet=k)
                   .rename(index=str, columns={k: 'facet_level'}))
     logger.info('summarized a facet', k=k, res=res)
@@ -149,11 +150,9 @@ def get_metadata_socrata(soc_cfg, soc_df, facets):
         facs = pd.concat([soc_df[['facet', 'facet_level']].drop_duplicates(),
                           yrvec, stvec], axis=0, ignore_index=True).reset_index(drop=True)
     else:
-        summs = map(lambda k: summarize_column(soc_df, k), in_facets)
-        logger.info('summarized facet columns', f=in_facets, s=list(summs), y=yrvec, st=stvec)
-        summs = list(summs) + [yrvec, stvec]
-        facs = pd.concat(summs, ignore_index=True).reset_index(drop=True)
-        facs = pd.concat([facs, yrvec, stvec], axis=0, ignore_index=True).reset_index(drop=True)
+        summs = list(map(lambda k: summarize_column(soc_df, k), in_facets))
+        facs = pd.concat(summs + [yrvec, stvec], axis=0, ignore_index=True).reset_index(drop=True)
+        facs = facs[facs.facet_level != "Total"]
     logger.info('created qn and fac metadata',
                 qn=qns.dtypes.to_dict(),
                 fac=list(facs.facet.drop_duplicates()))
@@ -204,7 +203,7 @@ def get_metadata_socrata_denovo(soc_cfg):
     yrvec = (res[['year']]
              .drop_duplicates()
              .assign(facet='year')
-             .rename(index=str, columns={'year':'facet_level'}))
+             .rename(index=str, columns={'year': 'facet_level'}))
     stvec = (res[['sitecode']]
              .drop_duplicates()
              .assign(facet='sitecode')

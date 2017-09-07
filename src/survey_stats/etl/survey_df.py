@@ -60,7 +60,7 @@ def eager_convert(s, fmt, lgr=logger):
     try:
         c = convert_cat_codes(s, fmt)
         lgr.debug('converted series with fmt', v=s.name, fmt=fmt,
-                  levels=s.value_counts().to_dict())
+                  levels=s.value_counts().to_dict(), new_levels=c.value_counts().to_dict())
     except ValueError as e:
         lgr.info('ValueError converting to category! Forcing...',
                  err=e, col=s.name, fmt=fmt, levels=s.value_counts().to_dict())
