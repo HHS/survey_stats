@@ -1,11 +1,9 @@
 import blaze as bz
-from odo import odo
 import feather
-import json
 import pandas as pd
 import numpy as np
-from cytoolz.itertoolz import mapcat, pluck, remove
-from cytoolz.curried import map, curry
+from cytoolz.itertoolz import remove
+from cytoolz.curried import map
 from cytoolz.functoolz import identity
 from cytoolz.dicttoolz import keymap
 from collections import namedtuple
@@ -14,7 +12,6 @@ from survey_stats.types import load_config_from_yaml
 from survey_stats.survey import fetch_stats, des_from_survey_db, subset_survey
 from survey_stats.survey import fetch_stats_by, fetch_stats_totals, des_from_feather
 from survey_stats import pdutil as u
-from dask import delayed
 from rpy2.robjects import Formula
 TMPL_METAF = 'cache/{id}.schema.feather'
 TMPL_FCTF = 'cache/{id}.facets.feather'
@@ -44,11 +41,11 @@ def map_with_dict(d, val):
         return typ(map(repl_f, val))
     if typ == dict:
         return keymap(repl_f, val)
-        
 
-class SurveyMeta(namedtuple('SurveyMeta', ['qns','facets'])):
+
+class SurveyMeta(namedtuple('SurveyMeta', ['qns', 'facets'])):
     __slots__ = ()
-    
+
     @classmethod
     def load_metadata(cls, cfg):
         id = cfg.id
@@ -95,7 +92,7 @@ class SurveyDataset(namedtuple('SurveyDataset',
         if 'year' in filt.keys():
             sel = sel & df.year.isin(filt['year'])
         elif 'year' not in vars:
-            sel = sel & (df['year']=='Total')
+            sel = sel & (df['year'] == 'Total')
         for v in self.cfg.facets:
             if v in filt.keys():
                 sel = sel & df[v].isin(filt[v])
@@ -118,7 +115,7 @@ class SurveyDataset(namedtuple('SurveyDataset',
                         .cat.categories) for k in self.facets}
 
     def responses_for_qn(self, qn):
-        return remove(lambda x: x is None, 
+        return remove(lambda x: x is None,
                       self.svy[qn].distinct())
 
     def fetch_stats(self, qn, vars=[], filt={}):
@@ -126,9 +123,9 @@ class SurveyDataset(namedtuple('SurveyDataset',
         filt = self.mapper(filt)
         lvls = self.responses_for_qn(qn)
         res = map(lambda r: fetch_stats(self.des, qn, r, vars, filt), lvls)
-        dfz = pd.concat(res)
+        dfz = pd.concat(res, ignore_index=True)
         return dfz
-    
+
     def fetch_stats_for_slice(self, qn, r, vars=[], filt={}):
         vars = self.mapper(vars)
         filt = self.mapper(filt)
@@ -142,7 +139,7 @@ class SurveyDataset(namedtuple('SurveyDataset',
         else:
             logger.info('fetching top level stats', qn=qn, r=r)
             ret = fetch_stats_totals(des, qn_f, r)
-        ret = ret.assign(sample_size = None, count = None)
+        ret = ret.assign(sample_size=None, count=None)
         return ret
 
     def generate_slices(self, qn, vars=[], filt={}):
@@ -153,8 +150,8 @@ class SurveyDataset(namedtuple('SurveyDataset',
         res = []
         d = self.cfg.id
         for r in resps:
-            top = [{'d': d, 'q': qn,'r': r[0], 'f':filt, 'vs':[]}]
-            rs = [{'d': d, 'q': qn, 'r':r[0], 'f': filt, 'vs': vs} for vs in vlvls]
-            res = res + rs  # top + rs
+            top = [{'d': d, 'q': qn, 'r': r[0], 'f': filt, 'vs': []}]
+            rs = [{'d': d, 'q': qn, 'r': r[0], 'f': filt, 'vs': vs} for vs in vlvls]
+            res = res + rs + top
         logger.info(res)
         return res

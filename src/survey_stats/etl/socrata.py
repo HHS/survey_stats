@@ -119,7 +119,7 @@ def get_qids_by_year(soc_cfg):
     df = thread_last(g.soda_api,
                      map(lambda x: url.format(api_url=x, qnkey=qid)),
                      map(dl.df_from_socrata_url),
-                     pd.concat)
+                     curry(pd.concat)(ignore_index=True))
     df.to_csv(sys.stdout)
 
 
@@ -128,7 +128,7 @@ def summarize_column(df, k):
                   .assign(facet=k)
                   .rename(index=str, columns={k: 'facet_level'}))
     logger.info('summarized a facet', k=k, res=res)
-    return res
+    return res.reset_index(drop=True)
 
 
 def get_metadata_socrata(soc_cfg, soc_df, facets):
@@ -147,12 +147,13 @@ def get_metadata_socrata(soc_cfg, soc_df, facets):
     facs = None
     if 'facet' in soc_df.columns:
         facs = pd.concat([soc_df[['facet', 'facet_level']].drop_duplicates(),
-                          yrvec, stvec], axis=0).reset_index(drop=True)
+                          yrvec, stvec], axis=0, ignore_index=True).reset_index(drop=True)
     else:
         summs = map(lambda k: summarize_column(soc_df, k), in_facets)
         logger.info('summarized facet columns', f=in_facets, s=list(summs), y=yrvec, st=stvec)
         summs = list(summs) + [yrvec, stvec]
-        facs = pd.concat(list(summs) + [yrvec, stvec], axis=0).reset_index(drop=True)
+        facs = pd.concat(summs, ignore_index=True).reset_index(drop=True)
+        facs = pd.concat([facs, yrvec, stvec], axis=0, ignore_index=True).reset_index(drop=True)
     logger.info('created qn and fac metadata',
                 qn=qns.dtypes.to_dict(),
                 fac=list(facs.facet.drop_duplicates()))
@@ -179,7 +180,7 @@ def get_metadata_socrata_denovo(soc_cfg):
         g.soda_api,
         map(lambda x: url.format(api_url=x, cols=qncols, ocols=ocols)),
         map(dl.df_from_socrata_url),
-        pd.concat)
+        curry(pd.concat)(ignore_index=True))
     '''
         lambda xf: xf.applymap(lambda x: (re.sub('\xa0', '', x)).strip()),
         lambda xf: xf.rename(index=str, columns={x: x.lower() for x in

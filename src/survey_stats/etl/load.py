@@ -1,17 +1,13 @@
 import re
 import os
-import json
 
-import asteval
 import pandas as pd
 import sqlalchemy as sa
 import dask
 import dask.multiprocessing
 import dask.cache
 # from dask.distributed import LocalCluster, Client
-from cytoolz.functoolz import thread_last
-from cytoolz.itertoolz import interpose
-from cytoolz.curried import map, curry
+from cytoolz.curried import map
 from multiprocessing.pool import ThreadPool
 from timeit import default_timer as timer
 
@@ -38,8 +34,8 @@ def load_survey_data(cfg, client=None):
                                    client=client, lgr=logger)
     elif cfg.surveys.parse_mode == 'spss':
         svydf = process_fwf_w_spss_loader(cfg.surveys,
-                                   facets=cfg.facets,
-                                   client=client, lgr=logger)
+                                          facets=cfg.facets,
+                                          client=client, lgr=logger)
     else:
         raise NotImplementedError('Config parse_mode must be spss or sas!')
 
@@ -81,6 +77,12 @@ def load_csv_monetdb(df, tblname, engine):
     logger.info('dumping to csv for bulk load', q=q)
     csvf = serdes.save_csv(tblname, df, index=False, header=True)
     csvf = os.path.abspath(csvf)
+    copy_cmd = copy_tmpl.format(nrows=df.shape[0]+1000,
+                                 tbl=tblname, csvf=csvf)
+    sql_instrs = q + ';\n\n'
+    sql_instrs += copy_cmd + ';\n\n'
+    with open('cache/'+tblname+'.sql', 'w') as fh:
+        fh.write(sql_instrs)
     csvtime = timer()
     logger.info('bulk loading csv into monetdb', csvf=csvf, elapsed=csvtime-start)
     with engine.begin() as con:
@@ -92,8 +94,8 @@ def load_csv_monetdb(df, tblname, engine):
             if str(e).find('no such table') == -1:
                 raise
         con.execute(q)
-        con.execute(copy_tmpl.format(nrows=df.shape[0]+1000,
-                                     tbl=tblname, csvf=csvf))
+        con.execute(copy_cmd)
+
     logger.info('bulk loaded data using cfimport', name=tblname,
                 rows=df.shape[0], elapsed_copy=timer()-csvtime,
                 elapsed=timer()-start)
@@ -127,21 +129,21 @@ def setup_tables(cfg, dburl):
 def process_dataset(yaml_f):
     cfg = load_config_from_yaml(yaml_f)
     logger.bind(dataset=cfg.id)
-    #dsoc = load_socrata_data(cfg.socrata, cfg.facets, client)
-    #logger.info('saving socrata data to feather')
-    #ksoc = serdes.socrata_key4id(cfg.id)
-    #dsoc.to_feather('cache/'+ksoc+'.feather')
-    #schema_f = 'cache/' + cfg.id + '.schema.feather'
-    #facets_f = 'cache/' + cfg.id + '.facets.feather'
-    #(qns, facs) = get_metadata_socrata(cfg.socrata, dsoc, cfg.facets)
-    #logger.info('created schema for socrata')
-    #qns.to_feather(schema_f)
-    #facs.to_feather(facets_f)
-    svydf = load_survey_data(cfg, client)
-    ksvy = serdes.surveys_key4id(cfg.id)
-    logger.info('saving survey data to feather', name=ksvy)
-    svydf.to_feather('cache/'+ksvy+'.feather')
-    logger.info('saved survey data to feather', name=ksvy)
+    dsoc = load_socrata_data(cfg.socrata, cfg.facets, client)
+    logger.info('saving socrata data to feather')
+    ksoc = serdes.socrata_key4id(cfg.id)
+    dsoc.to_feather('cache/'+ksoc+'.feather')
+    schema_f = 'cache/' + cfg.id + '.schema.feather'
+    facets_f = 'cache/' + cfg.id + '.facets.feather'
+    (qns, facs) = get_metadata_socrata(cfg.socrata, dsoc, cfg.facets)
+    logger.info('created schema for socrata')
+    qns.to_feather(schema_f)
+    facs.to_feather(facets_f)
+    #svydf = load_survey_data(cfg, client)
+    #ksvy = serdes.surveys_key4id(cfg.id)
+    #logger.info('saving survey data to feather', name=ksvy)
+    #svydf.to_feather('cache/'+ksvy+'.feather')
+    #logger.info('saved survey data to feather', name=ksvy)
     setup_tables(cfg, default_sql_conn)
     logger.unbind('dataset')
 

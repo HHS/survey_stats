@@ -2,7 +2,7 @@ import us
 import pandas as pd
 import numpy as np
 from cytoolz.itertoolz import unique
-from cytoolz.functoolz import thread_last
+from cytoolz.functoolz import thread_last, identity
 from cytoolz.curried import map, filter, curry
 from survey_stats import pdutil
 # import sys
@@ -26,7 +26,8 @@ US_STATES_FIPS_INTS = thread_last(
 
 SITECODE_TRANSLATORS = {'fips':
                         lambda x: (us.states.lookup('%.2d' % x).abbr if
-                                   int(x) in US_STATES_FIPS_INTS else 'NA')}
+                                   int(x) in US_STATES_FIPS_INTS else 'NA'),
+                        'codes': identity}
 
 SVYDESIGN_COLS = ['sitecode', 'strata', 'psu', 'weight']
 
@@ -87,7 +88,7 @@ def eager_convert_categorical(s, lbls, fmts, lgr=logger):
 def filter_columns(df, facets, qids, lgr=logger):
     # should drop columns w/ facet names
     # unless the mapped value is the same
-    drop_cols = set(facets.keys()).difference(facets.values())
+    # drop_cols = set(facets.keys()).difference(facets.values())
     # include columns in qids and facets
     fcols = set(qids).union(facets.keys())
     # iff they are found in this sub-df and not in drop_cols
@@ -95,7 +96,7 @@ def filter_columns(df, facets, qids, lgr=logger):
     ndf = df[cols]
     lgr.info('filtered df columns using facets, qids',
              old_shape=df.shape, new_shape=ndf.shape,
-             missing=fcols.difference(cols), f=facets, cols=cols) 
+             missing=fcols.difference(cols), f=facets, cols=cols)
     return ndf
 
 
@@ -111,7 +112,7 @@ def find_na_synonyms(na_syns, df):
 def munge_df(df, r, lbls, facets, qids, na_syns, col_fn, fmts, lgr=logger):
     year = r['year']
     lgr.bind(year=year)
-    lgr.info('filtering, applying varlabels, munging', patch_fmts=fmts.keys(), colfn=col_fn)
+    lgr.info('filtering, applying varlabels, munging', patch_fmts=fmts.keys(), colfn=col_fn, shp=df.shape)
     # get mapping into table for each facet
     facets = {r[k]: k for k in facets}
     ncols = {k: k.lower() for k in list(df.columns)}
@@ -124,7 +125,7 @@ def munge_df(df, r, lbls, facets, qids, na_syns, col_fn, fmts, lgr=logger):
            .reset_index(drop=True)
            .assign(year=int(year) if type(year) == int else df[year].astype(int),
                    sitecode=df[r['sitecode']].apply(
-                       SITECODE_TRANSLATORS['fips']).astype('category'),
+                       SITECODE_TRANSLATORS[r['sitecode_type']]).astype('category'),
                    weight=df[r['weight']].astype(float),
                    strata=df[r['strata']].astype(int),
                    psu=df[r['psu']].astype(int))
@@ -133,6 +134,3 @@ def munge_df(df, r, lbls, facets, qids, na_syns, col_fn, fmts, lgr=logger):
     lgr.info('completed SAS df munging')
     lgr.unbind('year')
     return ndf
-
-
-

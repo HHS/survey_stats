@@ -29,4 +29,19 @@ if [ $i -eq 0 ]; then
     exit 1
 fi
 
+$STATS_LOCK='.survey.lock'
+
+if [ ! -f $STATS_LOCK ]; then
+    echo "Fetching data files for survey db..."
+    curl -O "https://s3.amazonaws.com/cdc-survey-data/survey_data-07Sep2017.tar.gz"
+    tar -xzf survey_data-07Sep2017.tar.gz
+    SQLF=./survey_data/*.sql
+    for f in $SQLF
+    do
+        mclient -d survey $f
+    done
+    touch $STATS_LOCK
+fi
+
+
 # TODO: monetdb set readonly=yes survey

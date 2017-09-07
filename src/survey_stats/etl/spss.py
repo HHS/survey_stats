@@ -1,14 +1,11 @@
-import io
-import re
-import zipfile
 import pandas as pd
 import asteval
 from collections import OrderedDict
-from cytoolz.itertoolz import mapcat
-from cytoolz.curried import map, filter, curry
-from cytoolz.functoolz import pipe, thread_last, identity
+from cytoolz.curried import map, curry
+from cytoolz.functoolz import pipe
 from dask import delayed
 from survey_stats import log
+from survey_stats import pdutil
 from survey_stats.etl import survey_df as sdf
 from survey_stats.etl import download as dl
 from survey_stats.etl.sas import load_variable_labels
@@ -20,7 +17,7 @@ def strip_line(l):
     # type: (str) -> str
     # strip whitespace and trailing period
     # and remove double quotes
-    return l.strip().strip('.').replace('"','').replace("'","")
+    return l.strip().strip('.').replace('"', '').replace("'", "")
 
 
 def parse_fwfcols_spss(spss_file, lgr=logger):
@@ -42,10 +39,10 @@ def parse_fwfcols_spss(spss_file, lgr=logger):
         """ parse start and end """
         try:
             (st, en) = span.split('-')
-            ret = (int(st)-1,int(en))
+            ret = (int(st)-1, int(en))
         except Exception as e:
             raise ValueError("Improperly formed span in SPSS" +
-                                     "file! %s -> %s" % (span, str(e)))
+                             "file! %s -> %s" % (span, str(e)))
         return ret
 
     # if arg is filename, call self with open fh
@@ -65,22 +62,22 @@ def parse_fwfcols_spss(spss_file, lgr=logger):
             widths_flag = False
             break
         elif widths_flag:
-            #parse a line with field widths
-            #split on two consec spaces
-            widths = strip_line(line).replace('(A)','').split()
+            # parse a line with field widths
+            # split on two consec spaces
+            widths = strip_line(line).replace('(A)', '').split()
             if not len(widths) % 2 == 0:
                 raise ValueError("Invalid fixed-width field" +
-                                    " definitions on line: %s" %
-                                    strip_line(line))
-            for i in range(0,len(widths),2):
-                #iterate through pairs of var, span, and parse
+                                 " definitions on line: %s" %
+                                 strip_line(line))
+            for i in range(0, len(widths), 2):
+                # iterate through pairs of var, span, and parse
                 var = widths[i].lower()
                 col_specs[var] = parse_field_span(widths[i+1])
             continue
         else:
             continue
     # - end for line in readline()...
-    lgr.info('parsed col specs', cols=col_specs)
+    lgr.info('parsed col specs', n_cols=len(col_specs))
     return col_specs
 
 
@@ -122,15 +119,13 @@ def parse_surveyvars_spss(spss_file, lgr=logger):
             vars_flag = False
             continue
         elif vars_flag:
-            #parse variable label
+            # parse variable label
             # and add tuple (var, question/label)
-            (var, q) =  strip_line(line).split(' ', 1)
+            (var, q) = strip_line(line).split(' ', 1)
             var = var.lower()
-            survey_vars[var] = {
-                'question': q,
-                'responses': [],
-                'is_integer': False
-            }
+            survey_vars[var] = {'question': q,
+                                'responses': [],
+                                'is_integer': False}
         elif line.startswith('VALUE LABELS'):
             vals_flag = True
             vars_flag = False
@@ -138,8 +133,8 @@ def parse_surveyvars_spss(spss_file, lgr=logger):
             var = None
             continue
         elif vals_flag and line.startswith('/.'):
-            #save the last var and val lbls
-            #reset vals_flag
+            # save the last var and val lbls
+            # reset vals_flag
             survey_vars[var]['responses'] = vals[:]
             survey_vars[var]['is_integer'] = all(x[0].isdigit() for x in vals)
             var = None
@@ -159,24 +154,26 @@ def parse_surveyvars_spss(spss_file, lgr=logger):
             var = strip_line(line).lower()
             continue
         elif vals_flag and var:
-            #add (num, label) to current list of val labels
-            vals.append(tuple(
-                strip_line(line).split(' ', 1) ))
+            # add (num, label) to current list of val labels
+            vals.append(tuple(strip_line(line).split(' ', 1)))
             continue
         else:
-            #default
+            # default
             continue
-    # - end for line in fh.readline()...
-    lgr.info('parsed survey vars', v=survey_vars)
+    # end for line in fh.readline()...
+    lgr.info('parsed survey vars', n_keys=len(survey_vars))
     return survey_vars
 
 
 def load_survey_data(dat_f, svy_cols, lgr=logger):
-    lgr.info('parsing raw survey data', f=dat_f, cols=svy_cols)
-    df = pd.read_fwf(dat_f, 
-                     colspecs=list(svy_cols.values()), 
-                     names=list(svy_cols.keys()), 
-                     na_values=['.',''])
+    lgr.info('parsing raw survey data', f=dat_f,
+             cols=list(svy_cols.keys()), n_cols=len(svy_cols))
+    df = pd.read_fwf(dat_f,
+                     colspecs=list(svy_cols.values()),
+                     names=list(svy_cols.keys()),
+                     na_values=['.', ''])
+    lgr.info('loaded survey data', shp=df.shape, cols=list(df.columns))
+    return df
 
 
 def process_fwf_w_spss_loader(svy_cfg, facets, client=None, lgr=logger):
@@ -184,7 +181,7 @@ def process_fwf_w_spss_loader(svy_cfg, facets, client=None, lgr=logger):
     prefix = g.s3_url_prefix
     lgr.bind(p=prefix)
     evalr = asteval.Interpreter()
-    evalr.symtable['pd.util'] = pd.util
+    evalr.symtable['pdutil'] = pdutil
     fn = g.rename_cols
     map_fn = evalr(fn)
     df_munger = curry(sdf.munge_df)(facets=facets, qids=g.qids,
@@ -195,8 +192,8 @@ def process_fwf_w_spss_loader(svy_cfg, facets, client=None, lgr=logger):
     dfs = map(
         lambda r: pipe(prefix+r.fwf,
                        fwf_loader(svy_cols=parse_fwfcols_spss(prefix+r.spss, lgr=lgr)),
-                       delayed(df_munger(r=r, lbls=lbl_loader(prefix+r.format, 
-                                                              prefix+r.formas)))),
+                       delayed(df_munger)(r=r, lbls=lbl_loader(prefix+r.format,
+                                                               prefix+r.formas))),
         [r for idx, r in g.meta.iterrows()])
     lgr.info('merging SAS dfs')
     dfs = delayed(pd.concat)(dfs, ignore_index=True)
@@ -218,4 +215,3 @@ def process_fwf_w_spss_loader(svy_cfg, facets, client=None, lgr=logger):
     lgr.info('merged SAS dfs')
     lgr.unbind('p')
     return dfz
-

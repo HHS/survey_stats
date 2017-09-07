@@ -11,13 +11,13 @@ surveys:
   parse_mode: spss
   source_url_prefix: "https://www.cdc.gov/brfss/annual_data/{year}/files/"
   s3_url_prefix: "s3://cdc-survey-data/yrbss/"
-  qids: [bloodcho, _alteth2, employ, employ1, _flshot6, _drnkdrv, _pastae1, _paindx1, income, _rfhype5, genhlth, chcvisn1, _rfpap33, hlthpln1, _michd, _rfpsa21, sex, _rfblds2, checkup1, _paindex, drnkany5, _denvst2, decide, cvdcrhd4, chckidny, chcvison, _rfseat3, _lmtact1, _pastrng, tetanus, qlactlm2, _rfdrhv5, cvdinfr4, _crcrec, _casthm1, _rfdrhv4, _rfmam2y, _flshot5, usenow3, _ltasth1, blind, _smoker3, _rfpap32, addepev2, _mam502y, chcscncr, internet, medcost, _rfsmok3, veteran3, _rfbing5, diabete3, _rfhlth, _pastaer, age, _totinda, hivtst6, _lmtwrk1, educa, _chldcnt, _rfblds3, _exteth2, _rfsigm2, chccopd1, _pneumo2, useequip, _bmi5cat, _cholchk, _drdxar1, _hcvu651, shingle2, _lmtscl1, diffwalk, cvdstrk3, chcocncr, chccopd, _veglt1, marital, diffalon, _mam5021, persdoc2, race, diffdres, _rfchol, _frtlt1, race8, renthom1]
+  qids: [qn14, qn27, qn65, qn13, qn47, qn82, qn70, qn33, qn42, qn84, qn63, qnfrcig, qn51, qn83, qnfr2, qn60, qn24, qn10, qnfr1, qn48, qndlype, qnshparg, qn8, qnbk7day, qn62, qn61, qn43, qn59, qn56, qn41, qntob3, qn25, qnveg1, qndaycig, qnpa0day, qn77, qn32, qn36, qn87, qnsoda3, qn81, qn16, qn58, qn64, qnbcnone, qn31, qn54, qn44, qn9, qntob2, qnsoda1, qn40, qn20, qn37, qnmilk3, qnveg3, qn78, qn29, qn17, qnfr3, qn21, qn53, qn19, qn69, qn26, qnveg2, qn46, qn45, qn79, qn50, qn49, qn18, qnfr0, qn88, qn23, qn30, qn38, qn85, qnmilk2, qnobese, qn34, qn80, qn52, qnmilk1, qndualbc, qn66, qn11, qn22, qnveg0, qnowt, qn28, qn55, qn35, qnothhpl, qn12, qn86, qn57, qnpa7day, qnsoda2, qn15, qniudimp, qn39, qntob4, qncigint, qnspdrk2, qnhallucdrug, qnmusclestrength, qnindoortanning, qnwater3, qnspdrk1, qnwater1, qnwater, qnhowmarijuana, qnfoodallergy, qnspdrk3, qnsunburn, qnsportsdrink, qnwater2] 
   meta:
     cols: [year, fwf_zip, fwf, spss, format, formas, sasout, weight, psu, strata, sitecode, sitecode_type, sex, race, grade, sexid, sexpart]
     rows:
-      - [year, sadc_2015_national_ASCII.zip, sadc_2015_national.dat, 2015-sadc-spss-input-program.sps, 2015-sadc-sas-formats-program.sas, 2015-SADC-SAS-Input-Program.sas, 2015-SADC-SAS-Input-Program.sas, weight, psu, stratum, sitecode, fips, sex, race7, grade, sexid, sexpart]
-      - [year, sadc_2015_state_a_m_ASCII.zip, sadc_2015_state_a_m.dat, 2015-sadc-spss-input-program.sps, 2015-sadc-sas-formats-program.sas, 2015-SADC-SAS-Input-Program.sas, 2015-SADC-SAS-Input-Program.sas, weight, psu, stratum, sitecode, fips, sex, race7, grade, sexid, sexpart]
-      - [year, sadc_2015_state_n_z_ASCII.zip, sadc_2015_state_n_z.dat, 2015-sadc-spss-input-program.sps, 2015-sadc-sas-formats-program.sas, 2015-SADC-SAS-Input-Program.sas, 2015-SADC-SAS-Input-Program.sas, weight, psu, stratum, sitecode, fips, sex, race7, grade, sexid, sexpart]
+      - [year, sadc_2015_national_ASCII.zip, sadc_2015_national.dat, 2015-sadc-spss-input-program.sps, 2015-sadc-sas-formats-program.sas, 2015-SADC-SAS-Input-Program.sas, 2015-SADC-SAS-Input-Program.sas, weight, psu, stratum, sitecode, codes, sex, race7, grade, sexid, sexpart]
+      - [year, sadc_2015_state_a_m_ASCII.zip, sadc_2015_state_a_m.dat, 2015-sadc-spss-input-program.sps, 2015-sadc-sas-formats-program.sas, 2015-SADC-SAS-Input-Program.sas, 2015-SADC-SAS-Input-Program.sas, weight, psu, stratum, sitecode, codes, sex, race7, grade, sexid, sexpart]
+      - [year, sadc_2015_state_n_z_ASCII.zip, sadc_2015_state_n_z.dat, 2015-sadc-spss-input-program.sps, 2015-sadc-sas-formats-program.sas, 2015-SADC-SAS-Input-Program.sas, 2015-SADC-SAS-Input-Program.sas, weight, psu, stratum, sitecode, codes, sex, race7, grade, sexid, sexpart]
   patch_format: {}
   na_synonyms:
     - "na"
@@ -57,6 +57,9 @@ socrata:
     sexualidentity: sexid
     sexofsexualcontact: sexpart
   apply_fn:
+    ci_u: pdutil.div100
+    ci_l: pdutil.div100
+    mean: pdutil.div100
     qid: pdutil.fix_qid_yrbss
   unstack: null
   fold_stats:

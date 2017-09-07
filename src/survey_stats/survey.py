@@ -104,7 +104,7 @@ def fetch_stats(des, qn, r, vs=[], filt={}):
     dfs = [fetch_stats_totals(des, qn_f, r)]
     levels = [vs[:k+1] for k in range(len(vs))]
     sts = map(lambda lvl: fetch_stats_by(des, qn_f, r, lvl), levels)
-    dfz = pd.concat(res + sts)
+    dfz = pd.concat(dfs + sts, ignore_index=True)
     # get stats_by_fnats for each level of interactions in vars
     # using svyby to compute across combinations of loadings
     logger.info('finished computations, appending dfs', dfs=dfs)
