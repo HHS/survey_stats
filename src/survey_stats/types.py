@@ -20,6 +20,8 @@ cattr.register_structure_hook(
 
 @attr.s(slots=True, frozen=True)
 class SurveyConfig(object):
+    parse_mode = typed(str)
+    denovo_strata = typed(bool)
     source_url_prefix = typed(str)
     s3_url_prefix = typed(str)
     qids = typed(Sequence[str])
@@ -28,7 +30,7 @@ class SurveyConfig(object):
     na_synonyms = typed(Sequence[str])
     replace_labels = typed(Mapping[T, T])
     rename_cols = typed(Optional[Callable[[T], T]])
-
+ 
 
 @attr.s(slots=True, frozen=True)
 class SocrataConfig(object):
