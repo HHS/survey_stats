@@ -75,7 +75,7 @@ class SurveyDataset(namedtuple('SurveyDataset',
         # year is a reserved keyword in monetdb so work around
         # mapper = curry(map_with_dict)({'year':'yr'})
         # des = des_from_survey_df(id+'_surveys', db='survey', host='127.0.0.1', port=50000, denovo=True)
-        des = des_from_feather('cache/'+id+'_surveys.feather', denovo=True)
+        des = des_from_feather('cache/'+id+'_surveys.feather', denovo=cfg.surveys.denovo_strata)
         mapper = identity
         return cls(cfg=cfg, meta=meta, svy=svytbl, soc=soctbl, des=des, mapper=mapper)
 
