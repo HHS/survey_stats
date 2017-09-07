@@ -4,7 +4,7 @@ import feather
 import json
 import pandas as pd
 import numpy as np
-from cytoolz.itertoolz import mapcat
+from cytoolz.itertoolz import mapcat, pluck, remove
 from cytoolz.curried import map, curry
 from cytoolz.functoolz import identity
 from cytoolz.dicttoolz import keymap
@@ -118,7 +118,8 @@ class SurveyDataset(namedtuple('SurveyDataset',
                         .cat.categories) for k in self.facets}
 
     def responses_for_qn(self, qn):
-        return self.meta.qns.ix[qn]['response'].drop_duplicates()
+        return remove(lambda x: x is None, 
+                      self.svy[qn].distinct())
 
     def fetch_stats(self, qn, vars=[], filt={}):
         vars = self.mapper(vars)
@@ -152,8 +153,8 @@ class SurveyDataset(namedtuple('SurveyDataset',
         res = []
         d = self.cfg.id
         for r in resps:
-            top = [{'d': d, 'q': qn,'r': r, 'f':filt, 'vs':[]}]
-            rs = [{'d': d, 'q': qn, 'r':r, 'f': filt, 'vs': vs} for vs in vlvls]
-            res = res + top + rs
+            top = [{'d': d, 'q': qn,'r': r[0], 'f':filt, 'vs':[]}]
+            rs = [{'d': d, 'q': qn, 'r':r[0], 'f': filt, 'vs': vs} for vs in vlvls]
+            res = res + rs  # top + rs
         logger.info(res)
         return res
