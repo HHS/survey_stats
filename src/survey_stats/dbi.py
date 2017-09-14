@@ -28,6 +28,7 @@ class DatabaseType(Enum):
     MARIADB = 'mariadb'
     MAPD = 'mapd'
 
+
 @unique
 class DatasetFileType(Enum):
     FEATHER = 'feather'
@@ -45,7 +46,7 @@ class DatabaseConfig(object):
 
     @property
     def uri(self):
-        ret = DBURI_FMT.format(dbtype=self.type, user=self.user,
+        ret = DBURI_FMT.format(dbtype=self.type.value, user=self.user,
                                password=self.password, host=self.host,
                                port=self.port, dbname=self.name)
         return ret
@@ -55,4 +56,3 @@ class DatabaseConfig(object):
         with open(yaml_f) as fh:
             y = yaml.load(fh)
             return cls(**y)
-

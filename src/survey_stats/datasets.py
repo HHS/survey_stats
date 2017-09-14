@@ -1,8 +1,10 @@
+import os
 import blaze as bz
 import feather
 import pandas as pd
 import numpy as np
 import rpy2
+import sqlalchemy as sa
 from cytoolz.itertoolz import remove
 from cytoolz.curried import map
 from cytoolz.functoolz import identity
@@ -12,10 +14,11 @@ from survey_stats import log
 from survey_stats.survey import fetch_stats, des_from_survey_db, subset_survey
 from survey_stats.survey import fetch_stats_by, fetch_stats_totals, des_from_feather
 from survey_stats import pdutil as u
-from survey_stats.const import DSFILE_FMT
+from survey_stats.const import DSFILE_FMT, DBTBL_FMT
 from survey_stats.types import DatasetConfig
 from survey_stats.dbi import DatabaseConfig, DatasetPart, DatasetFileType
 from rpy2.robjects import Formula
+import types
 import attr
 import cattr
 import datashape
@@ -28,19 +31,20 @@ STATS_COLUMNS = ['mean', 'ci_u', 'ci_l', 'se', 'count', 'sample_size']
 logger = log.getLogger()
 
 
-def resolve_database_table(tbl, dbc):
+def resolve_database_table(dsid, part, dbc):
+    tbl = DBTBL_FMT.format(dsid=dsid, part=part.value)
     ngin = sa.create_engine(dbc.uri)
     db = bz.data(ngin)
     t = db[tbl]
     nrow = t.count()
-    shp = datashape.dshape(str(t.dshape).replace('var', str(nrow)))
-    return bz.data(t, dshape=shp)
+    shp = datashape.dshape(str(t.dshape).replace('var', str(int(nrow))))
+    return t  #bz.data(t, dshape=shp)
 
 
 def get_datafile_path(dsid, part, cdir):
     return os.path.join(cdir,
-                        DSFILE_FMT.format(dsid=dsid, part=part, 
-                                          type=DatasetFileType.FEATHER))
+                        DSFILE_FMT.format(dsid=dsid, part=part.value, 
+                                          type=DatasetFileType.FEATHER.value))
 
 
 def map_with_dict(d, val):
@@ -61,12 +65,12 @@ class SurveyMeta(object):
     facets = typed(pd.DataFrame)
 
     @classmethod
-    def load_metadata(cls, cfg):
+    def load_metadata(cls, cfg, cdir):
         dsid = cfg.id
-        qn_f = get_datafile_path(dsid, DatasetPart.SCHEMA)
+        qn_f = get_datafile_path(dsid, DatasetPart.SCHEMA, cdir)
         qns = feather.read_dataframe(qn_f)
         qns.index = qns.qid
-        facets_f = dbc.get_filepath(dsid, DatasetPart.FACETS)
+        facets_f = get_datafile_path(dsid, DatasetPart.FACETS, cdir)
         facets = feather.read_dataframe(facets_f)
         return cls(qns=qns, facets=facets)
 
@@ -74,6 +78,7 @@ class SurveyMeta(object):
 @attr.s(slots=True, frozen=True)
 class SurveyDataset(object):
 
+    dsid = typed(str)
     cfg = typed(DatasetConfig)
     dbc = typed(Optional[DatabaseConfig])
     cdir = typed(Path)
@@ -81,24 +86,26 @@ class SurveyDataset(object):
     soc = typed(Optional[bz.interactive._Data])
     svy = typed(Optional[bz.interactive._Data])
     des = typed(Optional[rpy2.robjects.vectors.ListVector])
-
+    mapper = typed(Optional[Union[types.FunctionType,types.LambdaType]])
     @classmethod
-    def load_dataset(cls, cfg_f, dbc, cdir):
+    def load_dataset(cls, cfg_f, dbc, cdir, init_des=False):
         # given a config file and blaze data handle,
         # work some magic
-        cfg = DatabaseConfig.from_yaml(cfg_f) 
-        id = cfg.id
-        meta = SurveyMeta.load_metadata(cfg)
-        svytbl = dbc[TMPL_SVYTBL.format(id=id)]
-        soctbl = resolve_db_url(TMPL_SOCFTH.format(id=id))
-        logger.info('set up urls for svytbl, soctbl', id)
+        cfg = DatasetConfig.from_yaml(cfg_f)
+        dsid = cfg.id
+        meta = SurveyMeta.load_metadata(cfg, cdir)
+        svytbl = feather.read_dataframe(get_datafile_path(dsid, DatasetPart.SURVEYS, cdir))
+        soctbl = feather.read_dataframe(get_datafile_path(dsid, DatasetPart.SOCRATA, cdir))
+        #svytbl = resolve_database_table(dsid, DatasetPart.SURVEYS, dbc) 
+        #soctbl = resolve_database_table(dsid, DatasetPart.SOCRATA, dbc) 
+        logger.info('set up urls for svytbl, soctbl', dsid)
         # des = des_from_survey_db(id+'_surveys', db='survey', host='127.0.0.1', port=50000, denovo=True)
         # year is a reserved keyword in monetdb so work around
         # mapper = curry(map_with_dict)({'year':'yr'})
         # des = des_from_survey_df(id+'_surveys', db='survey', host='127.0.0.1', port=50000, denovo=True)
-        des = des_from_feather('cache/'+id+'_surveys.feather', denovo=cfg.surveys.denovo_strata)
+        des = des_from_feather('cache/'+dsid+'_surveys.feather', denovo=cfg.surveys.denovo_strata) if init_des else None
         mapper = identity
-        return cls(cfg=cfg, dbc=dbc, cdir=cdir, meta=meta, svy=svytbl, soc=soctbl, des=des, mapper=mapper)
+        return cls(dsid=dsid, cfg=cfg, dbc=dbc, cdir=cdir, meta=meta, svy=svytbl, soc=soctbl, des=des, mapper=mapper)
 
     def fetch_socrata(self, qn, vars, filt={}):
         vars = self.mapper(vars)

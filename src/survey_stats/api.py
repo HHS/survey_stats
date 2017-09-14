@@ -126,12 +126,12 @@ async def fetch_survey_stats(req):
     })
 
 
-def setup_app(dbc, cache, stats_svc, sanic_timeout):
+def setup_app(dbc, cache_dir, stats_svc, sanic_timeout):
     app.config.dbc = dbc
     app.config.cache = cache_dir
     app.config.stats_svc = stats_svc
     app.config.sanic_timeout = sanic_timeout
-    st.initialize(dbc, cache)
+    st.initialize(dbc, cache_dir)
     return app
 
 

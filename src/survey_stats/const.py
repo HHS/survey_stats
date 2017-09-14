@@ -5,7 +5,8 @@ KB = 1024
 MB = KB * KB
 
 DBURI_FMT = '{dbtype}://{user}:{password}@{host}:{port}/{dbname}'
-DSFILE_FMT = '{id}_{part}.{type}'
+DBTBL_FMT = '{dsid}_{part}'
+DSFILE_FMT = '{dsid}_{part}.{type}'
 
 DEFAULT_CACHE_DIR = 'cache'
 DEFAULT_SVY_API_HOST = '0.0.0.0'
@@ -25,7 +26,7 @@ MAX_NUM_WORKERS = int(cpu_count() * 4.0)  # try to keep this sane for platform
 MAX_NUM_THREADS = int(cpu_count() * 4.0)  # try to keep this sane
 MAX_REQ_TIMEOUT = 60 * 10  # ten minutes is a long time for a req to return
 
-CLICK_TCP_PORT = click.IntRange(min=1, max=2^16-1, clamp=False)
+CLICK_TCP_PORT = click.IntRange(min=1, max=2**16-1, clamp=False)
 CLICK_DIR_PATH = click.Path(exists=True, file_okay=False)
 CLICK_FILE_PATH = click.Path(exists=True, dir_okay=False)
 CLICK_NUM_WORKERS = click.IntRange(min=1, max=MAX_NUM_WORKERS, clamp=True)
