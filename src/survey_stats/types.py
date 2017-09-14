@@ -30,7 +30,7 @@ class SurveyConfig(object):
     na_synonyms = typed(Sequence[str])
     replace_labels = typed(Mapping[T, T])
     rename_cols = typed(Optional[Callable[[T], T]])
- 
+
 
 @attr.s(slots=True, frozen=True)
 class SocrataConfig(object):
@@ -52,17 +52,17 @@ class DatasetConfig(object):
     surveys = typed(SurveyConfig)
     socrata = typed(SocrataConfig)
 
-
-def load_config_from_yaml(yaml_f):
-    with open(yaml_f) as fh:
-        y = yaml.load(fh)
-        y['surveys']['meta'] = pd.DataFrame(
-            y['surveys']['meta']['rows'],
-            columns=y['surveys']['meta']['cols']
+    @classmethod
+    def from_yaml(cls, yaml_f):
+        with open(yaml_f) as fh:
+            y = yaml.load(fh)
+            y['surveys']['meta'] = pd.DataFrame(
+                y['surveys']['meta']['rows'],
+                columns=y['surveys']['meta']['cols']
+            )
+        cfg = thread_first(
+            y,
+            (assoc, 'socrata', SocrataConfig(**y['socrata'])),
+            (assoc, 'surveys', SurveyConfig(**y['surveys']))
         )
-    cfg = thread_first(
-        y,
-        (assoc, 'socrata', SocrataConfig(**y['socrata'])),
-        (assoc, 'surveys', SurveyConfig(**y['surveys']))
-    )
-    return DatasetConfig(**cfg)
+        return cls(**cfg)

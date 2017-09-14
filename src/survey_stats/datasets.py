@@ -2,34 +2,45 @@ import blaze as bz
 import feather
 import pandas as pd
 import numpy as np
+import rpy2
 from cytoolz.itertoolz import remove
 from cytoolz.curried import map
 from cytoolz.functoolz import identity
 from cytoolz.dicttoolz import keymap
 from collections import namedtuple
 from survey_stats import log
-from survey_stats.types import load_config_from_yaml
 from survey_stats.survey import fetch_stats, des_from_survey_db, subset_survey
 from survey_stats.survey import fetch_stats_by, fetch_stats_totals, des_from_feather
 from survey_stats import pdutil as u
+from survey_stats.const import DSFILE_FMT
+from survey_stats.types import DatasetConfig
+from survey_stats.dbi import DatabaseConfig, DatasetPart, DatasetFileType
 from rpy2.robjects import Formula
-TMPL_METAF = 'cache/{id}.schema.feather'
-TMPL_FCTF = 'cache/{id}.facets.feather'
-TMPL_SOCTBL = '{id}_socrata'
-TMPL_SVYTBL = '{id}_surveys'
-TMPL_SVYFTH = 'cache/{id}_surveys.feather'
-TMPL_SOCFTH = 'cache/{id}_socrata.feather'
-
+import attr
+import cattr
+import datashape
+from cattr import typed
+from pathlib import Path
+from typing import Union, Optional
 
 STATS_COLUMNS = ['mean', 'ci_u', 'ci_l', 'se', 'count', 'sample_size']
 
 logger = log.getLogger()
 
 
-def resolve_db_url(url):
-    return (feather.read_dataframe(url) if
-            url.endswith('.feather') else
-            bz.data(url))
+def resolve_database_table(tbl, dbc):
+    ngin = sa.create_engine(dbc.uri)
+    db = bz.data(ngin)
+    t = db[tbl]
+    nrow = t.count()
+    shp = datashape.dshape(str(t.dshape).replace('var', str(nrow)))
+    return bz.data(t, dshape=shp)
+
+
+def get_datafile_path(dsid, part, cdir):
+    return os.path.join(cdir,
+                        DSFILE_FMT.format(dsid=dsid, part=part, 
+                                          type=DatasetFileType.FEATHER))
 
 
 def map_with_dict(d, val):
@@ -43,29 +54,39 @@ def map_with_dict(d, val):
         return keymap(repl_f, val)
 
 
-class SurveyMeta(namedtuple('SurveyMeta', ['qns', 'facets'])):
-    __slots__ = ()
+@attr.s(slots=True, frozen=True)
+class SurveyMeta(object):
+    
+    qns = typed(pd.DataFrame)
+    facets = typed(pd.DataFrame)
 
     @classmethod
     def load_metadata(cls, cfg):
-        id = cfg.id
-        qn_f = TMPL_METAF.format(id=id)
+        dsid = cfg.id
+        qn_f = get_datafile_path(dsid, DatasetPart.SCHEMA)
         qns = feather.read_dataframe(qn_f)
         qns.index = qns.qid
-        facets_f = TMPL_FCTF.format(id=id)
+        facets_f = dbc.get_filepath(dsid, DatasetPart.FACETS)
         facets = feather.read_dataframe(facets_f)
         return cls(qns=qns, facets=facets)
 
 
-class SurveyDataset(namedtuple('SurveyDataset',
-                               ['cfg', 'meta', 'soc', 'svy', 'des', 'mapper'])):
-    __slots__ = ()
+@attr.s(slots=True, frozen=True)
+class SurveyDataset(object):
+
+    cfg = typed(DatasetConfig)
+    dbc = typed(Optional[DatabaseConfig])
+    cdir = typed(Path)
+    meta = typed(SurveyMeta)
+    soc = typed(Optional[bz.interactive._Data])
+    svy = typed(Optional[bz.interactive._Data])
+    des = typed(Optional[rpy2.robjects.vectors.ListVector])
 
     @classmethod
-    def load_dataset(cls, cfg_f, dbc):
+    def load_dataset(cls, cfg_f, dbc, cdir):
         # given a config file and blaze data handle,
         # work some magic
-        cfg = load_config_from_yaml(cfg_f)
+        cfg = DatabaseConfig.from_yaml(cfg_f) 
         id = cfg.id
         meta = SurveyMeta.load_metadata(cfg)
         svytbl = dbc[TMPL_SVYTBL.format(id=id)]
@@ -77,7 +98,7 @@ class SurveyDataset(namedtuple('SurveyDataset',
         # des = des_from_survey_df(id+'_surveys', db='survey', host='127.0.0.1', port=50000, denovo=True)
         des = des_from_feather('cache/'+id+'_surveys.feather', denovo=cfg.surveys.denovo_strata)
         mapper = identity
-        return cls(cfg=cfg, meta=meta, svy=svytbl, soc=soctbl, des=des, mapper=mapper)
+        return cls(cfg=cfg, dbc=dbc, cdir=cdir, meta=meta, svy=svytbl, soc=soctbl, des=des, mapper=mapper)
 
     def fetch_socrata(self, qn, vars, filt={}):
         vars = self.mapper(vars)

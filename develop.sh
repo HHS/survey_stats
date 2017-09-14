@@ -12,26 +12,42 @@ setup_miniconda (){
     export PATH="$HOME/miniconda/bin:$PATH"
 }
 
-conda
+install (){
+    conda
+    if [ $? -eq 0 ]; then
+        echo "found miniconda, skipping the install..."
+    else
+        echo "couldn't find miniconda on the path, installing..."
+        setup_miniconda
+    fi
 
-if [ $? -eq 0 ]; then
-    echo "found miniconda, skipping the install..."
+    CURDIR=`pwd`
+
+    echo "update conda and add intel channel"
+    conda update -q conda
+    conda info -a
+
+    echo "create conda env with intel python 3.6 and gnu r 3.4.1"
+    conda create -p venv python=3.6 r-base=3.4.1 pandas scikit-learn cython r-feather libiconv r-survival r-dbi
+
+    echo "activate the env and install package and dev requirements with pip"
+    source activate $CURDIR/venv
+    pip install -r requirements-dev.txt
+    pip install -e .
+}
+
+if [ ! -f .develop.lock ]; then
+    echo "setting up development environment..."
+    install
+    survey_stats
+    if [ $? -eq 0 ]; then
+        echo "environment ready!"
+        touch .develop.lock
+    fi
 else
-    echo "couldn't find miniconda on the path, installing..."
-    setup_miniconda
+    echo "environment exists, getting it ready..."
+    CURDIR=`pwd`
+    export PATH="$HOME/miniconda/bin:$PATH"
+    source activate "$CURDIR/venv"
+    echo "environment ready!"
 fi
-
-CURDIR=`pwd`
-
-echo "update conda and add intel channel"
-conda update -q conda
-conda info -a
-
-echo "create conda env with intel python 3.6 and gnu r 3.4.1"
-conda create -p venv python=3.6 r-base=3.4.1 pandas scikit-learn cython r-feather libiconv r-survival r-dbi
-
-echo "activate the env and install package and dev requirements with pip"
-source activate $CURDIR/venv
-pip install -r requirements-dev.txt
-pip install -e .
-

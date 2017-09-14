@@ -29,7 +29,10 @@ RUN apt-get update && apt-get install -y curl gcc \
     && mkdir -p /app
 
 WORKDIR /app
-COPY . /app
+COPY ./src /app/src
+COPY ./config /app/config
+COPY ./tests /app/tests
+
 
 RUN pip install --no-cache-dir -e . \
     && apt-get purge --auto-remove -y gcc g++ make gfortran \

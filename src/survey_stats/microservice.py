@@ -122,13 +122,11 @@ class StatsResource:
         resp.status = falcon.HTTP_200
         resp.body = json.dumps(result)
 
-def setup_app(db_conf):
-    global db_cfg
+def setup_app(dbc, cache):
     app = falcon.API()
     app.add_route('/stats', StatsResource())
     app.add_route('/', HealthResource())
-    db_cfg = db_conf
-    st.initialize()
+    st.initialize(dbc, cache)
     return app
 
 

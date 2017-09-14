@@ -1,139 +1,182 @@
-"""
-Module that contains the command line app.
-
-Why does this file exist, and why not put this in __main__?
-
-You might be tempted to import things from __main__ later, but that will cause
-problems: the code will get executed twice:
-
-- When you run `python -msurvey_stats` python will execute
-``__main__.py`` as a script. That means there won't be any
-``survey_stats.__main__`` in ``sys.modules``.
-- When you import __main__ it will get executed again (as a module) because
-there's no ``survey_stats.__main__`` in ``sys.modules``.
-
-Also see (1) from http://click.pocoo.org/5/setuptools/#setuptools-integration
-"""
-
-import os
-import yaml
-import argparse
-import multiprocessing
+import click
+import functools
+import survey_stats
+from survey_stats.dbi import DatabaseConfig, DatabaseType
+from survey_stats import api
+from survey_stats import microservice
+from survey_stats.const import *
 from survey_stats import log
-import tarfile as tf
-from survey_stats.etl.load import restore_data
-import urllib.request
 
 logger = log.getLogger('cli')
 
-DEFAULT_NUM_WORKERS = int(multiprocessing.cpu_count() / 2.0)
 
-parser = argparse.ArgumentParser(description='Unified Survey Stats Repository')
-subparsers = parser.add_subparsers()
-
-parser_serve = subparsers.add_parser('serve')
-parser_serve.add_argument('--host', default=os.environ.get('HOST', '0.0.0.0'),
-                          help='interface to bind API service, default: 0.0.0.0')
-parser_serve.add_argument('--port', type=int, default=os.environ.get('PORT', 7777),
-                          help='port for API service, default: 7777')
-parser_serve.add_argument('--processes', type=int, default=DEFAULT_NUM_WORKERS,
-                          help='number of processes to use for server, default: num_cores/2')
-parser_serve.add_argument('--stats_uri', type=str, default='http://localhost:7788',
-                          help='stats worker uri, default: http://localhost:7788')
-parser_serve.add_argument('--db_conf', type=argparse.FileType('r'),
-                          help='database connection info yaml, default: config/db-default.yaml')
-parser_serve.add_argument('--debug', action='store_true',
-                          help='turn on debug mode, default: False')
-
-parser_prole = subparsers.add_parser('work')
-parser_prole.add_argument('--host', default=os.environ.get('HOST', '0.0.0.0'),
-						  help='interface to bind API service, default: 0.0.0.0')
-parser_prole.add_argument('--port', type=int, default=os.environ.get('PORT', 7788),
-        				  help='port for API service, default: 7788')
-parser_prole.add_argument('--workers', type=int, default=DEFAULT_NUM_WORKERS,
-        				  help='number of worker processes, default: num_cores/2')
-parser_prole.add_argument('--db_conf', type=argparse.FileType('r'),
-                          help='database connection info yaml, default: config/db-default.yaml')
-parser_prole.add_argument('--max-requests', type=int, default=0,
-        				  help='requests to prole per worker before respawn, default: 1000')
-parser_prole.add_argument('--max-requests-jitter', type=int, default=0,
-        				  help='max jitter to add to max requests, default: 3')
-parser_prole.add_argument('--debug', action='store_true',
-                          help='turn on debug mode, default: False')
-parser_prole.add_argument('--timeout', type=int, default=600,
-        				  help='worker request timeout in seconds, default: 600')
+def resolve_db_args(db_host, db_port, db_type,
+                    db_user, db_password, db_name, db_config):
+    db_type = DatabaseType(db_type)
+    dbc = DatabaseConfig(host=db_host, port=db_port,
+                         type=DatabaseType(db_type), user=db_user,
+                         password=db_password, name=db_name)
+    if db_config:
+        dbc = DatabaseConfig.from_yaml(db_config)
+    return dbc
 
 
-def default_action(args):
-    parser.print_help()
+def database_params(func):
+    @click.option('-c', '--cache-dir', type=CLICK_DIR_PATH,
+                  default=DEFAULT_CACHE_DIR,
+                  help='directory with data files default:cache')
+    @click.option('-C', '--db-config', type=CLICK_FILE_PATH,
+                  help='database config yaml, takes priority')
+    @click.option('-H', '--db-host', type=click.STRING,
+                  envvar='SVY_DBHOST', default='localhost',
+                  help='hostname/ip for database')
+    @click.option('-P', '--db-port', type=CLICK_TCP_PORT,
+                  envvar='SVY_DBPORT', default=50000,
+                  help='database host port')
+    @click.option('-T', '--db-type', type=click.Choice([t.value for
+                                                        t in DatabaseType]),
+                  envvar='SVY_DBTYPE', default='monetdb',
+                  help='host database ip:port or sqlalchemy uri')
+    @click.option('-U', '--db-user', type=click.STRING, envvar='SVY_DBUSER',
+                  default='monetdb', help='database user, default: monetdb')
+    @click.option('-p', '--db-password', envvar='SVY_DBPASSWORD', prompt=True,
+                  hide_input=True, default='monetdb', type=click.STRING,
+                  help='database password, default: monetdb')
+    @click.option('-D', '--db-name', type=click.STRING, envvar='SVY_DBNAME',
+                  default='survey', help='database name, default: survey')
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
 
 
-def serve_api(args):
+def gunicorn_params(func):
+    @click.option('-w', '--workers', type=CLICK_NUM_WORKERS,
+                  default=DEFAULT_NUM_WORKERS,
+                  envvar='WEB_CONCURRENCY',
+                  help='number of workers for server, ' +
+                       'default: %d' % DEFAULT_NUM_WORKERS)
+    @click.option('-x', '--threads', type=CLICK_NUM_THREADS,
+                  default=DEFAULT_NUM_THREADS,
+                  envvar='GUNICORN_WORKER_THREADS',
+                  help='number of threads/worker for server, ' +
+                       'default: %d' % DEFAULT_NUM_WORKERS)
+    @click.option('-u', '--timeout', type=CLICK_TIMEOUT,
+                  default=DEFAULT_REQ_TIMEOUT,
+                  envvar='GUNICORN_TIMEOUT',
+                  help='gunicorn worker timeout in seconds, ' +
+                       'default: %d' % DEFAULT_REQ_TIMEOUT)
+    @click.option('--max-requests', type=int,
+                  default=DEFAULT_MAX_REQUESTS,
+                  envvar='GUNICORN_MAX_REQUESTS',
+                  help='requests/worker before respawn, ' +
+                       'default: %d' % DEFAULT_MAX_REQUESTS)
+    @click.option('--max-requests-jitter', type=click.INT,
+                  default=DEFAULT_MAX_REQUESTS_JITTER,
+                  envvar='GUNICORN_MAX_JITTER',
+                  help='max jitter to add to max requests, ' +
+                       'default: %d' % DEFAULT_MAX_REQUESTS_JITTER)
+    @click.option('-n', '--worker-connections', type=click.INT,
+                  default=DEFAULT_MAX_WORKER_CONNS,
+                  envvar='GUNICORN_WORKER_CONNECTIONS',
+                  help='gunicorn max worker connections, ' +
+                       'default: %d' % DEFAULT_MAX_WORKER_CONNS)
+    @click.option('--debug', type=click.BOOL, default=False,
+                  help='turn on debug mode, default: False')
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        return func(*args, **kwargs)
+    return wrapper
+
+
+@click.group()
+def cli():
+    click.echo('survey_stats %s' % survey_stats.__version__)
+
+
+@database_params
+@gunicorn_params
+@click.option('-h', '--host', envvar='SVY_SERVER_HOST',
+              default=DEFAULT_SVY_API_HOST,
+              help='interface to bind API service, default: 0.0.0.0')
+@click.option('-p', '--port', type=int, envvar='SVY_SERVER_PORT',
+              default=DEFAULT_SVY_API_PORT,
+              help='port for API service, default: 7777')
+@click.option('-d', '--data-url', type=int, envvar='SVY_DATA_URL',
+              help='data archive url for source data files')
+@click.option('-u', '--sanic-timeout', type=int,
+              default=60, envvar='SANIC_REQUEST_TIMEOUT',
+              help='sanic request timeout in seconds, default: 60')
+@click.option('-W', '--stats-worker', type=str,
+              default='http://localhost:7788',
+              help='stats worker uri, default: http://localhost:7788')
+@cli.command()
+def serve(cache_dir, db_config, db_host, db_port, db_type, db_user,
+          db_password, db_name, workers, threads, timeout, max_requests,
+          max_requests_jitter, worker_connections, debug, host, port,
+          data_url, sanic_timeout, stats_worker):
     from survey_stats.server import APIServer
     from survey_stats.api import setup_app
-    dbc = args.db_conf if args.db_conf else open('config/db-default.yaml')
-    dbconf = yaml.load(dbc)
-    dbc.close()
-    def_url = 'monetdb://monetdb:monetdb@localhost/survey'
-    dburl = os.getenv('DBURL', def_url)
-
-    if not os.path.isfile('.cache.lock'):
-        # need to download data and setup db
-        data_f = "https://s3.amazonaws.com/cdc-survey-data/cache-04Sep2017.tgz"
-        logger.info('fetching data cache', url=data_f)
-        urllib.request.urlretrieve(data_f, './cache.tar.gz')
-        dat = tf.open('cache.tar.gz', mode='r:gz')
-        dat.extractall('.')
-        logger.info('extracted data cache, now setting up dbs')
-        restore_data(dburl)
 
     options = {
-        'bind': '%s:%s' % (args.host, str(args.port)),
-        'db_conf': dbconf,
-        'stats_svc': args.stats_uri,
-        'worker_class': "sanic.worker.GunicornWorker",
-        'workers': args.processes,
-        'timeout': 5000,
-        'debug': args.debug
-        #'when_ready': boot_when_ready
+        'bind': '%s:%s' % (host, str(port)),
+        'worker_class': 'sanic.worker.GunicornWorker',
+        'workers': workers,
+        'max_requests': max_requests,
+        'max_requests_jitter': max_requests_jitter,
+        'worker_connections': worker_connections,
+        'timeout': timeout,
+        'debug': debug
     }
+
     api = setup_app(
-        db_conf=options['db_conf'],
-        stats_svc=options['stats_svc'])
+        dbc=resolve_db_args(db_host, db_port, db_type, db_user,
+                            db_password, db_name, db_config),
+        cache=cache_dir,
+        stats_svc=stats_svc,
+        sanic_timeout=sanic_timeout,
+        debug=debug)
     APIServer(api, options).run()
 
 
-def serve_workers(args):
+@database_params
+@gunicorn_params
+@click.option('-h', '--host', envvar='SVY_WORKER_HOST',
+              default=DEFAULT_SVY_WORKER_HOST,
+              help='interface to bind work service, default: 0.0.0.0')
+@click.option('-p', '--port', type=int, envvar='SVY_WORKER_PORT',
+              default=DEFAULT_SVY_WORKER_PORT,
+              help='port for worker service, default: 7788')
+@cli.command()
+def work(cache_dir, db_config, db_host, db_port, db_type, db_user,
+         db_password, db_name, workers, threads, timeout,
+         max_requests, max_requests_jitter, worker_connections,
+         debug, host, port):
     from survey_stats.server import APIServer
     from survey_stats.microservice import setup_app
+
     dbc = args.db_conf if args.db_conf else open('config/db-default.yaml')
     dbconf = yaml.load(dbc)
     dbc.close()
     options = {
-        'bind': '%s:%s' % (args.host, str(args.port)),
-        'db_conf': dbconf,
-        'workers': args.workers,
-        'max_requests': args.max_requests,
-        'max_requests_jitter': args.max_requests_jitter,
-        'debug': args.debug
-        #'when_ready': boot_when_ready
+        'bind': '%s:%s' % (host, str(port)),
+        'worker_class': 'gevent',
+        'workers': workers,
+        'max_requests': max_requests,
+        'max_requests_jitter': max_requests_jitter,
+        'worker_connections': worker_connections,
+        'timeout': timeout,
+        'debug': debug
     }
-    app = setup_app(db_conf=options['db_conf'])
+    app = setup_app(
+        dbc=resolve_db_args(db_host, db_port, db_type, db_user,
+                            db_password, db_name, db_config),
+        cache=cache_dir,
+        stats_svc=stats_svc,
+        sanic_timeout=sanic_timeout,
+        debug=debug)
     APIServer(app, options).run()
 
 
-
-
-parser_process = subparsers.add_parser('load')
-parser_serve.add_argument('--dataset', default='brfss',
-                          help='dataset to process, default: brfss')
-parser_serve.add_argument('--db', type=argparse.FileType('r'),
-                          help='database connection info yaml, default: config/db-default.yaml')
-parser_serve.set_defaults(func=serve_api)
-parser_prole.set_defaults(func=serve_workers)
-parser.set_defaults(func=default_action)
-
-
 def main(args=None):
-    args = parser.parse_args(args=args)
-    args.func(args)
+    cli()

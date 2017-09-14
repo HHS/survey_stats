@@ -21,3 +21,4 @@ cattrs>=0.4.0
 cachey==0.1.1
 click==6.7
 s3fs==0.1.2
+filelock==2.0.12

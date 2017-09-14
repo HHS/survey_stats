@@ -140,12 +140,12 @@ def process_dataset(yaml_f):
     logger.info('created schema for socrata')
     qns.to_feather(schema_f)
     facs.to_feather(facets_f)
-    '''
     svydf = load_survey_data(cfg, client)
     ksvy = serdes.surveys_key4id(cfg.id)
     logger.info('saving survey data to feather', name=ksvy)
     svydf.to_feather('cache/'+ksvy+'.feather')
     logger.info('saved survey data to feather', name=ksvy)
+    '''
     setup_tables(cfg, default_sql_conn)
     logger.unbind('dataset')
 
@@ -170,4 +170,4 @@ if __name__ == '__main__':
     # cache.register()
     dask.set_options(get=dask.threaded.get, pool=ThreadPool())
     configs = map(lambda x: os.path.join(os.listdir('config/data')))
-    process_dataset('config/data/yrbss.yaml')
+    process_dataset('config/data/brfss.yaml')
