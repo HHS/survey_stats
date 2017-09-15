@@ -8,6 +8,7 @@ from rpy2.robjects import Formula
 from survey_stats.helpr import svyciprop_yrbs, svybyci_yrbs, subset_des_wexpr
 from survey_stats.helpr import filter_survey_var
 from survey_stats import pdutil as u
+from survey_stats.const import DECIMALS
 from survey_stats import log
 from dask import delayed
 import asyncio
@@ -19,13 +20,6 @@ rsvy = importr('survey')
 
 rfeather = importr('feather', on_conflict='warn')
 rmonet = importr('MonetDB.R')
-
-DECIMALS = {
-    'mean': 4,
-    'se': 4,
-    'ci_l': 4,
-    'ci_u': 4
-}
 
 logger = log.getLogger()
 

@@ -143,9 +143,6 @@ def work(cache_dir, db_config, db_host, db_port, db_type, db_user, db_password, 
     from survey_stats.server import APIServer
     from survey_stats.microservice import setup_app
 
-    dbc = args.db_conf if args.db_conf else open('config/db-default.yaml')
-    dbconf = yaml.load(dbc)
-    dbc.close()
     options = {
         'bind': '%s:%s' % (host, str(port)),
         'worker_class': 'gevent',
@@ -159,10 +156,7 @@ def work(cache_dir, db_config, db_host, db_port, db_type, db_user, db_password, 
     app = setup_app(
         dbc=resolve_db_args(db_host, db_port, db_type, db_user,
                             db_password, db_name, db_config),
-        cache=cache_dir,
-        stats_svc=stats_svc,
-        sanic_timeout=sanic_timeout,
-        debug=debug)
+        cache=cache_dir)
     APIServer(app, options).run()
 
 

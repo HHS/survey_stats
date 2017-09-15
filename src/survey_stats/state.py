@@ -10,7 +10,7 @@ meta = {}
 dset = {}
 
 
-def initialize(dbc, cache):
+def initialize(dbc, cache, init_des=False):
     lgr.info('was summoned into being, loading up some data', dbc=dbc, cache=cache)
-    dset['brfss'] = SurveyDataset.load_dataset('config/data/brfss.yaml', dbc, cache)
-    dset['yrbss'] = SurveyDataset.load_dataset('config/data/yrbss.yaml', dbc, cache)
+    dset['brfss'] = SurveyDataset.load_dataset('config/data/brfss.yaml', dbc, cache, init_des)
+    dset['yrbss'] = SurveyDataset.load_dataset('config/data/yrbss.yaml', dbc, cache, init_des)

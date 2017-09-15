@@ -4,6 +4,15 @@ import click
 KB = 1024
 MB = KB * KB
 
+DECIMALS = {
+    'mean': 4,
+    'se': 4,
+    'ci_l': 4,
+    'ci_u': 4,
+    'sample_size': 0,
+    'count': 0
+}
+
 DBURI_FMT = '{dbtype}://{user}:{password}@{host}:{port}/{dbname}'
 DBTBL_FMT = '{dsid}_{part}'
 DSFILE_FMT = '{dsid}_{part}.{type}'

@@ -1,15 +1,22 @@
 import os
 import blaze as bz
+from odo import odo
 import feather
 import pandas as pd
 import numpy as np
 import rpy2
 import sqlalchemy as sa
+from rpy2.robjects import Formula
+import types
+import attr
+import datashape
+from cattr import typed
+from pathlib import Path
+from typing import Union, Optional
 from cytoolz.itertoolz import remove
-from cytoolz.curried import map
+from cytoolz.curried import map, curry
 from cytoolz.functoolz import identity
 from cytoolz.dicttoolz import keymap
-from collections import namedtuple
 from survey_stats import log
 from survey_stats.survey import fetch_stats, des_from_survey_db, subset_survey
 from survey_stats.survey import fetch_stats_by, fetch_stats_totals, des_from_feather
@@ -17,14 +24,7 @@ from survey_stats import pdutil as u
 from survey_stats.const import DSFILE_FMT, DBTBL_FMT
 from survey_stats.types import DatasetConfig
 from survey_stats.dbi import DatabaseConfig, DatasetPart, DatasetFileType
-from rpy2.robjects import Formula
-import types
-import attr
-import cattr
-import datashape
-from cattr import typed
-from pathlib import Path
-from typing import Union, Optional
+from survey_stats.const import DECIMALS
 
 STATS_COLUMNS = ['mean', 'ci_u', 'ci_l', 'se', 'count', 'sample_size']
 
@@ -87,6 +87,7 @@ class SurveyDataset(object):
     svy = typed(Optional[bz.interactive._Data])
     des = typed(Optional[rpy2.robjects.vectors.ListVector])
     mapper = typed(Optional[Union[types.FunctionType,types.LambdaType]])
+
     @classmethod
     def load_dataset(cls, cfg_f, dbc, cdir, init_des=False):
         # given a config file and blaze data handle,
@@ -94,17 +95,19 @@ class SurveyDataset(object):
         cfg = DatasetConfig.from_yaml(cfg_f)
         dsid = cfg.id
         meta = SurveyMeta.load_metadata(cfg, cdir)
-        svytbl = feather.read_dataframe(get_datafile_path(dsid, DatasetPart.SURVEYS, cdir))
-        soctbl = feather.read_dataframe(get_datafile_path(dsid, DatasetPart.SOCRATA, cdir))
-        #svytbl = resolve_database_table(dsid, DatasetPart.SURVEYS, dbc) 
-        #soctbl = resolve_database_table(dsid, DatasetPart.SOCRATA, dbc) 
-        logger.info('set up urls for svytbl, soctbl', dsid)
-        # des = des_from_survey_db(id+'_surveys', db='survey', host='127.0.0.1', port=50000, denovo=True)
-        # year is a reserved keyword in monetdb so work around
-        # mapper = curry(map_with_dict)({'year':'yr'})
-        # des = des_from_survey_df(id+'_surveys', db='survey', host='127.0.0.1', port=50000, denovo=True)
-        des = des_from_feather('cache/'+dsid+'_surveys.feather', denovo=cfg.surveys.denovo_strata) if init_des else None
-        mapper = identity
+        use_db = False  # True if dbc is not None else False 
+        if use_db:
+            svytbl = resolve_database_table(dsid, DatasetPart.SURVEYS, dbc) 
+            soctbl = resolve_database_table(dsid, DatasetPart.SOCRATA, dbc) 
+            # year is a reserved keyword in monetdb so work around
+            mapper = curry(map_with_dict)({'year':'yr'})
+            tbl = DBTBL_FMT.format(dsid=dsid, part=DatasetPart.SURVEYS.value)
+            des = des_from_survey_db(tbl, db=dbc.name, host=dbc.host, port=dbc.port, denovo=cfg.surveys.denovo_strata) if init_des else None
+        else:
+            svytbl = bz.data(feather.read_dataframe(get_datafile_path(dsid, DatasetPart.SURVEYS, cdir)))
+            soctbl = bz.data(feather.read_dataframe(get_datafile_path(dsid, DatasetPart.SOCRATA, cdir)))
+            mapper = identity
+            des = des_from_feather(get_datafile_path(dsid, DatasetPart.SURVEYS, cdir), denovo=cfg.surveys.denovo_strata) if init_des else None
         return cls(dsid=dsid, cfg=cfg, dbc=dbc, cdir=cdir, meta=meta, svy=svytbl, soc=soctbl, des=des, mapper=mapper)
 
     def fetch_socrata(self, qn, vars, filt={}):
@@ -112,29 +115,32 @@ class SurveyDataset(object):
         filt = self.mapper(filt)
         sel = None
         df = self.soc
-        fcts = list(set(self.cfg.facets).intersection(df.columns))
+        fcts = list(set(self.cfg.facets).intersection(df.fields))
         sel = df['qid'] == qn
-        if 'sitecode' in filt.keys():
-            sel = sel & df.sitecode.isin(filt['sitecode'])
-        elif 'sitecode' not in vars:
-            sel = sel & (df['sitecode'] == 'XX')
-        if 'year' in filt.keys():
-            sel = sel & df.year.isin(filt['year'])
-        elif 'year' not in vars:
-            sel = sel & (df['year'] == 'Total')
+        site_col = self.mapper('sitecode')
+        year_col = self.mapper('year')
+        if site_col in filt.keys():
+            sel = sel & df[site_col].isin(filt[site_col])
+        elif site_col not in vars:
+            sel = sel & (df[site_col] == 'XX')
+        if year_col in filt.keys():
+            sel = sel & df[year_col].isin(filt[year_col])
+        elif year_col not in vars:
+            sel = sel & (df[year_col] == 'Total')
         for v in fcts:
             if v in filt.keys():
                 sel = sel & df[v].isin(filt[v])
             elif v not in vars:
                 sel = sel & (df[v] == 'Total')
-        cols = set(['qid', 'response', 'sitecode', 'year']).union(vars).union(STATS_COLUMNS).intersection(df.columns)
+        cols = set(['qid', 'response', 'sitecode', 'year']).union(vars).union(STATS_COLUMNS).intersection(df.fields)
         cols = list(cols)
-        dfz = df[sel][cols]
+        dfz = odo(df[sel][cols], pd.DataFrame)
         stats_sub = list(set(STATS_COLUMNS).intersection(dfz.columns))
         dfz[stats_sub] = dfz[stats_sub].apply(
-            lambda xf: xf.astype(float).replace(-1.0, np.nan))
+            lambda xf: xf.astype(float).replace(-1.0, np.nan)
+        )
         # logger.info('done filtering, replacing NaNs', dfz=dfz)
-        return u.fill_none(dfz.reset_index(drop=True))
+        return u.fill_none(dfz.round(DECIMALS).reset_index(drop=True))
 
     def facets(self):
         return self.cfg.facets
@@ -144,8 +150,8 @@ class SurveyDataset(object):
                         .cat.categories) for k in self.facets}
 
     def responses_for_qn(self, qn):
-        return remove(lambda x: x[0] is None,
-                      self.svy[qn].distinct())
+        r = odo(self.svy[qn].distinct(), pd.DataFrame)
+        return list(r.dropna()[qn])
 
     def fetch_stats(self, qn, vars=[], filt={}):
         vars = self.mapper(vars)
@@ -178,9 +184,10 @@ class SurveyDataset(object):
         vlvls = [vars[:k+1] for k in range(len(vars))]
         res = []
         d = self.cfg.id
+        logger.info('mapping slices over resps', r=resps)
         for r in resps:
-            top = [{'d': d, 'q': qn, 'r': r[0], 'f': filt, 'vs': []}]
-            rs = [{'d': d, 'q': qn, 'r': r[0], 'f': filt, 'vs': vs} for vs in vlvls]
+            top = [{'d': d, 'q': qn, 'r': r, 'f': filt, 'vs': []}]
+            rs = [{'d': d, 'q': qn, 'r': r, 'f': filt, 'vs': vs} for vs in vlvls]
             res = res + rs + top
         logger.info(res)
         return res

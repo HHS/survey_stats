@@ -126,7 +126,7 @@ def setup_app(dbc, cache):
     app = falcon.API()
     app.add_route('/stats', StatsResource())
     app.add_route('/', HealthResource())
-    st.initialize(dbc, cache)
+    st.initialize(dbc, cache, init_des=True)
     return app
 
 
