@@ -28,7 +28,7 @@ install (){
     conda info -a
 
     echo "create conda env with intel python 3.6 and gnu r 3.4.1"
-    conda create -p venv python=3.6 r-base=3.4.1 pandas scikit-learn cython r-feather libiconv r-survival r-dbi
+    conda create -p venv -c intel/label/test python=3.6 r-base=3.4.1 pandas scikit-learn cython r-feather libiconv r-survival r-dbi
 
     echo "activate the env and install package and dev requirements with pip"
     source activate $CURDIR/venv
