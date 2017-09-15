@@ -145,7 +145,7 @@ def work(cache_dir, db_config, db_host, db_port, db_type, db_user, db_password, 
 
     options = {
         'bind': '%s:%s' % (host, str(port)),
-        'worker_class': 'gevent',
+        'worker_class': 'sync',
         'workers': workers,
         'max_requests': max_requests,
         'max_requests_jitter': max_requests_jitter,

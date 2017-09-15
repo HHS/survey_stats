@@ -107,7 +107,7 @@ class SurveyDataset(object):
             svytbl = bz.data(feather.read_dataframe(get_datafile_path(dsid, DatasetPart.SURVEYS, cdir)))
             soctbl = bz.data(feather.read_dataframe(get_datafile_path(dsid, DatasetPart.SOCRATA, cdir)))
             mapper = identity
-            des = des_from_feather(get_datafile_path(dsid, DatasetPart.SURVEYS, cdir), denovo=cfg.surveys.denovo_strata) if init_des else None
+            des = des_from_feather(get_datafile_path(dsid, DatasetPart.SURVEYS, cdir), denovo=True) if init_des else None
         return cls(dsid=dsid, cfg=cfg, dbc=dbc, cdir=cdir, meta=meta, svy=svytbl, soc=soctbl, des=des, mapper=mapper)
 
     def fetch_socrata(self, qn, vars, filt={}):
