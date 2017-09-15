@@ -2,6 +2,7 @@ import pandas as pd
 import sqlalchemy as sa
 import blaze as bz
 import requests as rq
+from cytoolz.curried import curry
 from cytoolz.itertoolz import concatv
 from cytoolz.dicttoolz import assoc, valmap, keyfilter
 from cytoolz.functoolz import thread_last
@@ -60,8 +61,8 @@ async def fetch_questions(req):
             .pipe(lambda xf: pdu.fill_none(xf))
             .to_dict(orient='index'))
     facs = thread_last(facs,
-                       valmap(lambda x: x['facet_level']),
-                       keyfilter(lambda x: x != 'Overall'))
+                       curry(valmap)(lambda x: x['facet_level']),
+                       curry(keyfilter)(lambda x: x != 'Overall'))
     return json({'facets': facs,
                  'questions': res})
 

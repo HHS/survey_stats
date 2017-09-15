@@ -24,15 +24,15 @@ DEFAULT_SVY_WORKER_HOST = '0.0.0.0'
 DEFAULT_SVY_WORKER_PORT = 7788
 
 DEFUALT_CACHE_DIR = 'cache'
-DEFAULT_NUM_WORKERS = int(cpu_count() * 2.0)
-DEFAULT_NUM_THREADS = int(cpu_count() * 2.0)
+DEFAULT_NUM_WORKERS = int(cpu_count() * 1.0)
+DEFAULT_NUM_THREADS = int(cpu_count() * 0.0)
 DEFAULT_MAX_WORKER_CONNS = 1024
 DEFAULT_REQ_TIMEOUT = 60
 DEFAULT_MAX_REQUESTS = 0
 DEFAULT_MAX_REQUESTS_JITTER = 0
 
 MAX_NUM_WORKERS = int(cpu_count() * 4.0)  # try to keep this sane for platform
-MAX_NUM_THREADS = int(cpu_count() * 4.0)  # try to keep this sane
+MAX_NUM_THREADS = int(cpu_count() * 0.0)  # try to keep this sane
 MAX_REQ_TIMEOUT = 60 * 10  # ten minutes is a long time for a req to return
 
 CLICK_TCP_PORT = click.IntRange(min=1, max=2**16-1, clamp=False)
