@@ -4,6 +4,10 @@ setup_miniconda (){
     PLATF=`uname`
     # setup miniconda3
     # wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
+    apt-get update && \
+    apt-get install -y curl gcc wget make g++ openssl libreadline-dev \
+                       libssl-dev libpcre3 libpcre3-dev zlib1g zlib1g-dev \
+                       gfortran
     wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
         -O miniconda.sh
     chmod +x miniconda.sh
