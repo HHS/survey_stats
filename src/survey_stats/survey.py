@@ -2,8 +2,8 @@ import pandas as pd
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
 from rpy2.robjects import Formula
-from survey_stats.helpr import svyciprop_yrbs, svybyci_yrbs, factor_summary
-from survey_stats.helpr import filter_survey_var, rm_nan_survey_var
+from survey_stats.helpr import svyciprop_xlogit, svybyci_xlogit, factor_summary
+from survey_stats.helpr import filter_survey_var, rm_nan_survey_var, svyby_nodrop
 from survey_stats import pdutil as u
 from survey_stats.const import DECIMALS
 from survey_stats import log
@@ -39,35 +39,32 @@ def subset_survey(des, filt, qn=None):
 
 
 def fetch_stats_by(des, qn_f, r, vs):
-    rbase.gc()
-    gc.collect()
     lvl_f = '~%s' % '+'.join(vs)
     ct_f = '%s + %s' % (lvl_f, qn_f[1:])
     logger.info('gen stats for interaction level', lvl_f=lvl_f, qn_f=qn_f, ct_f=ct_f, r=r)
     cols = vs + ['mean', 'se', 'ci_l', 'ci_u']
-    df = svybyci_yrbs(Formula(qn_f), Formula(lvl_f), des, svyciprop_yrbs) 
-    df = pandas2ri.ri2py(df) if df is not None else pd.DataFrame(
-        columns=['level','response']+cols)
+    df = svybyci_xlogit(Formula(qn_f), Formula(lvl_f), des, svyciprop_xlogit, vartype=['se', 'ci']) 
+    df = pandas2ri.ri2py(df)
     df.columns = cols
-    cts = rsvy.svyby(Formula(qn_f), Formula(ct_f), des, rsvy.unwtd_count, na_rm=True,
-                     na_rm_by=True, na_rm_all=True, multicore=False)
-    cts = pandas2ri.ri2py(cts)
-    cols = vs + ['eql', 'ct', 'se_ignore']
-    cts.columns = cols
-    df = df.reset_index(drop=True).assign(count = cts.ct[cts.eql==1].reset_index(drop=True),
-                   sample_size= cts.ct[cts.eql==1].reset_index(drop=True) + cts.ct[cts.eql==0].reset_index(drop=True))
+    df = df.set_index(vs)
+    cts = svyby_nodrop(Formula(lvl_f), Formula(ct_f), des, rsvy.unwtd_count, keep_var=True)
+    cts = pandas2ri.ri2py(cts).fillna(0.0)
+    cts.columns = vs + ['eql', 'ct', 'se_ignore']
+    cts = cts.set_index(vs)
+    cts['eql'] = cts.eql.apply(lambda x: x == 'TRUE' if type(x) == str else x > 0)
+    counts = cts.ct[cts.eql==True].tolist()
+    ssizes = cts.groupby(vs).sum()['ct']
+    df = df.assign(count=counts, sample_size=ssizes)
     if df.shape[0] > 0:
         df['response'] = r
         df['level'] = len(vs)
-    rdf = u.fill_none(df.round(DECIMALS))
-    logger.info('create svyby df', df=rdf, vars=vs, eq=cts.ct[cts.eql==1].reset_index(drop=True))
+    rdf = u.fill_none(df.round(DECIMALS)).reset_index()
+    logger.info('create svyby df', df=rdf, vars=vs, eq=cts)
     return rdf
 
 
 def fetch_stats_totals(des, qn_f, r):
-    rbase.gc()
-    gc.collect()
-    total_ci = svyciprop_yrbs(Formula(qn_f), des, multicore=True)
+    total_ci = svyciprop_xlogit(Formula(qn_f), des, multicore=True)
     # extract stats
     logger.info('fetching stats totals', r=r, q=qn_f)
     cts = rsvy.svyby(Formula(qn_f), Formula(qn_f), des, rsvy.unwtd_count, na_rm=True,
