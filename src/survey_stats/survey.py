@@ -3,7 +3,7 @@ from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
 from rpy2.robjects import Formula
 from survey_stats.helpr import svyciprop_yrbs, svybyci_yrbs, factor_summary
-from survey_stats.helpr import filter_survey_var
+from survey_stats.helpr import filter_survey_var, rm_nan_survey_var
 from survey_stats import pdutil as u
 from survey_stats.const import DECIMALS
 from survey_stats import log
@@ -20,18 +20,21 @@ rmonet = importr('MonetDB.R')
 logger = log.getLogger()
 
 
-def sample_size(d):
-    return rbase.dim(d[d.names.index('variables')])
+def dim_design(d):
+    return pandas2ri.ri2py(rbase.dim(d[d.names.index('variables')]))
 
-def subset_survey(des, filt):
+def subset_survey(des, filt, qn=None):
     # filt is a dict with vars as keys and list of acceptable values as levels
     # example from R:
     #  subset(dclus1, sch.wide=="Yes" & comp.imp=="Yes"
     if not len(filt.keys()) > 0:
         # empty filter, return original design object
         return des
-    filtered = rbase.Reduce("&",
-                            [filter_survey_var(des, k, v) for k, v in filt.items()])
+    filtered = rbase.Reduce(
+        "&",
+        [filter_survey_var(des, k, v) for k, v in filt.items()] +
+        ([rm_nan_survey_var(des, qn)] if qn else [])
+    )
     return rsvy.subset_survey_design(des, filtered)
 
 
@@ -40,8 +43,7 @@ def fetch_stats_by(des, qn_f, r, vs):
     gc.collect()
     lvl_f = '~%s' % '+'.join(vs)
     ct_f = '%s + %s' % (lvl_f, qn_f[1:])
-    ss = pandas2ri.ri2py(sample_size(des))
-    logger.info('gen stats for interaction level', d=ss, lvl_f=lvl_f, qn_f=qn_f, ct_f=ct_f, r=r)
+    logger.info('gen stats for interaction level', lvl_f=lvl_f, qn_f=qn_f, ct_f=ct_f, r=r)
     cols = vs + ['mean', 'se', 'ci_l', 'ci_u']
     df = svybyci_yrbs(Formula(qn_f), Formula(lvl_f), des, svyciprop_yrbs) 
     df = pandas2ri.ri2py(df) if df is not None else pd.DataFrame(
@@ -67,8 +69,7 @@ def fetch_stats_totals(des, qn_f, r):
     gc.collect()
     total_ci = svyciprop_yrbs(Formula(qn_f), des, multicore=True)
     # extract stats
-    samps = pandas2ri.ri2py(sample_size(des))
-    logger.info('fetching stats totals', r=r, d=samps)
+    logger.info('fetching stats totals', r=r, q=qn_f)
     cts = rsvy.svyby(Formula(qn_f), Formula(qn_f), des, rsvy.unwtd_count, na_rm=True,
                      na_rm_by=True, na_rm_all=True, multicore=False)
     cts = pandas2ri.ri2py(cts)
@@ -90,7 +91,7 @@ def fetch_stats_totals(des, qn_f, r):
            'sample_size': ss
            }
     # round as appropriate
-    logger.info('finished computation lvl1', res=res, total_ci=total_ci, ct=ct, ss=ss, s=samps)
+    logger.info('finished computation lvl1', res=res, total_ci=total_ci, ct=ct, ss=ss)
     res = pd.DataFrame([res]).round(DECIMALS)
     return u.fill_none(res)
 

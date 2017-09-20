@@ -15,7 +15,6 @@ class DatasetPart(Enum):
     FACETS = 'facets'
     SURVEYS = 'surveys'
     SOCRATA = 'socrata'
-    SURVEYS_META = 'surveys_meta'
 
 
 @unique

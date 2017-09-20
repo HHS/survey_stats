@@ -18,6 +18,12 @@ function(des, k, vals){
 }
 ''')
 
+rm_nan_survey_var = robjects.r('''
+function(des, k){
+    !is.na(des$variables[[k]])
+}
+''')
+
 tobool = robjects.r('''
 function(col) {
     as.logical( 2 - col)

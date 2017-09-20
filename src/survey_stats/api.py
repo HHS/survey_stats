@@ -7,7 +7,7 @@ from cytoolz.dicttoolz import assoc
 from sanic import Sanic
 from sanic.response import json
 from sanic.config import Config
-from sanic.exceptions import ServerError, NotFound
+from sanic.exceptions import SanicException, ServerError, NotFound, InvalidUsage
 from survey_stats import log
 from survey_stats import state as st
 from survey_stats import fetch
@@ -17,6 +17,13 @@ app = Sanic(__name__)
 logger = log.getLogger()
 
 
+class SurveyError(InvalidUsage):
+
+    def __init__(self, message, info):
+        self.info = info
+        InvalidUsage.__init__(self, message=message)
+
+
 async def fetch_socrata(qn, resp, vars, filt, meta):
     precomp = meta.fetch_dash(qn, resp, vars, filt)
     precomp = pd.DataFrame(precomp).fillna(None)
@@ -24,7 +31,7 @@ async def fetch_socrata(qn, resp, vars, filt, meta):
     return precomp.to_dict(orient='record')
 
 
-@app.exception(NotFound, ServerError)
+@app.exception(NotFound, ServerError, InvalidUsage)
 def json_404s(request, exception):
     return json({'error': exception})
 
@@ -45,7 +52,7 @@ async def check_status(req):
         wrkinfo = r.json()
         r = {'error': None, 'data': None}
     except Exception as e:
-        r = {'error': str(e), 'data': None}
+        raise ServerError(str(e))
     return json({'data':
                  {'db': dbinfo,
                   'worker_url': app.config.stats_svc,
@@ -57,8 +64,8 @@ async def check_status(req):
 async def fetch_questions(req):
     dset = req.args.get('d')
     d = st.dset[dset]
-    return json({'facets': d.meta.facet_map(),
-                 'questions': d.meta.questions()}) 
+    return json({'facets': d.meta.facet_map,
+                 'questions': d.meta.questions}) 
 
 
 def parse_filter(f):
@@ -77,14 +84,37 @@ async def fetch_stats(dset, qn, vars, filt):
 async def fetch_survey_stats(req):
     try:
         dset = req.args.get('d')
-    except Exception as e:
-        return json({'error': 'Missing required dataset id',
-                     'datasets': list(dset.keys())})
-    qn = req.args.get('q')
-    vars = [] if 'v' not in req.args else req.args.get('v').split(',')
-    filt = {} if 'f' not in req.args else parse_filter(req.args.get('f'))
-    use_socrata = False if 's' not in req.args else not 0 ** int(req.args.get('s'), 2)
+    except KeyError as e:
+        raise SurveyError(str(e), 
+                           info={'datasets': list(dset.keys())})
     d = st.dset[dset]
+    qs = d.meta.questions
+    fs = d.meta.facet_map
+    qn = req.args.get('q')
+    if qn not in qs:
+        raise SurveyError("Cannot find qid: %s in dataset: %s" % (qn, dset),
+                           info={'questions': list(qs.keys())})
+    vars = [] if 'v' not in req.args else req.args.get('v').split(',')
+    for v in vars:
+        if not v in d.meta.vars:
+            raise SurveyError("Cannot find var facet v: %s in dataset: %s" % (v, dset),
+                               info={'facets': fs})
+    filt = {} if 'f' not in req.args else parse_filter(req.args.get('f'))
+    for k, vals in filt.items():
+        if not k in fs:
+            raise SurveyError("Cannot find filter facet: %s in dataset: %s" % (k, dset),
+                               info={'facets': fs})
+        for v in vals:
+            if not v in fs[k]:
+                raise SurveyError("Cannot find value: %s for filter facet: %s in dataset: %s" % (v, k, dset),
+                                   info={'facets': fs})
+
+    use_socrata = False if 's' not in req.args else not 0 ** int(req.args.get('s'), 2)
+    if use_socrata and not d.meta.has_socrata:
+        raise SurveyError("Socrata pre-computed data not available for dataset: %s" % dset, info={'facets': fs})
+    if not use_socrata and not d.meta.has_surveys:
+        raise SurveyError("Surveys data not available for dataset: %s" % dset, info={'facets': fs})
+
     question = qn  # meta.qnmeta[qn]
     results = None  # fetch_socrata(qn, resp, vars, filt, national, meta)
     error = None

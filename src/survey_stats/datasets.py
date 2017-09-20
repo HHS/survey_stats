@@ -15,8 +15,6 @@ from cytoolz.functoolz import identity, pipe
 from cytoolz.dicttoolz import keymap, valmap, keyfilter
 from cached_property import threaded_cached_property
 from survey_stats import log
-from survey_stats.survey import fetch_stats, des_from_survey_db, subset_survey
-from survey_stats.survey import fetch_stats_by, fetch_stats_totals, des_from_feather
 from survey_stats import pdutil as u
 from survey_stats.types import DatasetConfig, ColumnFilter
 from survey_stats.dbi import DatabaseConfig, DatasetPart, get_datafile_path
@@ -71,6 +69,7 @@ class SurveyMeta(object):
     national = typed(ColumnFilter)
     qns = typed(Union[pd.DataFrame, pd.core.frame.DataFrame])
     flevels = typed(Union[pd.DataFrame, pd.core.frame.DataFrame])
+    parts = typed(Sequence[DatasetPart])
 
     @classmethod
     def load_metadata(cls, cfg, cdir):
@@ -78,10 +77,25 @@ class SurveyMeta(object):
         qns = hydrate_dataset_part(DatasetPart.SCHEMA, None, cdir, dsid, as_blaze=False)
         flevels = hydrate_dataset_part(DatasetPart.FACETS, None, cdir, dsid, as_blaze=False)
         logger.info('initializing survey meta', t_qns=qns.head(), t_lvls=flevels.head())
+        parts = []
+        if cfg.surveys:
+            parts.append(DatasetPart.SURVEYS)
+        if cfg.socrata:
+            parts.append(DatasetPart.SOCRATA)
+        logger.info('found parts', p=parts, svy=cfg.surveys, soc=cfg.socrata)
         return cls(dsid=dsid, strata=cfg.strata,
                    facets=cfg.facets, national=cfg.national,
-                   qns=qns, flevels=flevels)
+                   qns=qns, flevels=flevels, parts=parts)
 
+    @threaded_cached_property
+    def has_socrata(self):
+        return DatasetPart.SOCRATA in self.parts
+    
+    @threaded_cached_property
+    def has_surveys(self):
+        return DatasetPart.SURVEYS in self.parts
+
+    @threaded_cached_property
     def facet_map(self):
         facs = (self.flevels
                 .groupby(['facet'])
@@ -93,11 +107,10 @@ class SurveyMeta(object):
                     curry(valmap)(lambda x: x['facet_level']),
                     curry(keyfilter)(lambda x: x != 'Overall'))
 
+    @threaded_cached_property
     def questions(self, year=True, sitecode=True):
         def get_first_aggval(xf):
             return xf.get_values()[0]
-
-
         # optional metadata to add to questions
         opts = (['year'] if year else []) + \
             (['sitecode'] if sitecode else [])
@@ -163,6 +176,7 @@ class SurveyDataset(object):
         mapper = curry(map_with_dict)({'year': 'yr'}) if use_db else identity
         des = None
         if cfg.surveys and init_des:
+            from survey_stats.survey import des_from_survey_db, des_from_feather
             des = des_from_survey_db(
                 DBTBL_FMT.format(dsid=dsid, part=DatasetPart.SURVEYS.value),
                 dbc.name, dbc.host, dbc.port, denovo=cfg.surveys.denovo_strata
@@ -225,11 +239,20 @@ class SurveyDataset(object):
         return dfz
 
     def fetch_stats_for_slice(self, qn, r, vars=[], filt={}):
+        from survey_stats.survey import (fetch_stats_totals, 
+                                         fetch_stats_by, subset_survey,
+                                         dim_design)
         vars = self.mapper(vars)
         filt = self.mapper(filt)
         qn_f = '~I(%s=="%s")' % (qn, r)
         logger.info('subsetting des with filter', filt=filt, v=vars, q=qn, r=r)
-        des = subset_survey(self.des, filt)
+        des = subset_survey(self.des, filt, qn)
+        dsubs = dim_design(des) 
+        if dsubs[0] == 0:
+            logger.info('subsetting yields empty df, returning empty result', dim=dsubs)
+            cols = ['level'+'response'] + vars + \
+                ['mean', 'se', 'ci_l', 'ci_u', 'count', 'sample_size']
+            return pd.DataFrame(columns=cols)
         ret = None
         if len(vars) > 0:
             logger.info('fetching stats with var levels', vs=vars, qn=qn, r=r)
