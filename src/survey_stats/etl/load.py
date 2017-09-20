@@ -1,19 +1,19 @@
 import re
 import os
-
+import yaml
 import pandas as pd
 import sqlalchemy as sa
 import dask
 import dask.multiprocessing
 import dask.cache
-# from dask.distributed import LocalCluster, Client
 from cytoolz.curried import map
 from multiprocessing.pool import ThreadPool
 from timeit import default_timer as timer
 
 from survey_stats import log
 from survey_stats import serdes
-from survey_stats.types import load_config_from_yaml
+from survey_stats.types import DatasetConfig
+from survey_stats.dbi import DatabaseConfig, DatasetPart, get_datafile_path
 from survey_stats.etl.sas import process_sas_survey
 from survey_stats.etl.spss import process_fwf_w_spss_loader
 from survey_stats.etl.socrata import load_socrata_data, get_metadata_socrata
@@ -42,6 +42,11 @@ def load_survey_data(cfg, client=None):
     logger.info('loaded survey dfs', shape=svydf.shape)
     svydf = svydf.compute()
     svydf = svydf.reset_index(drop=True)
+    mx = (svydf.select_dtypes(include=['object', 'category'])
+               .apply(lambda xf: xf.value_counts().to_dict())
+               .to_dict())
+    #                   )[svydf.apply(lambda yf: yf.dropna().apply(lambda q: type(q) != str))
+    #                          .dropna().any(0)])
     # mx = (svydf.select_dtypes(include=['object', 'category'])
     #            .apply(lambda xf: xf.value_counts().to_dict()
     #                   )[svydf.apply(lambda yf: yf.dropna().apply(lambda q: type(q) != str))
@@ -52,7 +57,7 @@ def load_survey_data(cfg, client=None):
     #     logger.error('Found category columns with non-str labels!', mx=mx, mx2=mx2)
     #     # TODO: check formats list in advance to see if expected fmts missing
     #     raise LookupError('Found categoricals with non-string labels!', mx.keys())
-    return svydf
+    return (svydf, mx)
 
 
 def load_csv_mariadb_columnstore(df, tblname, engine):
@@ -120,54 +125,76 @@ def bulk_load_df(tblname, engine):
 
 def setup_tables(cfg, dburl):
     engine = sa.create_engine(dburl)
-    ksvy = serdes.surveys_key4id(cfg.id)
-    bulk_load_df(ksvy, engine)
-    ksoc = serdes.socrata_key4id(cfg.id)
-    bulk_load_df(ksoc, engine)
+    if cfg.surveys:
+        ksvy = serdes.surveys_key4id(cfg.id)
+        bulk_load_df(ksvy, engine)
+    if cfg.socrata:
+        ksoc = serdes.socrata_key4id(cfg.id)
+        bulk_load_df(ksoc, engine)
 
 
-def process_dataset(yaml_f):
-    cfg = load_config_from_yaml(yaml_f)
+def process_dataset(cfg, dbc, cache_dir, resume=True):
     logger.bind(dataset=cfg.id)
-    '''
-    dsoc = load_socrata_data(cfg.socrata, cfg.facets, client)
-    logger.info('saving socrata data to feather')
-    ksoc = serdes.socrata_key4id(cfg.id)
-    dsoc.to_feather('cache/'+ksoc+'.feather')
-    schema_f = 'cache/' + cfg.id + '.schema.feather'
-    facets_f = 'cache/' + cfg.id + '.facets.feather'
-    (qns, facs) = get_metadata_socrata(cfg.socrata, dsoc, cfg.facets)
-    logger.info('created schema for socrata')
-    qns.to_feather(schema_f)
-    facs.to_feather(facets_f)
-    svydf = load_survey_data(cfg, client)
-    ksvy = serdes.surveys_key4id(cfg.id)
-    logger.info('saving survey data to feather', name=ksvy)
-    svydf.to_feather('cache/'+ksvy+'.feather')
-    logger.info('saved survey data to feather', name=ksvy)
-    '''
-    setup_tables(cfg, default_sql_conn)
+    logger.info('checking for socrata, processing', s=cfg.socrata)
+    if cfg.socrata:
+        ksoc = get_datafile_path(DatasetPart.SOCRATA.value, cfg.id, cache_dir)
+        if os.path.isfile(ksoc) and resume:
+            logger.warn('found socrata artifact, moving on', resume=resume)
+        else:
+            logger.info('generating socrata data', resume=resume, overwriting=os.path.isfile(ksoc))
+            dsoc = load_socrata_data(cfg.socrata, cfg.facets)
+            logger.info('saving socrata data to feather', f=ksoc)
+            dsoc.to_feather(ksoc)
+            logger.info('saved socrata data to feather', f=ksoc)
+            # short process, can be run regardless
+            (qns, facs) = get_metadata_socrata(cfg.socrata, dsoc, cfg.facets)
+            logger.info('created schema for socrata')
+            qns.to_feather(get_datafile_path(DatasetPart.SCHEMA.value, cfg.id, cache_dir))
+            facs.to_feather(get_datafile_path(DatasetPart.FACETS.value, cfg.id, cache_dir))
+    logger.info('checking for surveys, processing', s=cfg.surveys)
+    if cfg.surveys:
+        svyf = get_datafile_path(DatasetPart.SURVEYS.value, cfg.id, cache_dir)
+        svy_descf = svyf+'.yaml' 
+        if os.path.isfile(svyf) and resume:
+            logger.warn('found surveys artifact, moving on', resume=resume)
+        else:
+            logger.info('generating surveys data', resume=resume, overwriting=os.path.isfile(svyf))
+            (svydf, svymeta) = load_survey_data(cfg)
+            logger.info('saving survey data to feather', svyf)
+            svydf.to_feather(svyf)
+            logger.info('saving survey desc data to feather', svy_descf)
+            with open(svy_descf, 'w') as fh:
+                yaml.dump(svymeta, fh)
+            logger.info('saved survey data to feather', name=svy_descf)
+    if dbc is not None:
+        setup_tables(cfg, dbc.uri)
     logger.unbind('dataset')
+
 
 def restore_data(sql_conn):
     configs = map(lambda x: os.path.join('config/data', x),
                   os.listdir('config/data'))
     logger.info('restoring tables to survey database')
     for yaml_f in configs:
-        cfg = load_config_from_yaml(yaml_f)
+        cfg = DatabaseConfig.from_yaml(yaml_f)
         logger.bind(dataset=cfg.id)
-        setup_tables(cfg, default_sql_conn)
+        setup_tables(cfg, sql_conn)
         logger.unbind('dataset')
 
 
-if __name__ == '__main__':
-    default_sql_conn = 'mysql+pymysql://mcsuser:mcsuser@localhost:4306/survey'
-    default_sql_conn = 'monetdb://monetdb:monetdb@localhost/survey'
-    # lc = LocalCluster()
-    # client = Client(lc)
-    client = None
-    # cache = dask.cache.Cache(8e9)
-    # cache.register()
+def load_datasets(cache_dir, dbc, dsets, parse_all=False, resume=True):
+    import cytoolz.dicttoolz as dz
+    cache = dask.cache.Cache(8e9)
+    cache.register()
     dask.set_options(get=dask.threaded.get, pool=ThreadPool())
-    configs = map(lambda x: os.path.join(os.listdir('config/data')))
-    process_dataset('config/data/brfss.yaml')
+    configs = list(
+        map(lambda x: os.path.join('config/data', x), 
+            os.listdir('config/data')))
+    cmap = {k: DatasetConfig.from_yaml(k) for k in configs}
+    dsids = dz.valmap(lambda ds: ds.id, cmap)
+    cmap = dz.merge(cmap, {d.id: d for d in cmap.values()})
+    if parse_all:
+        dsets = dsids
+    for d in dsets:
+        process_dataset(cmap[d], dbc, cache_dir)
+

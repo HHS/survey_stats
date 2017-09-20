@@ -1,11 +1,17 @@
 id: brfss
 description: "BRFSS surveys from 2011 onward using raking and mobile surveys."
+strata:
+  - year
+  - sitecode
 facets:
   - sex
   - race
   - age
   - income
   - education
+national:
+  incl: False
+  vals: [GU, PR, VI] 
 surveys:
   denovo_strata: True
   parse_mode: sas
@@ -41,6 +47,7 @@ surveys:
     - "dont know/not sure/refused"
     - "don't know/refused/missing"
     - "dont know/refused/missing"
+    - "dont know/not sure/refused/missing"
   replace_labels:
     "white only non-hispanic": "White"
     "black only non-hispanic": "Black"

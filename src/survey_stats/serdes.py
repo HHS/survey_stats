@@ -1,22 +1,21 @@
 import os
 import feather as ft
-from survey_stats.const import SURVEYS_SUFFIX, SOCRATA_SUFFIX, METADATA_SUFFIX
-from survey_stats.const import CACHE_DIR
+from survey_stats.dbi import DatasetPart
+from survey_stats.const import DEFAULT_CACHE_DIR, DBTBL_FMT 
 
-
-cache_dir = os.path.join(os.getcwd(), CACHE_DIR)
+cache_dir = os.path.join(os.getcwd(), DEFAULT_CACHE_DIR)
 
 
 def surveys_key4id(id):
-    return id + SURVEYS_SUFFIX
+    return DBTBL_FMT.format(dsid=id, part=DatasetPart.SURVEYS.value)
 
 
 def socrata_key4id(id):
-    return id + SOCRATA_SUFFIX
+    return DBTBL_FMT.format(dsid=id, part=DatasetPart.SOCRATA.value)
 
 
 def metadata_key4id(id):
-    return id + METADATA_SUFFIX
+    return DBTBL_FMT.format(dsid=id, part=DatasetPart.SCHEMA.value)
 
 
 def f4key(key):

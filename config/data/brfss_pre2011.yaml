@@ -9,6 +9,9 @@ facets:
   - age
   - income
   - education
+national:
+  incl: False
+  vals: [GU,PR,VI] 
 surveys:
   denovo_strata: True
   parse_mode: xport
@@ -29,30 +32,30 @@ surveys:
       - [2008, CDBRFS08ASC.ZIP, CDBRFS08XPT.ZIP, CDBRFS08.ASC, CDBRFS08.XPT, format08.sas, formas08.sas, sasout08.sas, _finalwt, _psu, _ststr, _state, fips, sex, race2, _age_g, _incomg, _educag]
       - [2009, CDBRFS09ASC.ZIP, CDBRFS09XPT.ZIP, CDBRFS09.ASC, CDBRFS09.XPT, format09.sas, formas09.sas, sasout09.sas, _finalwt, _psu, _ststr, _state, fips, sex, race2, _age_g, _incomg, _educag]
       - [2010, CDBRFS10ASC.zip, CDBRFS10XPT.zip, CDBRFS10.ASC, CDBRFS10.XPT, format10.sas, formas10.sas, sasout10.sas, _finalwt, _psu, _ststr, _state, fips, sex, race2, _age_g, _incomg, _educag]
-  patch_format: {}
-  drnkany3: 
-    1: "yes"
-    2: "no"
-    7: "do not know/not sure"
-    9: "refused/missing"
-  employ: 
-    1: "employed for wages"
-    2: "self-employed"
-    3: "out of work for more than 1 year"
-    4: "out of work for less than 1 year"
-    5: "a homemaker"
-    6: "a student"
-    7: "retired"
-    8: "unable to work"
-    9: "refused"
-  genhlth: 
-    1: "excellent"
-    2: "very good"
-    3: "good"
-    4: "fair"
-    5: "poor"
-    7: "dont know/not sure"
-    9: "refused"
+  patch_format: 
+    drnkany3: 
+      1: "yes"
+      2: "no"
+      7: "do not know/not sure"
+      9: "refused/missing"
+    employ: 
+      1: "employed for wages"
+      2: "self-employed"
+      3: "out of work for more than 1 year"
+      4: "out of work for less than 1 year"
+      5: "a homemaker"
+      6: "a student"
+      7: "retired"
+      8: "unable to work"
+      9: "refused"
+    genhlth: 
+      1: "excellent"
+      2: "very good"
+      3: "good"
+      4: "fair"
+      5: "poor"
+      7: "dont know/not sure"
+      9: "refused"
   na_synonyms:
     - "na"
     - "ref"
@@ -89,12 +92,10 @@ surveys:
     "graduated from college or technical school": "College/Technical School Graduate"
     "male": "Male"
     "female": "Female"
+  rename_cols: pdutil.undash
 socrata:
   soda_api:
     - "https://chronicdata.cdc.gov/resource/cwqr-cv7t.json"
-  qnkey: questionid
-  qnpfx: null
-  national_selector: UW
   unstack:
     facet: facet_level
   mapcols:

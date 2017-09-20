@@ -2,23 +2,18 @@ import pandas as pd
 import sqlalchemy as sa
 import blaze as bz
 import requests as rq
-from cytoolz.curried import curry
 from cytoolz.itertoolz import concatv
-from cytoolz.dicttoolz import assoc, valmap, keyfilter
-from cytoolz.functoolz import thread_last
+from cytoolz.dicttoolz import assoc
 from sanic import Sanic
 from sanic.response import json
 from sanic.config import Config
-from sanic.exceptions import ServerError
+from sanic.exceptions import ServerError, NotFound
 from survey_stats import log
 from survey_stats import state as st
 from survey_stats import fetch
-from survey_stats import pdutil as pdu
-
-Config.REQUEST_TIMEOUT = 50000000
+import json as j
 
 app = Sanic(__name__)
-dbc = None
 logger = log.getLogger()
 
 
@@ -29,57 +24,41 @@ async def fetch_socrata(qn, resp, vars, filt, meta):
     return precomp.to_dict(orient='record')
 
 
-def get_first_aggval(xf):
-    return xf.get_values()[0]
+@app.exception(NotFound, ServerError)
+def json_404s(request, exception):
+    return json({'error': exception})
 
 
-def get_drop_dup_aggvals(xf):
-    return list(xf.drop_duplicates())
+@app.route("/")
+async def check_status(req):
+    # verify that the upstream services are functional
+    engine = sa.create_engine(app.config.dbc.uri)
+    db = bz.data(engine)
+    dbinfo = {'host': db.data.engine.url.host,
+              'engine': db.data.engine.name,
+              'tables': db.fields,
+              'config': app.config.dbc}
+    r = None
+    wrkinfo = None
+    try:
+        r = rq.get(app.config.stats_svc)
+        wrkinfo = r.json()
+        r = {'error': None, 'data': None}
+    except Exception as e:
+        r = {'error': str(e), 'data': None}
+    return json({'data':
+                 {'db': dbinfo,
+                  'worker_url': app.config.stats_svc,
+                  'worker_status': wrkinfo
+                  }})
 
 
 @app.route("/questions")
 async def fetch_questions(req):
     dset = req.args.get('d')
     d = st.dset[dset]
-    rem = ['qid', 'sitecode', 'facet', 'facet_level'] + d.cfg.facets
-    drops = ['response', 'year']
-    dkeys = set(d.cfg.socrata.qn_meta).difference(rem)
-    aggd = {k: get_drop_dup_aggvals if
-            k in drops else get_first_aggval
-            for k in dkeys}
-    res = (d.meta.qns
-           .groupby(['qid'])
-           .agg(aggd)
-           .reset_index()
-           .pipe(lambda xf: pdu.fill_none(xf))
-           .set_index(['qid'])
-           .to_dict(orient='index'))
-    facs = (d.meta.facets
-            .groupby(['facet'])
-            .agg({'facet_level':
-                  lambda x: list(x.drop_duplicates())})
-            .pipe(lambda xf: pdu.fill_none(xf))
-            .to_dict(orient='index'))
-    facs = thread_last(facs,
-                       curry(valmap)(lambda x: x['facet_level']),
-                       curry(keyfilter)(lambda x: x != 'Overall'))
-    return json({'facets': facs,
-                 'questions': res})
-
-
-@app.route("/")
-async def check_status(req):
-    # verify that the upstream services are functional
-    engine = sa.create_engine(app.config.dbc.url)
-    db = bz.data(engine)
-    dbinfo = {'host': db.data.engine.url.host,
-              'engine': db.data.engine.name,
-              'tables': db.fields}
-    r = rq.get(app.config.stats_svc)
-    wrkinfo = r.json()
-    return json({'db': dbinfo,
-                 'worker_url': app.config.stats_svc,
-                 'worker_status': wrkinfo})
+    return json({'facets': d.meta.facet_map(),
+                 'questions': d.meta.questions()}) 
 
 
 def parse_filter(f):
@@ -96,7 +75,11 @@ async def fetch_stats(dset, qn, vars, filt):
 
 @app.route('/stats')
 async def fetch_survey_stats(req):
-    dset = req.args.get('d')
+    try:
+        dset = req.args.get('d')
+    except Exception as e:
+        return json({'error': 'Missing required dataset id',
+                     'datasets': list(dset.keys())})
     qn = req.args.get('q')
     vars = [] if 'v' not in req.args else req.args.get('v').split(',')
     filt = {} if 'f' not in req.args else parse_filter(req.args.get('f'))
@@ -127,12 +110,15 @@ async def fetch_survey_stats(req):
     })
 
 
-def setup_app(dbc, cache_dir, stats_svc, sanic_timeout):
+def setup_app(dbc, cache_dir, stats_svc, sanic_timeout, use_feather):
     app.config.dbc = dbc
     app.config.cache = cache_dir
     app.config.stats_svc = stats_svc
     app.config.sanic_timeout = sanic_timeout
-    st.initialize(dbc, cache_dir)
+    app.config.use_feather = use_feather
+    Config.REQUEST_TIMEOUT = sanic_timeout
+    logger.info('initializing state', dbc=dbc, cdir=cache_dir, f=use_feather)
+    st.initialize(dbc, cache_dir, init_des=False, use_feather=use_feather, init_svy=True, init_soc=True)
     return app
 
 
@@ -148,7 +134,7 @@ def teardown_app(app, loop):
 
 
 def serve_app(host, port, workers, debug):
-    app.run(host=host, port=port, workers=workers, 
+    app.run(host=host, port=port, workers=workers,
             timeout=app.config.sanic_timeout,
             reuse_port=True, debug=debug)
 

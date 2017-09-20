@@ -1,11 +1,17 @@
 id: yrbss
 description: "YRBSS high school data from 2000 to 2015"
+strata:
+  - year
+  - sitecode
 facets:
   - sex
   - race
   - grade
   - sexid
   - sexpart
+national:
+  incl: True
+  vals: [XX]
 surveys:
   denovo_strata: False
   parse_mode: spss
@@ -60,6 +66,9 @@ socrata:
     ci_u: pdutil.div100
     ci_l: pdutil.div100
     mean: pdutil.div100
+    ci_u_no: pdutil.div100
+    ci_l_no: pdutil.div100
+    mean_no: pdutil.div100
     qid: pdutil.fix_qid_yrbss
   unstack: null
   fold_stats:
@@ -79,5 +88,5 @@ socrata:
       "American Indian or Alaska Native": "Am Indian / Alaska Native"
       "Hispanic or Latino": "Hispanic/Latino"
       "Multiple Race": "Multiple - Non-Hispanic"
-  qn_meta: [qid, year, question, topic, subtopic, response, greater_risk_question, lesser_risk_question, description]
+  qn_meta: [qid, year, sitecode, question, topic, subtopic, response, greater_risk_question, lesser_risk_question, description]
   c_filter: [qid, year, question, topic, subtopic, response, greater_risk_question, lesser_risk_question, description, sitecode, sample_size, mean, se, ci_u, ci_l]

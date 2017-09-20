@@ -59,7 +59,7 @@ def block2dict(lines, repl, to_lower=False):
     rqt = re.compile(r'[\"\']')  # match quote chars
     rws = re.compile(r'\s')        # match whitespace
     # keep only alnum and a few unreserved symbols
-    ruri = re.compile(r'(?![\w\s\-\_\.\'\-\+\(\)\/]|\.).')
+    ruri = re.compile(r'(?![\w\s\-\_\.\'\$\-\+\(\)\/]|\.).')
     d = thread_last(
         lines,
         map(lambda x: x.replace('\x92', "'")),

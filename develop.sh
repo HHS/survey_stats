@@ -55,3 +55,8 @@ else
     source activate "$CURDIR/venv"
     echo "environment ready!"
 fi
+
+export MALLOC_MMAP_THRESHOLD_=1000000
+export MALLOC_MMAP_MAX_=262144
+export MALLOC_MXFAST_=0
+

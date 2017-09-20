@@ -18,6 +18,13 @@ def fix_qid_yrbss(x):
     return ('qn' + x[1:].lower() if x.startswith('H') else x.lower())
 
 
+def fix_qid_prams(x):
+    return ('qn' + x[3:].lower() if x.startswith('QUO') else x.lower())
+
+
+def cast_and_lower(x):
+    return str(x).lower()
+
 # extend Series with fill_none method
 # to take care of json/mysql conversion
 def fill_none(df):

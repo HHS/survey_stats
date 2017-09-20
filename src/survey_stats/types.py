@@ -7,6 +7,9 @@ from cytoolz.dicttoolz import assoc
 from cytoolz.functoolz import thread_first
 from cattr import typed
 from typing import Optional, Sequence, Callable, TypeVar, Mapping
+from survey_stats import log
+
+logger = log.getLogger(__name__)
 
 T = TypeVar('T', np.number,
             np.character, np.bool_,
@@ -17,6 +20,11 @@ cattr.register_structure_hook(
     lambda d, t: pd.DataFrame(d['rows'], columns=d['cols'])
 )
 
+
+@attr.s(slots=True, frozen=True)
+class ColumnFilter(object):
+    incl = typed(bool)
+    vals = typed(Sequence[str])
 
 @attr.s(slots=True, frozen=True)
 class SurveyConfig(object):
@@ -48,21 +56,26 @@ class SocrataConfig(object):
 class DatasetConfig(object):
     id = typed(str)
     description = typed(str)
+    strata = typed(Sequence[str])
     facets = typed(Sequence[str])
-    surveys = typed(SurveyConfig)
-    socrata = typed(SocrataConfig)
+    national = typed(Sequence[ColumnFilter])
+    surveys = typed(Optional[SurveyConfig])
+    socrata = typed(Optional[SocrataConfig])
 
     @classmethod
     def from_yaml(cls, yaml_f):
         with open(yaml_f) as fh:
             y = yaml.load(fh)
-            y['surveys']['meta'] = pd.DataFrame(
-                y['surveys']['meta']['rows'],
-                columns=y['surveys']['meta']['cols']
-            )
+            if y['surveys']:
+                y['surveys']['meta'] = pd.DataFrame(
+                    y['surveys']['meta']['rows'],
+                    columns=y['surveys']['meta']['cols']
+                )
+        logger.info('loading cfg')
         cfg = thread_first(
             y,
-            (assoc, 'socrata', SocrataConfig(**y['socrata'])),
-            (assoc, 'surveys', SurveyConfig(**y['surveys']))
+            (assoc, 'national', None if not y['national'] else ColumnFilter(**y['national'])),
+            (assoc, 'socrata', None if not y['socrata'] else SocrataConfig(**y['socrata'])),
+            (assoc, 'surveys', None if not y['surveys'] else SurveyConfig(**y['surveys']))
         )
         return cls(**cfg)

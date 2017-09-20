@@ -1,17 +1,12 @@
+import os
 import sqlalchemy as sa
-import pymonetdb as pmb
-import sqlalchemy_monetdb as smb
 import blaze as bz
-import cattr
 import attr
 import yaml
-import numpy as np
-import pandas as pd
 from enum import unique, Enum
-from cytoolz.dicttoolz import assoc
-from cytoolz.functoolz import thread_first
 from cattr import typed
-from survey_stats.const import DBURI_FMT
+from survey_stats.const import DBURI_FMT, DSFILE_FMT
+from datashape import datashape
 
 
 @unique
@@ -20,6 +15,7 @@ class DatasetPart(Enum):
     FACETS = 'facets'
     SURVEYS = 'surveys'
     SOCRATA = 'socrata'
+    SURVEYS_META = 'surveys_meta'
 
 
 @unique
@@ -56,3 +52,20 @@ class DatabaseConfig(object):
         with open(yaml_f) as fh:
             y = yaml.load(fh)
             return cls(**y)
+
+    def resolve_table(self, tbl):
+        ngin = sa.create_engine(self.uri)
+        db = bz.data(ngin)
+        t = db[tbl]
+        nrow = t.count()
+        shp = datashape.dshape(str(t.dshape).replace('var', str(int(nrow))))
+        return bz.data(t, dshape=shp)
+
+
+def get_datafile_path(part, dsid, cdir):
+    return os.path.join(cdir,
+                        DSFILE_FMT.format(
+                            dsid=dsid,
+                            part=part,
+                            type=DatasetFileType.FEATHER.value
+                        ))

@@ -13,6 +13,10 @@ DECIMALS = {
     'count': 0
 }
 
+ID_COLUMN = 'qid'
+ANNO_COLUMNS = ['qid', 'response', 'sitecode', 'year']
+STATS_COLUMNS = ['mean', 'ci_u', 'ci_l', 'se', 'count', 'sample_size']
+
 DBURI_FMT = '{dbtype}://{user}:{password}@{host}:{port}/{dbname}'
 DBTBL_FMT = '{dsid}_{part}'
 DSFILE_FMT = '{dsid}_{part}.{type}'
@@ -28,7 +32,7 @@ DEFAULT_NUM_WORKERS = int(cpu_count() * 1.0)
 DEFAULT_NUM_THREADS = int(cpu_count() * 0.0)
 DEFAULT_MAX_WORKER_CONNS = 1024
 DEFAULT_REQ_TIMEOUT = 60
-DEFAULT_MAX_REQUESTS = 0
+DEFAULT_MAX_REQUESTS = 11
 DEFAULT_MAX_REQUESTS_JITTER = 0
 
 MAX_NUM_WORKERS = int(cpu_count() * 4.0)  # try to keep this sane for platform

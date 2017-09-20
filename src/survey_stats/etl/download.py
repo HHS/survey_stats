@@ -67,9 +67,16 @@ def fetch_data_from_url(url):
 
 
 def df_from_socrata_url(url):
-    url = url + "&$limit=%d" % (MAX_SOCRATA_FETCH)
+    if url.find('rows.csv?') > -1:
+        return pd.read_csv(url)
+    url = url if url[-1] == '?' else url + '?' if url.find('?') == -1 else url + '&'
+    url = url + "$limit=%d" % (MAX_SOCRATA_FETCH)
     r = requests.get(url, headers={'Accept': 'application/json',
                                    'X-App-Token': TMP_API_KEY})
-    data = pd.DataFrame(r.json())
+    try:
+        data = pd.DataFrame(r.json())
+    except Exception as e:
+        logger.error('Error in loading url!', u=url, e=str(e))
+        raise
     logger.info('fetched socrata url', shape=data.shape, cols=list(data.columns))
     return data

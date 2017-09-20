@@ -17,7 +17,10 @@ async def fetch_computed(url, data, session):
         delay = response.headers.get('DELAY')
         date = response.headers.get('DATE')
         print('{}:{}, data={}, delay={}'.format(date, response.url, data, delay))
-        return await response.json()
+        try:
+            return await response.json()
+        except Exception as e:
+            return {'error': str(e)}
 
 
 async def fetch_all(slices, worker_url):

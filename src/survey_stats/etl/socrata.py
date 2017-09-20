@@ -100,7 +100,7 @@ def fetch_socrata_stats(url, soc_cfg, facets):
     return df
 
 
-def load_socrata_data(cfg, facets, client=None):
+def load_socrata_data(cfg, facets):
     dfs = [delayed(fetch_socrata_stats)(url=url, soc_cfg=cfg, facets=facets) for
            url in cfg.soda_api]
     dfs = delayed(pd.concat)(dfs, ignore_index=True)
@@ -147,16 +147,19 @@ def get_metadata_socrata(soc_cfg, soc_df, facets):
     logger.warn('generating summary columns for facets', f=in_facets)
     facs = None
     if 'facet' in soc_df.columns:
-        facs = pd.concat([soc_df[['facet', 'facet_level']].drop_duplicates(),
-                          yrvec, stvec], axis=0, ignore_index=True).reset_index(drop=True)
+        facs = (pd.concat(
+            [soc_df[['facet', 'facet_level']].drop_duplicates(), yrvec, stvec],
+            axis=0, ignore_index=True).reset_index(drop=True)
+        )
     else:
         summs = list(map(lambda k: summarize_column(soc_df, k), in_facets))
-        facs = pd.concat(summs + [yrvec, stvec], axis=0, ignore_index=True).reset_index(drop=True)
+        facs = pd.concat(summs + [yrvec, stvec], 
+                         axis=0, ignore_index=True).reset_index(drop=True)
         facs = facs[facs.facet_level != "Total"]
     logger.info('created qn and fac metadata',
                 qn=qns.dtypes.to_dict(),
                 fac=list(facs.facet.drop_duplicates()))
-    return (qns, facs)
+    return (qns.reset_index(drop=True), facs.reset_index(drop=True))
 
 
     
