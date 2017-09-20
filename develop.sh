@@ -1,4 +1,6 @@
 #!/bin/bash
+# setup paths for install
+export PATH="$HOME/miniconda/bin:$PATH"
 
 setup_miniconda (){
     PLATF=`uname`
@@ -12,8 +14,6 @@ setup_miniconda (){
         -O miniconda.sh
     chmod +x miniconda.sh
     ./miniconda.sh -b -p $HOME/miniconda
-    # setup paths for install
-    export PATH="$HOME/miniconda/bin:$PATH"
 }
 
 install (){
