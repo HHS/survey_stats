@@ -76,13 +76,11 @@ class SurveyMeta(object):
         dsid = cfg.id
         qns = hydrate_dataset_part(DatasetPart.SCHEMA, None, cdir, dsid, as_blaze=False)
         flevels = hydrate_dataset_part(DatasetPart.FACETS, None, cdir, dsid, as_blaze=False)
-        logger.info('initializing survey meta', t_qns=qns.head(), t_lvls=flevels.head())
         parts = []
         if cfg.surveys:
             parts.append(DatasetPart.SURVEYS)
         if cfg.socrata:
             parts.append(DatasetPart.SOCRATA)
-        logger.info('found parts', p=parts, svy=cfg.surveys, soc=cfg.socrata)
         return cls(dsid=dsid, strata=cfg.strata,
                    facets=cfg.facets, national=cfg.national,
                    qns=qns, flevels=flevels, parts=parts)

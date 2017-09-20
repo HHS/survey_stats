@@ -1,16 +1,23 @@
 import rpy2.robjects as robjects
 
-svyciprop_yrbs = robjects.r('''
+svyciprop_xlogit = robjects.r('''
 function(formula, design, method='xlogit', level = 0.95, df=degf(design), ...) {
     svyciprop(formula, design, method, level, df, na.rm=TRUE, ...)
 }''')
 
-svybyci_yrbs = robjects.r('''
+svybyci_xlogit = robjects.r('''
 function( formula, by, des, fn, ...) {
     svyby(formula, by, des, fn, keep.var=TRUE, method='xlogit',
-          vartype=c('se','ci'), na.rm.by=TRUE, na.rm.all=TRUE, multicore=FALSE)
+          vartype=c('se','ci'), na.rm.by=TRUE, na.rm.all=TRUE, 
+          multicore=FALSE, drop.empty.groups=FALSE)
 }''')
 
+svyby_nodrop = robjects.r('''
+function( formula, by, des, fn, ...) {
+    svyby(formula, by, des, fn, keep.var=TRUE,
+          na.rm.by=TRUE, na.rm.all=TRUE, 
+          multicore=TRUE, drop.empty.groups=FALSE)
+}''')
 
 filter_survey_var = robjects.r('''
 function(des, k, vals){
