@@ -12,15 +12,6 @@ db_cfg = None
 cache_dir = None
 
 
-def check_media_type(req, resp, params):
-    if req.client_accepts_json:
-        return
-    raise falcon.HTTPUnsupportedMediaType(
-        'Media Type not Supported',
-        'This API only supports the JSON media type.',
-        'http://docs.examples.com/api/json')
-
-
 class HealthResource:
 
     def __init__(self):
@@ -80,18 +71,11 @@ class StatsResource:
             self.logger.info('got the results!', res=result)
         except Exception as ex:
             self.logger.error(ex)
-            description = ('Aliens have attacked our base! We will '
-                           'be back as soon as we fight them off. '
-                           'We appreciate your patience.')
-
-            raise falcon.HTTPServiceUnavailable(
-              'Service Outage',
-              description,
-              30)
+            raise falcon.HTTPInternalServerError('StatsWorker Failure', ex)
 
         resp.set_header('X-Powered-By', 'Ninjas')
         resp.status = falcon.HTTP_200
-        resp.body = json.dumps(result)
+        resp.body = json.dumps({'error': None, 'data': result})
 
 
 def setup_app(dbc, cdir, use_feather):
