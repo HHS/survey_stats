@@ -92,6 +92,14 @@ setup(
         'sqlalchemy-monetdb>=0.9.3',
         'pymysql>=0.7.11',
         'dask==0.15.2'
+        'cloudpickle==0.4.0',
+        'attrs==17.2.0',
+        'cattrs>=0.4.0',
+        'cachey==0.1.1',
+        'click==6.7',
+        's3fs==0.1.2',
+        'filelock==2.0.12',
+        'cached-property==1.3.0'
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={

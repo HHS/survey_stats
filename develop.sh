@@ -17,9 +17,9 @@ setup_miniconda (){
 }
 
 install (){
-    conda
-    if [ $? -eq 0 ]; then
-        echo "found miniconda, skipping the install..."
+    $COND = `which conda`
+    if [ $COND -eq 0 ]; then
+        echo "found miniconda at $COND, skipping the install..."
     else
         echo "couldn't find miniconda on the path, installing..."
         setup_miniconda
