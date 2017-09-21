@@ -2,7 +2,7 @@ import pandas as pd
 import sqlalchemy as sa
 import blaze as bz
 import requests as rq
-from cytoolz.itertoolz import concatv, pluck
+from cytoolz.itertoolz import concatv
 from cytoolz.dicttoolz import assoc
 from sanic import Sanic
 from sanic.response import json
@@ -120,10 +120,8 @@ async def fetch_survey_stats(req):
     error = None
     try:
         if not use_socrata:
-            resps = await fetch_stats(dset, qn, vars, filt)
-            results = pluck('data',resps, [])
+            results = await fetch_stats(dset, qn, vars, filt)
             results = concatv(*results)
-            error = filter(lambda x: 'data' not in x, resps)
             for v in vars:
                 results = map(lambda d: d if v in d else assoc(d, v, 'Total'), results)
         else:
