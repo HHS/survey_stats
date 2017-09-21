@@ -10,11 +10,20 @@ from sanic.config import Config
 from sanic.exceptions import SanicException, ServerError, NotFound, InvalidUsage
 from survey_stats import log
 from survey_stats import state as st
-from survey_stats import fetch
+from survey_stats.const import MAX_CONCURRENT_REQ
 import json as j
+import asyncio
+import aiohttp
+import ujson
+import traceback
+
 
 app = Sanic(__name__)
 logger = log.getLogger()
+sem = None
+headers = {'content-type': 'application/json'}
+app.static('/favicon.ico', './static/favicon.ico')
+
 
 
 class SurveyError(InvalidUsage):
@@ -22,6 +31,34 @@ class SurveyError(InvalidUsage):
     def __init__(self, message, info):
         self.info = info
         InvalidUsage.__init__(self, message=message)
+
+
+@app.listener('before_server_start')
+def init(sanic, loop):
+    global sem
+    sem = asyncio.Semaphore(MAX_CONCURRENT_REQ, loop=loop)
+
+
+async def bound_fetch(url, data, session):
+    async with sem, session.post(url, json=data, headers=headers) as response:
+        logger.info('submitting async post request', url=response.url, data=data)
+        return await response.json()
+
+
+async def fetch_all(slices, worker_url):
+    rqurl = worker_url + '/stats'
+    tasks = []
+    # Create client session that will ensure we dont open new connection
+    # per each request.
+    async with aiohttp.ClientSession(json_serialize=ujson.dumps) as session:
+        for s in slices:
+            logger.info(sl=s, url=rqurl)
+            # pass Semaphore and session to every GET request
+            task = asyncio.ensure_future(bound_fetch(rqurl, s, session))
+            tasks.append(task)
+
+        responses = await asyncio.gather(*tasks)
+        return [r for r in responses]
 
 
 async def fetch_socrata(qn, resp, vars, filt, meta):
@@ -33,7 +70,10 @@ async def fetch_socrata(qn, resp, vars, filt, meta):
 
 @app.exception(NotFound, ServerError, InvalidUsage)
 def json_404s(request, exception):
-    return json({'error': exception})
+    tb=traceback.format_exc()
+    logger.info('Uh Oh! Encountered an error while fetching stats!', 
+                error=exception, request=request, traceback=tb) 
+    return json({'error': exception, 'traceback':tb})
 
 
 @app.route("/")
@@ -77,7 +117,7 @@ def parse_filter(f):
 async def fetch_stats(dset, qn, vars, filt):
     d = st.dset[dset]
     slices = d.generate_slices(qn, vars, filt)
-    return await fetch.fetch_all(slices, app.config.stats_svc)
+    return await fetch_all(slices, app.config.stats_svc)
 
 
 @app.route('/stats')
