@@ -11,7 +11,6 @@ import gc
 
 rbase = importr('base')
 rstats = importr('stats')
-rpar = importr('parallel')
 rsvy = importr('survey')
 
 rfeather = importr('feather', on_conflict='warn')
@@ -64,7 +63,7 @@ def fetch_stats_by(des, qn_f, r, vs):
 
 
 def fetch_stats_totals(des, qn_f, r):
-    total_ci = svyciprop_xlogit(Formula(qn_f), des, multicore=True)
+    total_ci = svyciprop_xlogit(Formula(qn_f), des, multicore=False)
     # extract stats
     logger.info('fetching stats totals', r=r, q=qn_f)
     cts = rsvy.svyby(Formula(qn_f), Formula(qn_f), des, rsvy.unwtd_count, na_rm=True,

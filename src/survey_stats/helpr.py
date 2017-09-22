@@ -16,7 +16,7 @@ svyby_nodrop = robjects.r('''
 function( formula, by, des, fn, ...) {
     svyby(formula, by, des, fn, keep.var=TRUE,
           na.rm.by=TRUE, na.rm.all=TRUE, 
-          multicore=TRUE, drop.empty.groups=FALSE)
+          multicore=FALSE, drop.empty.groups=FALSE)
 }''')
 
 filter_survey_var = robjects.r('''
