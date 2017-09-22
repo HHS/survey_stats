@@ -50,12 +50,12 @@ gunicorn_params = [
                  envvar='WEB_CONCURRENCY',
                  help='number of workers for server, ' +
                       'default: %d' % c.DEFAULT_NUM_WORKERS),
-    click.option('-x', '--threads', type=c.CLICK_NUM_THREADS,
+    click.option('--threads', type=c.CLICK_NUM_THREADS,
                  default=c.DEFAULT_NUM_THREADS,
                  envvar='GUNICORN_WORKER_THREADS',
                  help='number of threads/worker for server, ' +
                       'default: %d' % c.DEFAULT_NUM_WORKERS),
-    click.option('-u', '--timeout', type=c.CLICK_TIMEOUT,
+    click.option('--timeout', type=c.CLICK_TIMEOUT,
                  default=c.DEFAULT_REQ_TIMEOUT,
                  envvar='GUNICORN_TIMEOUT',
                  help='gunicorn worker timeout in seconds, ' +
@@ -100,21 +100,27 @@ def cli():
 @click.option('-p', '--port', type=int, envvar='SVY_SERVER_PORT',
               default=c.DEFAULT_SVY_API_PORT,
               help='port for API service, default: 7777')
+@click.option('-s', '--socket', type=str, envvar='SVY_WORKER_SOCKET',
+              help='unix socket for worker service')
 @click.option('-d', '--data-url', type=int, envvar='SVY_DATA_URL',
               help='data archive url for source data files')
-@click.option('-u', '--sanic-timeout', type=int,
-              default=60, envvar='SANIC_REQUEST_TIMEOUT',
-              help='sanic request timeout in seconds, default: 60')
+@click.option('--sanic-timeout', type=int,
+              default=300, envvar='SANIC_REQUEST_TIMEOUT',
+              help='sanic request timeout in seconds, default')
 @click.option('-W', '--stats-worker', type=str,
               default='http://localhost:7788',
               help='stats worker uri, default: http://localhost:7788')
+@click.option('--stats-socket', type=str,
+              default='/tmp/statsworker.sock',
+              help='stats worker socket, default: unix:statsworker.sock')
 @cli.command()
-def serve(cache_dir, db_config, db_host, db_port, db_type, db_user, db_password, db_name, feather, workers, threads, timeout, max_requests, max_requests_jitter, worker_connections, debug, stats_worker, sanic_timeout, data_url, port, host):
+def serve(cache_dir, db_config, db_host, db_port, db_type, db_user, db_password, db_name, feather, workers, threads, timeout, max_requests, max_requests_jitter, worker_connections, debug, stats_socket, stats_worker, sanic_timeout, data_url, socket, port, host):
     from survey_stats.server import APIServer
     from survey_stats.api import setup_app
 
     options = {
-        'bind': '%s:%s' % (host, str(port)),
+        'bind': '%s:%s' % (host, str(port)) if not socket else socket,
+        'umask': int('007',8),
         'worker_class': 'sanic.worker.GunicornWorker',
         'workers': workers,
         'max_requests': max_requests,
@@ -130,7 +136,8 @@ def serve(cache_dir, db_config, db_host, db_port, db_type, db_user, db_password,
         cache_dir=cache_dir,
         stats_svc=stats_worker,
         sanic_timeout=sanic_timeout,
-        use_feather=feather)
+        use_feather=feather,
+        worker_socket=stats_socket)
     return APIServer(app, options).run()
 
 
@@ -141,13 +148,16 @@ def serve(cache_dir, db_config, db_host, db_port, db_type, db_user, db_password,
 @click.option('-p', '--port', type=int, envvar='SVY_WORKER_PORT',
               default=c.DEFAULT_SVY_WORKER_PORT,
               help='port for worker service, default: 7788')
+@click.option('-s', '--socket', type=str, envvar='SVY_WORKER_SOCKET',
+              help='unix socket for worker service')
 @cli.command()
-def work(cache_dir, db_config, db_host, db_port, db_type, db_user, db_password, db_name, feather, workers, threads, timeout, max_requests, max_requests_jitter, worker_connections, debug, port, host):
+def work(cache_dir, db_config, db_host, db_port, db_type, db_user, db_password, db_name, feather, workers, threads, timeout, max_requests, max_requests_jitter, worker_connections, debug, socket, port, host):
     from survey_stats.server import APIServer
     from survey_stats.microservice import setup_app
 
     options = {
-        'bind': '%s:%s' % (host, str(port)),
+        'bind': '%s:%s' % (host, str(port)) if not socket else socket,
+        'umask': int('007', 8),
         'worker_class': 'sync',
         'workers': workers,
         'max_requests': max_requests,

@@ -7,7 +7,9 @@ from cytoolz.dicttoolz import assoc
 from sanic import Sanic
 from sanic.response import json
 from sanic.config import Config
-from sanic.exceptions import SanicException, ServerError, NotFound, InvalidUsage
+from sanic.exceptions import (
+    SanicException, ServerError, NotFound, InvalidUsage, RequestTimeout
+)
 from survey_stats import log
 from survey_stats import state as st
 from survey_stats.const import MAX_CONCURRENT_REQ
@@ -45,12 +47,18 @@ async def bound_fetch(url, data, session):
         return await response.json()
 
 
-async def fetch_all(slices, worker_url):
+async def fetch_all(slices, worker_url, worker_socket=None):
+    conn = None
+    if worker_socket:
+        conn = aiohttp.UnixConnector(path=worker_socket, limit=MAX_CONCURRENT_REQ)
+        worker_url = 'http://localhost' # + worker_socket 
+    else:
+        conn = aiohttp.TCPConnector(limit=MAX_CONCURRENT_REQ)
     rqurl = worker_url + '/stats'
     tasks = []
     # Create client session that will ensure we dont open new connection
     # per each request.
-    async with aiohttp.ClientSession(json_serialize=ujson.dumps) as session:
+    async with aiohttp.ClientSession(connector=conn, json_serialize=ujson.dumps) as session:
         for s in slices:
             logger.info(sl=s, url=rqurl)
             # pass Semaphore and session to every GET request
@@ -68,7 +76,7 @@ async def fetch_socrata(qn, resp, vars, filt, meta):
     return precomp.to_dict(orient='record')
 
 
-@app.exception(NotFound, ServerError, InvalidUsage)
+@app.exception(NotFound, ServerError, InvalidUsage, RequestTimeout)
 def json_404s(request, exception):
     tb=traceback.format_exc()
     logger.info('Uh Oh! Encountered an error while fetching stats!', 
@@ -117,7 +125,7 @@ def parse_filter(f):
 async def fetch_stats(dset, qn, vars, filt):
     d = st.dset[dset]
     slices = d.generate_slices(qn, vars, filt)
-    return await fetch_all(slices, app.config.stats_svc)
+    return await fetch_all(slices, app.config.stats_svc, app.config.stats_sock)
 
 
 @app.route('/stats')
@@ -180,13 +188,15 @@ async def fetch_survey_stats(req):
     })
 
 
-def setup_app(dbc, cache_dir, stats_svc, sanic_timeout, use_feather):
+def setup_app(dbc, cache_dir, stats_svc, sanic_timeout, use_feather, worker_socket):
     app.config.dbc = dbc
     app.config.cache = cache_dir
     app.config.stats_svc = stats_svc
     app.config.sanic_timeout = sanic_timeout
     app.config.use_feather = use_feather
+    app.config.stats_sock = worker_socket
     Config.REQUEST_TIMEOUT = sanic_timeout
+    Config.KEEP_ALIVE = False
     logger.info('initializing state', dbc=dbc, cdir=cache_dir, f=use_feather)
     st.initialize(dbc, cache_dir, init_des=False, use_feather=use_feather, init_svy=True, init_soc=True)
     return app
