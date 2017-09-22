@@ -47,9 +47,9 @@ async def bound_fetch(url, data, session):
         return await response.json()
 
 
-async def fetch_all(slices, worker_url, worker_socket=None):
+async def fetch_all(slices, worker_url, worker_socket=False):
     conn = None
-    if worker_socket:
+    if worker_socket.startswith('/'):
         conn = aiohttp.UnixConnector(path=worker_socket, limit=MAX_CONCURRENT_REQ)
         worker_url = 'http://localhost' # + worker_socket 
     else:
