@@ -99,7 +99,8 @@ setup(
         'click==6.7',
         's3fs==0.1.2',
         'filelock==2.0.12',
-        'cached-property==1.3.0'
+        'cached-property>=1.3.0',
+        'flask-transmute>=1.3.0'
         # eg: 'aspectlib==1.1.1', 'six>=1.7',
     ],
     extras_require={

@@ -26,7 +26,7 @@ setup_miniconda (){
     # wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
     sudo apt-get update && \
     sudo apt-get install -y curl gcc wget make g++ openssl libreadline-dev \
-        libssl-dev libpcre3-dev zlib1g-dev gfortran httpie zsh && \
+        libssl-dev libpcre3-dev zlib1g-dev gfortran lzop liblzo2-dev httpie zsh && \
     wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
         -O miniconda.sh && \
     chmod +x miniconda.sh && \
