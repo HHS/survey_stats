@@ -5,7 +5,7 @@ env:
 install:
   - source develop.sh
 script:
-  - py.test --cov-report= --cov src tests
+  - py.test tests
   - codeclimate-test-reporter
 notifications:
   email:
