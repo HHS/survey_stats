@@ -26,6 +26,7 @@ class ColumnFilter(object):
     incl = typed(bool)
     vals = typed(Sequence[str])
 
+
 @attr.s(slots=True, frozen=True)
 class SurveyConfig(object):
     parse_mode = typed(str)

@@ -1,108 +1,56 @@
-import falcon
-import ujson as json
+import traceback
+import cattr
+import attr
+import flask_transmute
+from cattr import typed
+from flask import Flask, Blueprint
+from flask_transmute import (
+    route, annotate, Response, APIException
+)
+from typing import (
+    Optional, Sequence, Callable, TypeVar, Mapping, Union, Dict, List
+)
+# from falcon import HTTPInvalidParam, HTTPMissingParam
 from survey_stats import log
 from survey_stats import state as st
-# import traceback
-# import falcon_jsonify
-# from falcon import HTTPInvalidParam, HTTPMissingParam
+from survey_stats.types import T
 
 logger = log.getLogger(__name__)
 
 db_cfg = None
 cache_dir = None
 
-
-def check_media_type(req, resp, params):
-    if req.client_accepts_json:
-        return
-    raise falcon.HTTPUnsupportedMediaType(
-        'Media Type not Supported',
-        'This API only supports the JSON media type.',
-        'http://docs.examples.com/api/json')
+app = Flask(__name__)
 
 
-class HealthResource:
+@attr.s
+class SvySlice(object):
+    d = typed(str)
+    q = typed(str)
+    r = typed(str)
+    vs = typed(Sequence[str])
+    f = typed(Mapping[str, Sequence[str]])
 
-    def __init__(self):
-        self.logger = log.getLogger('statsworker.' + __name__)
-
-    def on_get(self, req, resp):
-        import sqlalchemy as sa
-        from rpy2 import robjects as ro
-        from rpy2.robjects import r
-        import blaze as bz
-        engine = sa.create_engine(db_cfg.uri)
-        dbc = bz.data(engine)
-        dbinfo = {'host': dbc.data.engine.url.host,
-                  'engine': dbc.data.engine.name,
-                  'tables': dbc.fields,
-                  'config': db_cfg}
-        clsf = r('''function(x){class(x)}''')
-        rclass = lambda x: list(clsf(ro.globalenv[x]))[-1]
-        robjs = dict(map(
-                    lambda x: (x, rclass(x)),
-                    r.ls(ro.globalenv)))
-        resp.body = json.dumps({'alive': True,
-                                'db': dbinfo,
-                                'r': robjs})
+@attr.s
+class SvyStats(dict):
+    pass
 
 
-class StatsResource:
-
-    def __init__(self):
-        self.logger = log.getLogger('statsworker.' + __name__)
-
-    def on_post(self, req, resp):
-        try:
-            raw_json = req.stream.read()
-        except Exception:
-            raise falcon.HTTPError(falcon.HTTP_748,
-                                   'Read Error',
-                                   'Could not read the request body. Must be '
-                                   'them ponies again.')
-
-        try:
-            slice = json.loads(raw_json, 'utf-8')
-            self.logger.info(json.dumps(slice))
-        except ValueError:
-            raise falcon.HTTPBadRequest(
-                'Malformed JSON',
-                'Could not decode the request body. The '
-                'JSON was incorrect.')
-        try:
-            d = slice['d']
-            q = slice['q']
-            r = slice['r']
-            vs = slice['vs']
-            f = slice['f']
-            svy = st.dset[d]
-            result = svy.fetch_stats_for_slice(q, r, vs, f).to_dict(orient='records')
-            self.logger.info('got the results!', res=result)
-        except Exception as ex:
-            self.logger.error(ex)
-            description = ('Aliens have attacked our base! We will '
-                           'be back as soon as we fight them off. '
-                           'We appreciate your patience.')
-
-            raise falcon.HTTPServiceUnavailable(
-              'Service Outage',
-              description,
-              30)
-
-        resp.set_header('X-Powered-By', 'Ninjas')
-        resp.status = falcon.HTTP_200
-        resp.body = json.dumps(result)
+@route(app, body_parameters="s", paths='/stats', methods=['POST'])
+def compute(s: SvySlice) -> [SvyStats]:
+    try:
+        svy = st.dset[s.d]
+        result = (svy.fetch_stats_for_slice(s.q, s.r, s.vs, s.f)
+                     .to_dict(orient='records'))
+        logger.info('got the results!', res=result)
+    except Exception as ex:
+        raise APIException('worker failure!' +  str(ex))
+    return result
 
 
 def setup_app(dbc, cdir, use_feather):
-    global db_cfg, cache_dir
-    db_cfg = dbc
-    cache_dir = cdir
-    app = falcon.API()
-    app.add_route('/stats', StatsResource())
-    app.add_route('/', HealthResource())
-    st.initialize(dbc, cdir, init_des=True, use_feather=use_feather, init_svy=False, init_soc=False)
+    app.config.update(dbc=dbc, cache_dir=cdir)
+    st.initialize(dbc, cdir, init_des=True,
+                  use_feather=use_feather,
+                  init_svy=False, init_soc=False)
     return app
-
-# if __name__ == '__main__':
-#    app.run(host='0.0.0.0', port=7788, debug=True)
