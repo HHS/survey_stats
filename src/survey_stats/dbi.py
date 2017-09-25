@@ -7,7 +7,9 @@ from enum import unique, Enum
 from cattr import typed
 from survey_stats.const import DBURI_FMT, DSFILE_FMT
 from datashape import datashape
+from survey_stats import log
 
+logger = log.getLogger(__name__)
 
 @unique
 class DatasetPart(Enum):
@@ -27,6 +29,7 @@ class DatabaseType(Enum):
 @unique
 class DatasetFileType(Enum):
     FEATHER = 'feather'
+    JSONREC = 'json'
     PYTABLE = 'pytable'
 
 
@@ -61,10 +64,12 @@ class DatabaseConfig(object):
         return bz.data(t, dshape=shp)
 
 
-def get_datafile_path(part, dsid, cdir):
-    return os.path.join(cdir,
+def get_datafile_path(part, dsid, cdir, ftyp=DatasetFileType.FEATHER):
+    fp = os.path.join(cdir,
                         DSFILE_FMT.format(
                             dsid=dsid,
                             part=part,
-                            type=DatasetFileType.FEATHER.value
+                            type=ftyp.value
                         ))
+    logger.info('getting filepath', fp=fp)
+    return fp

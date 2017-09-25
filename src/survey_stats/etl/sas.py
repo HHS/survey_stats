@@ -3,8 +3,7 @@ import re
 import zipfile
 import pandas as pd
 import asteval
-from cytoolz.itertoolz import mapcat
-from cytoolz.curried import map, filter, curry
+from cytoolz.curried import map, filter, curry, mapcat
 from cytoolz.functoolz import pipe, thread_last, identity
 from dask import delayed
 from survey_stats import log
@@ -14,34 +13,23 @@ from survey_stats.etl import download as dl
 logger = log.getLogger(__name__)
 
 
-def parse_format_assignments(txt):
-    format_lines = ''
-    append = False
-    for line in txt.split('\n'):
-        # lowercase, trim off comments and whitespace
-        l = re.split('\/?\*', line.lower())[0].strip()
-        if line.strip().endswith(';'):
-            # make sure we don't lose terminating semicolons
-            l += ';'
-        elif not append and l.startswith('format'):
-            # begin collecting format lines
-            append = True
-            format_lines += l.replace('format', '', 1) + ' '
-            continue
-        elif append and l.endswith(';'):
-            # stop collecting format lines
-            format_lines += l.replace(';', '')
-            append = False
-            break
-        elif append:
-            # add format info line
-            format_lines += l + ' '
-            continue
-        else:
-            pass
-
+def parse_questions(txt):
+    rqt = re.compile(r'[\"\']')  # match quote chars
     assignments = thread_last(
-        format_lines.split('.'),  # assignment set ends with fmt + dot
+        txt.split(';'),
+        filter(lambda x: x.strip().lower().startswith('label')),
+        mapcat(lambda x: x.lower().split('\n')),
+        map(lambda x: x.split('=')),  # break out vars and format
+        (map, lambda y: (y[0].strip().lower(), rqt.sub('', y[1].strip()))),  # tuple of var, fmt
+        dict
+    )
+    return assignments
+
+def parse_format_assignments(txt):
+    assignments = thread_last(
+        txt.split(';'),
+        filter(lambda x: x.strip().lower().startswith('format')),
+        mapcat(lambda x: x.lower().split('.')),
         map(lambda x: x.split()),  # break out vars and format
         (mapcat, lambda y: [(k, y[-1]) for k in y]),  # tuple of var, fmt
         dict
@@ -100,6 +88,7 @@ def load_variable_labels(format_f, formas_f, repl, year=None):
                    if type(t) is bytes else t),
         curry(parse_variable_labels)(repl=repl)
     )
+    logger.info("loaded format labels", lbls=labels)
     logger.info("loading format assignments", file=formas_f)
     assignments = thread_last(
         formas_f,
@@ -109,6 +98,7 @@ def load_variable_labels(format_f, formas_f, repl, year=None):
                    if type(t) is bytes else t),
         parse_format_assignments
     )
+    logger.info("loaded format assns", ass=assignments)
     return {k: labels[v] for k, v in assignments.items() if v in labels}
 
 
@@ -135,13 +125,15 @@ def load_sas_from_url(url, format, lgr=logger):
     fh = dl.fetch_data_from_url(url)
     df = (load_sas_from_zip(fh, format)
           if url[-3:].lower() == 'zip'
-          else pd.read_sas(fh, format=format))
+          else (pd.read_csv(fh, sep='\t') if 
+          url[-3:].lower() == 'tsv' else 
+          pd.read_sas(fh, format=format)))
     logger.info("loaded SAS XPORT file", shape=df.shape)
     return df
 
 
 def load_sas_xport_df(url, lgr=logger):
-    df = load_sas_from_url(url, 'xport', lgr)
+    df = load_sas_from_url(url, 'sas7bdat' if url.find('sas7bdat') > -1 else 'xport', lgr)
     df.columns = [x.lower() for x in df.columns]
     return df
 

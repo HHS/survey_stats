@@ -12,3 +12,4 @@ def initialize(dbc, cache, init_des, use_feather, init_svy, init_soc):
     dset['brfss'] = SurveyDataset.load_dataset('config/data/brfss.yaml', dbc, cache, init_des, use_feather, init_svy, init_soc)
     dset['yrbss'] = SurveyDataset.load_dataset('config/data/yrbss.yaml', dbc, cache, init_des, use_feather, init_svy, init_soc)
     dset['prams'] = SurveyDataset.load_dataset('config/data/prams.yaml', dbc, cache, init_des, use_feather, init_svy, init_soc)
+    dset['prams_p2011'] = SurveyDataset.load_dataset('config/data/prams_p2011.yaml', dbc, cache, init_des, use_feather, init_svy, init_soc)

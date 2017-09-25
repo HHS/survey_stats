@@ -14,7 +14,8 @@ CONDA_PYPKGS="pandas scikit-learn cython rpy2"
 CONDA_RPKGS=" r-feather libiconv r-survival r-dbi"
 CONDA_PYVER="python=3.6"
 CONDA_RVER="r-base=3.4.1"
-CONDA_LIST="$CONDA_PYVER $CONDA_RVER $CONDA_PYPKGS $CONDA_RPKGS"
+CONDA_LIST="$CONDA_PYVER $CONDA_RVER"
+CONDA_PKGS="$CONDA_PYPKGS $CONDA_RPKGS"
 R_PKGS="c('survey','MonetDB.R')"
 R_REPO="http://r-forge.r-project.org"
 
@@ -39,11 +40,12 @@ setup_venv () {
     conda update -y -q conda && \
     conda info -a && \
     echo "create conda env with intel python 3.6 and gnu r 3.4.1" && \
-    conda create -y -p $VENV_DIR -c $CONDA_CHAN $CONDA_LIST && \ 
+    conda create -p $VENV_DIR -c ${CONDA_CHAN} ${CONDA_LIST} && \
+    source activate $CURDIR/$VENV_DIR && \
+    conda install -c ${CONDA_CHAN} ${CONDA_PKGS}
     echo "install required R packages" && \
     R --vanilla --slave -e "install.packages($R_PKGS, repos='$R_REPO')" && \
     echo "activate the env and install package and dev requirements with pip" && \
-    source activate $CURDIR/$VENV_DIR && \
     pip install -r requirements-dev.txt && \
     pip install -e .
 

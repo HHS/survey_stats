@@ -59,6 +59,8 @@ class DatasetConfig(object):
     description = typed(str)
     strata = typed(Sequence[str])
     facets = typed(Sequence[str])
+    facet_levels = typed(Optional[Mapping[str, Sequence[str]]])
+    questions = typed(Optional[Mapping[str, str]])
     national = typed(Sequence[ColumnFilter])
     surveys = typed(Optional[SurveyConfig])
     socrata = typed(Optional[SocrataConfig])
@@ -75,6 +77,8 @@ class DatasetConfig(object):
         logger.info('loading cfg')
         cfg = thread_first(
             y,
+            (assoc, 'facet_levels', None if 'facet_levels' not in y else y['facet_levels']),
+            (assoc, 'questions', None if 'questions' not in y else y['questions']),
             (assoc, 'national', None if not y['national'] else ColumnFilter(**y['national'])),
             (assoc, 'socrata', None if not y['socrata'] else SocrataConfig(**y['socrata'])),
             (assoc, 'surveys', None if not y['surveys'] else SurveyConfig(**y['surveys']))

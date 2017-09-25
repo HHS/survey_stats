@@ -9,15 +9,15 @@ import types
 import attr
 from cattr import typed
 from pathlib import Path
-from typing import Union, Optional, Sequence
+from typing import Union, Optional, Sequence, Mapping
 from cytoolz.curried import map, curry
 from cytoolz.functoolz import identity, pipe
-from cytoolz.dicttoolz import keymap, valmap, keyfilter
+from cytoolz.dicttoolz import keymap, valmap, keyfilter, merge
 from cached_property import threaded_cached_property
 from survey_stats import log
 from survey_stats import pdutil as u
 from survey_stats.types import DatasetConfig, ColumnFilter
-from survey_stats.dbi import DatabaseConfig, DatasetPart, get_datafile_path
+from survey_stats.dbi import DatabaseConfig, DatasetPart, get_datafile_path, DatasetFileType
 from survey_stats.const import DBTBL_FMT
 from survey_stats.const import DECIMALS, ID_COLUMN, ANNO_COLUMNS, STATS_COLUMNS
 
@@ -53,10 +53,16 @@ def hydrate_dataset_part(part, dbc, cdir, dsid, as_blaze=True):
     else:
         logger.info('hydrating with feather file')
         bzfn = bz.data if as_blaze else identity
-        res = pipe(part.value,
-                   curry(get_datafile_path)(dsid=dsid, cdir=cdir),
-                   feather.read_dataframe,
-                   bzfn)
+        try:
+            res = pipe(part.value,
+                       curry(get_datafile_path)(dsid=dsid, cdir=cdir, ftyp=DatasetFileType.FEATHER),
+                       feather.read_dataframe,
+                       bzfn)
+        except Exception as e:
+            res = pipe(part.value,
+                       curry(get_datafile_path)(dsid=dsid, cdir=cdir, ftyp=DatasetFileType.JSONREC),
+                       curry(pd.read_json),
+                       bzfn)
         return res
 
 
@@ -70,12 +76,20 @@ class SurveyMeta(object):
     qns = typed(Union[pd.DataFrame, pd.core.frame.DataFrame])
     flevels = typed(Union[pd.DataFrame, pd.core.frame.DataFrame])
     parts = typed(Sequence[DatasetPart])
+    qns_r = typed(Optional[pd.Series])
+    flevels_r = typed(Optional[Mapping[str,Sequence[str]]])
 
     @classmethod
     def load_metadata(cls, cfg, cdir):
         dsid = cfg.id
         qns = hydrate_dataset_part(DatasetPart.SCHEMA, None, cdir, dsid, as_blaze=False)
         flevels = hydrate_dataset_part(DatasetPart.FACETS, None, cdir, dsid, as_blaze=False)
+        qns_r = None
+        if cfg.questions:
+            qns_r = pd.Series(cfg.questions)
+        flevels_r = {}
+        if cfg.facet_levels:
+            flevels_r = cfg.facet_levels
         parts = []
         if cfg.surveys:
             parts.append(DatasetPart.SURVEYS)
@@ -83,7 +97,8 @@ class SurveyMeta(object):
             parts.append(DatasetPart.SOCRATA)
         return cls(dsid=dsid, strata=cfg.strata,
                    facets=cfg.facets, national=cfg.national,
-                   qns=qns, flevels=flevels, parts=parts)
+                   qns=qns, flevels=flevels, parts=parts, 
+                   qns_r=qns_r, flevels_r=flevels_r)
 
     @threaded_cached_property
     def has_socrata(self):
@@ -103,7 +118,8 @@ class SurveyMeta(object):
                 .to_dict(orient='index'))
         return pipe(facs,
                     curry(valmap)(lambda x: x['facet_level']),
-                    curry(keyfilter)(lambda x: x != 'Overall'))
+                    curry(keyfilter)(lambda x: x != 'Overall'),
+                    lambda x: merge(x, self.flevels_r))
 
     @threaded_cached_property
     def questions(self, year=True, sitecode=True):
@@ -125,11 +141,15 @@ class SurveyMeta(object):
         aggd = {k: get_unique_aggvals if
                 k in uniq else get_first_aggval
                 for k in dkeys}
-        res = (self.qns
+        qns = self.qns
+        if self.qns_r is not None:
+            qns['question_orig'] = qns.question
+            qns['question'] = self.qns_r[qns.qid].reset_index(drop=True)
+        res = (qns
                .groupby([ID_COLUMN])
                .agg(aggd)
-               .reset_index()
-               .pipe(lambda xf: u.fill_none(xf))
+               .reset_index()) if not self.dsid == 'prams_p2011' else qns
+        res = (res.pipe(lambda xf: u.fill_none(xf))
                .set_index([ID_COLUMN])
                .to_dict(orient='index'))
         return res

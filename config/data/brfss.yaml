@@ -9,6 +9,8 @@ facets:
   - age
   - income
   - education
+facet_levels: null
+questions: null
 national:
   incl: False
   vals: [GU, PR, VI] 
@@ -49,6 +51,12 @@ surveys:
     - "dont know/refused/missing"
     - "dont know/not sure/refused/missing"
   replace_labels:
+    "age 18 to 24": "18-24"
+    "age 25 to 34": "25-34"
+    "age 35 to 44": "35-44"
+    "age 45 to 54": "45-54"
+    "age 55 to 64": "55-64"
+    "age 65 or older": "65+"
     "white only non-hispanic": "White"
     "black only non-hispanic": "Black"
     "american indian or alaskan native only non-hispanic": "AI/AN"

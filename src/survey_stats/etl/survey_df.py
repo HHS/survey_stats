@@ -59,7 +59,7 @@ def eager_convert(s, fmt, lgr=logger):
     c = s
     try:
         c = convert_cat_codes(s, fmt)
-        lgr.debug('converted series with fmt', v=s.name, fmt=fmt,
+        lgr.info('converted series with fmt', v=s.name, fmt=fmt,
                   levels=s.value_counts().to_dict(), new_levels=c.value_counts().to_dict())
     except ValueError as e:
         lgr.info('ValueError converting to category! Forcing...',
@@ -75,6 +75,7 @@ def eager_convert_categorical(s, lbls, fmts, lgr=logger):
     fmt = None
     if s.name in lbls.keys():
         fmt = lbls[s.name]
+        lgr.debug('formatted with lbls', v=s.name)
     elif s.name in fmts:
         fmt = fmts[s.name]
         lgr.info('found missing format to patch', v=s.name, fmt=fmt,
@@ -112,9 +113,13 @@ def find_na_synonyms(na_syns, df):
 def munge_df(df, r, lbls, facets, qids, na_syns, col_fn, fmts, lgr=logger):
     year = r['year']
     lgr.bind(year=year)
-    lgr.info('filtering, applying varlabels, munging', patch_fmts=fmts.keys(), colfn=col_fn, shp=df.shape)
+    lgr.info('filtering, applying varlabels, munging', patch_fmts=fmts.keys(), colfn=col_fn, shp=df.shape, lbls=lbls)
     # get mapping into table for each facet
     facets = {r[k]: k for k in facets}
+    if not qids:
+        qids = list(set(lbls.keys()).difference(
+                    [r['sitecode'], r['year'], r['weight'], r['psu'], r['strata']] +
+                    [k for k in facets]))
     ncols = {k: k.lower() for k in list(df.columns)}
     ndf = (df.rename(index=str, columns=ncols)
            .pipe(lambda xdf: filter_columns(xdf, facets, qids))

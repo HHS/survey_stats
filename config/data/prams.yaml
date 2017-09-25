@@ -22,6 +22,8 @@ facets:
   - smoked_last_tri 
   - smoked_3mo_pre_preg
   - wic_during_preg
+facet_levels: null
+questions: null
 national:
   incl: False
   vals: [PR, GU, VI]
