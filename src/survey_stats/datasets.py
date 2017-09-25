@@ -84,6 +84,7 @@ class SurveyMeta(object):
         dsid = cfg.id
         qns = hydrate_dataset_part(DatasetPart.SCHEMA, None, cdir, dsid, as_blaze=False)
         flevels = hydrate_dataset_part(DatasetPart.FACETS, None, cdir, dsid, as_blaze=False)
+        flevels.facet_level[flevels.facet=='year'] = flevels.facet_level[flevels.facet=='year'].apply(lambda x: int(x))
         qns_r = None
         if cfg.questions:
             qns_r = pd.Series(cfg.questions)
@@ -207,7 +208,7 @@ class SurveyDataset(object):
         return hydrate_dataset_part(part, self.dbc, self.cdir, self.dsid)
 
     def values_for_col(self, col, exclude=[]):
-        r = odo(self.svy[col].distinct(), pd.DataFrame)
+        r = odo(self.svy[[col]].distinct(), pd.DataFrame)
         vals = list(r.dropna()[col])
         return list(set(vals)
                     .difference(exclude))

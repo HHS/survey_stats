@@ -153,7 +153,8 @@ async def fetch_survey_stats(req):
             raise SurveyError("Cannot find filter facet: %s in dataset: %s" % (k, dset),
                                info={'facets': fs})
         for v in vals:
-            if not v in fs[k]:
+            typ = type(fs[k][0])
+            if not typ(v) in fs[k]:
                 raise SurveyError("Cannot find value: %s for filter facet: %s in dataset: %s" % (v, k, dset),
                                    info={'facets': fs})
 
