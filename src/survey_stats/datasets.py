@@ -218,7 +218,7 @@ class SurveyDataset(object):
         sel = None
         df = self.soc
         fcts = list(set(self.meta.facets)
-                    .intersection(df.fields))
+                    .intersection(self.soc.fields))
         sel = df[ID_COLUMN] == qn
         site_col = self.mapper('sitecode')
         year_col = self.mapper('year')
@@ -234,11 +234,11 @@ class SurveyDataset(object):
             if v in filt.keys():
                 sel = sel & df[v].isin(filt[v])
             elif v not in vars:
-                sel = sel & (df[v] == 'Total')
+                sel = sel & (df[v].isin(['Total', None]))
         cols = (set(ANNO_COLUMNS)
                 .union(vars)
                 .union(STATS_COLUMNS)
-                .intersection(df.fields))
+                .intersection(self.soc.fields))
         cols = list(cols)
         dfz = odo(df[sel][cols], pd.DataFrame)
         stats_sub = list(set(STATS_COLUMNS).intersection(dfz.columns))
