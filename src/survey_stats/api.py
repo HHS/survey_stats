@@ -115,6 +115,9 @@ async def fetch_questions(req):
     return json({'facets': d.meta.facet_map,
                  'questions': d.meta.questions}) 
 
+@app.route("/check_levels")
+async def fetch_questions(req):
+    return json([d.find_mismatched_levels() for did, d in st.dset.items()]) 
 
 def parse_filter(f):
     return dict(map(lambda fv: (fv.split(':')[0],

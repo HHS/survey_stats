@@ -10,7 +10,7 @@ import attr
 from cattr import typed
 from pathlib import Path
 from typing import Union, Optional, Sequence, Mapping
-from cytoolz.curried import map, curry
+from cytoolz.curried import map, curry, filter
 from cytoolz.functoolz import identity, pipe
 from cytoolz.dicttoolz import keymap, valmap, keyfilter, merge
 from cached_property import threaded_cached_property
@@ -29,7 +29,7 @@ def get_if(x, d):
     return d[x] if x in d else x
 
 def get_unique_aggvals(xf):
-    return xf.drop_duplicates().tolist()
+    return set(xf.dropna())
 
 def map_with_dict(d, val):
     repl_f = curry(get_if)(d=d)
@@ -123,36 +123,39 @@ class SurveyMeta(object):
                     lambda x: merge(x, self.flevels_r))
 
     @threaded_cached_property
-    def questions(self, year=True, sitecode=True):
+    def questions(self):
         def get_first_aggval(xf):
-            return xf.get_values()[0]
+            try:
+                return xf.dropna().get_values()[0]
+            except Exception as e:
+                return None
         # optional metadata to add to questions
-        opts = (['year'] if year else []) + \
-            (['sitecode'] if sitecode else [])
+        opts = (['year'] if 'year' in list(self.qns.columns) else []) + \
+            (['sitecode'] if 'sitecode' in list(self.qns.columns) else [])
         # columns to exclude before aggregating question metadata
         # consists of the groupby column, qid, plus unused optional cols
-        excl = set([ID_COLUMN] + self.strata).difference(opts)
+        qns = self.qns
+        group_cols = [ID_COLUMN, 'topic', 'subtopic', 'question']
+        if self.qns_r is not None:
+            qns['q_orig'] = qns.question.astype(str)
+            qns['question'] = self.qns_r[qns.qid].reset_index(drop=True)
+            qns['question'] = qns[['question','q_orig']].apply(lambda x: x.q_orig if pd.isnull(x.question) else x.question, axis=1)
         # columns that need to be uniqued -- otherwise assume constant for each qid
-        uniq = ['response'] + opts
+        uniq = ['year','sitecode','response']
+        dkeys = set(self.qns.columns).difference(group_cols + ['facet', 'facet_level'])
         # columns to aggregate over
-        dkeys = set(self.qns.columns).difference(excl)
         # aggregation function for each col
         # -- first value for const cols
         # -- deduplication function for uniq cols
         aggd = {k: get_unique_aggvals if
                 k in uniq else get_first_aggval
                 for k in dkeys}
-        qns = self.qns
-        if self.qns_r is not None:
-            qns['question_orig'] = qns.question
-            qns['question'] = self.qns_r[qns.qid].reset_index(drop=True)
         res = (qns
-               .groupby([ID_COLUMN])
+               .groupby(group_cols)
                .agg(aggd)
-               .reset_index()) if not self.dsid == 'prams_p2011' else qns
-        res = (res.pipe(lambda xf: u.fill_none(xf))
-               .set_index([ID_COLUMN])
-               .to_dict(orient='index'))
+               .reset_index() 
+               .pipe(lambda xf: u.fill_none(xf))
+               .to_dict(orient='records'))
         return res
 
     @threaded_cached_property
@@ -212,6 +215,25 @@ class SurveyDataset(object):
         vals = list(r.dropna()[col])
         return list(set(vals)
                     .difference(exclude))
+
+    def compare_levels(self, col):
+        s_vals = set(odo(self.svy[col].distinct(), pd.Series)) if self.meta.has_surveys and col in self.svy.fields else []
+        p_vals = set(odo(self.soc[self.soc[ID_COLUMN] == col].response.distinct(), pd.Series)) if self.meta.has_socrata and col in self.soc.fields else []
+        q_vals = set(self.qns[self.meta.qns[ID_COLUMN] == col]
+                         .response
+                         .drop_duplicates()
+                         .dropna())
+        return {'qid': col,
+                'surveys': s_vals,
+                'socrata': p_vals,
+                'questions': q_vals}
+
+    def find_mismatched_levels(self):
+        return pipe(self.meta.qns[ID_COLUMN],
+                    set,
+                    map(self.compare_levels),
+                    filter(lambda x: set(x['surveys']) != set(x['socrata']))
+                    )
 
     def fetch_socrata(self, qn, vars, filt={}):
         vars = self.mapper(vars)

@@ -36,8 +36,6 @@ surveys:
     drnkany3: 
       1: "yes"
       2: "no"
-      7: "do not know/not sure"
-      9: "refused/missing"
     employ: 
       1: "employed for wages"
       2: "self-employed"
@@ -47,7 +45,6 @@ surveys:
       6: "a student"
       7: "retired"
       8: "unable to work"
-      9: "refused"
     genhlth: 
       1: "excellent"
       2: "very good"
@@ -85,7 +82,7 @@ surveys:
     "$15000 to less than $25000": "$15k-$25k"
     "$25000 to less than $35000": "$25k-$35k"
     "$35000 to less than $50000": "$35k-$50k"
-    "$50000 or more": "$50k+"
+    "$50000 or more": "$50k plus"
     "did not graduate high school": "Less than High School"
     "graduated high school": "High School Graduate"
     "attended college or technical school": "Attended College/Technical School"
@@ -139,7 +136,7 @@ socrata:
       "$15,000-$24,999": "$15k-$25k"
       "$25,000-$34,999": "$25k-$35k"
       "$35,000-$49,999": "$35k-$50k"
-      "$50,000+": "$50k+"
+      "$50,000+": "$50k plus"
       "less than h.s.": "Less than High School"
       "h.s. or g.e.d.": "High School Graduate"
       "some post h.s.": "Attended College/Technical School"
@@ -160,7 +157,7 @@ socrata:
       "$15,000-$24,999": "$15k-$25k"
       "$25,000-$34,999": "$25k-$35k"
       "$35,000-$49,999": "$35k-$50k"
-      "$50,000+": "$50k+"
+      "$50,000+": "$50k plus"
       "less than h.s.": "Less than High School"
       "h.s. or g.e.d.": "High School Graduate"
       "some post h.s.": "Attended College/Technical School"
