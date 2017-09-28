@@ -3,7 +3,7 @@ import sqlalchemy as sa
 import blaze as bz
 import requests as rq
 from cytoolz.itertoolz import concatv
-from cytoolz.dicttoolz import assoc
+from cytoolz.dicttoolz import assoc, valmap
 from sanic import Sanic
 from sanic.response import json
 from sanic.config import Config
@@ -13,6 +13,7 @@ from sanic.exceptions import (
 from survey_stats import log
 from survey_stats import state as st
 from survey_stats.const import MAX_CONCURRENT_REQ
+import ujson as uj
 import json as j
 import asyncio
 import aiohttp
@@ -76,7 +77,7 @@ async def fetch_socrata(qn, resp, vars, filt, meta):
     return precomp.to_dict(orient='record')
 
 
-@app.exception(NotFound, ServerError, InvalidUsage, RequestTimeout)
+@app.exception(NotFound, ServerError, InvalidUsage, RequestTimeout, Exception)
 def json_404s(request, exception):
     tb=traceback.format_exc()
     logger.info('Uh Oh! Encountered an error while fetching stats!', 
@@ -111,9 +112,12 @@ async def check_status(req):
 @app.route("/questions")
 async def fetch_questions(req):
     dset = req.args.get('d')
-    d = st.dset[dset]
-    return json({'facets': d.meta.facet_map,
-                 'questions': d.meta.questions}) 
+    try:
+        d = st.dset[dset]
+        return json({'facets': d.meta.facet_map,
+                     'questions': d.meta.questions}) 
+    except Exception as e:
+        raise ServerError(str(e))
 
 @app.route("/check_levels")
 async def fetch_questions(req):

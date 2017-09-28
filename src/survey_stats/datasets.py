@@ -29,7 +29,7 @@ def get_if(x, d):
     return d[x] if x in d else x
 
 def get_unique_aggvals(xf):
-    return set(xf.dropna())
+    return {x if type(x) == str else x.tolist() for x in set(xf.replace("nan", None).dropna())}
 
 def map_with_dict(d, val):
     repl_f = curry(get_if)(d=d)
@@ -85,6 +85,7 @@ class SurveyMeta(object):
         qns = hydrate_dataset_part(DatasetPart.SCHEMA, None, cdir, dsid, as_blaze=False)
         flevels = hydrate_dataset_part(DatasetPart.FACETS, None, cdir, dsid, as_blaze=False)
         flevels.facet_level[flevels.facet=='year'] = flevels.facet_level[flevels.facet=='year'].apply(lambda x: int(x))
+        flevels = flevels.replace({"nan":None})
         qns_r = None
         if cfg.questions:
             qns_r = pd.Series(cfg.questions)
@@ -114,7 +115,7 @@ class SurveyMeta(object):
         facs = (self.flevels
                 .groupby(['facet'])
                 .agg({'facet_level':
-                      lambda x: x.drop_duplicates().tolist()})
+                      lambda x: x.dropna().drop_duplicates().tolist()})
                 .pipe(lambda xf: u.fill_none(xf))
                 .to_dict(orient='index'))
         return pipe(facs,
@@ -135,11 +136,13 @@ class SurveyMeta(object):
         # columns to exclude before aggregating question metadata
         # consists of the groupby column, qid, plus unused optional cols
         qns = self.qns
-        group_cols = [ID_COLUMN, 'topic', 'subtopic', 'question']
+        group_cols = [ID_COLUMN, 'topic', 'subtopic']
         if self.qns_r is not None:
             qns['q_orig'] = qns.question.astype(str)
             qns['question'] = self.qns_r[qns.qid].reset_index(drop=True)
             qns['question'] = qns[['question','q_orig']].apply(lambda x: x.q_orig if pd.isnull(x.question) else x.question, axis=1)
+            #incl_cols = incl_cols + ['question_orig']
+            #group_cols = group_cols + ['question_orig']
         # columns that need to be uniqued -- otherwise assume constant for each qid
         uniq = ['year','sitecode','response']
         dkeys = set(self.qns.columns).difference(group_cols + ['facet', 'facet_level'])
@@ -150,6 +153,7 @@ class SurveyMeta(object):
         aggd = {k: get_unique_aggvals if
                 k in uniq else get_first_aggval
                 for k in dkeys}
+        # qns['response'] = qns.response.astype(str)
         res = (qns
                .groupby(group_cols)
                .agg(aggd)
@@ -217,8 +221,11 @@ class SurveyDataset(object):
                     .difference(exclude))
 
     def compare_levels(self, col):
-        s_vals = set(odo(self.svy[col].distinct(), pd.Series)) if self.meta.has_surveys and col in self.svy.fields else []
-        p_vals = set(odo(self.soc[self.soc[ID_COLUMN] == col].response.distinct(), pd.Series)) if self.meta.has_socrata and col in self.soc.fields else []
+        s_vals = set(self.svy[col].distinct().notnull()) if self.meta.has_surveys and col in self.svy.fields else []
+        p_vals = set(self.soc[self.soc[ID_COLUMN] == col]
+                         .response
+                         .distinct()
+                         .notnull()) if self.meta.has_socrata and col in self.soc.fields else []
         q_vals = set(self.qns[self.meta.qns[ID_COLUMN] == col]
                          .response
                          .drop_duplicates()
