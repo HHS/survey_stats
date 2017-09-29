@@ -143,12 +143,12 @@ async def fetch_survey_stats(req):
         raise SurveyError(str(e), 
                            info={'datasets': list(dset.keys())})
     d = st.dset[dset]
-    qs = d.meta.questions
+    qs = d.meta.qns
     fs = d.meta.facet_map
     qn = req.args.get('q')
-    if qn not in qs:
+    if qs.qid.eq(qn).sum() == 0:
         raise SurveyError("Cannot find qid: %s in dataset: %s" % (qn, dset),
-                           info={'questions': list(qs.keys())})
+                           info={'questions': set(qs.qid)})
     vars = [] if 'v' not in req.args else req.args.get('v').split(',')
     for v in vars:
         if not v in d.meta.vars:

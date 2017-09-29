@@ -29,7 +29,7 @@ def get_if(x, d):
     return d[x] if x in d else x
 
 def get_unique_aggvals(xf):
-    return {x if type(x) == str else x.tolist() for x in set(xf.replace("nan", None).dropna())}
+    return {x if type(x) == str else x.tolist() for x in set(xf.dropna())}.difference(['nan'])
 
 def map_with_dict(d, val):
     repl_f = curry(get_if)(d=d)
@@ -127,7 +127,7 @@ class SurveyMeta(object):
     def questions(self):
         def get_first_aggval(xf):
             try:
-                return xf.dropna().get_values()[0]
+                return xf.dropna().astype(str).get_values()[0]
             except Exception as e:
                 return None
         # optional metadata to add to questions
