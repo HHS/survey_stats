@@ -30,10 +30,11 @@ setup_miniconda (){
 setup_venv () {
 
     echo "update conda" && \
+    conda install -n root _license  
     conda update -y -q conda && \
     conda info -a && \
     echo "create conda env with required R and Python deps" && \
-    conda create -n ${VENV_NAME} -f conda_env.yml && \
+    conda env create -n ${VENV_NAME} -f conda_env.yml && \
     source activate ${VENV_NAME} && \
     echo "install required R packages" && \
     R --vanilla --slave -e "install.packages($R_PKGS, repos='$R_REPO')" && \
