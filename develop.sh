@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 # setup paths for install
 
 export MALLOC_MMAP_THRESHOLD_=1000000
@@ -8,23 +8,16 @@ export MALLOC_MXFAST_=0
 export PATH="$HOME/miniconda/bin:$PATH"
 
 CURDIR=`pwd`
-VENV_DIR="venv"
-CONDA_CHAN="intel/label/test"
-CONDA_PYPKGS="pandas scikit-learn cython rpy2"
-CONDA_RPKGS=" r-feather libiconv r-survival r-dbi"
-CONDA_PYVER="python=3.6"
-CONDA_RVER="r-base=3.4.1"
-CONDA_LIST="$CONDA_PYVER $CONDA_RVER"
-CONDA_PKGS="$CONDA_PYPKGS $CONDA_RPKGS"
+VENV_NAME="survey_env"
+CONDA_CHANS="intel intel/label/test"
 R_PKGS="c('survey','MonetDB.R')"
 R_REPO="http://r-forge.r-project.org"
 
 COND=`which conda`
+COND_EXISTS=$?
 
 setup_miniconda (){
     PLATF=`uname`
-    # setup miniconda3
-    # wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
     sudo apt-get update && \
     sudo apt-get install -y curl gcc wget make g++ openssl libreadline-dev \
         libssl-dev libpcre3-dev zlib1g-dev gfortran lzop liblzo2-dev httpie zsh && \
@@ -36,24 +29,21 @@ setup_miniconda (){
 
 setup_venv () {
 
-    echo "update conda and add intel channel" && \
+    echo "update conda" && \
     conda update -y -q conda && \
     conda info -a && \
-    echo "create conda env with intel python 3.6 and gnu r 3.4.1" && \
-    conda create -p $VENV_DIR -c ${CONDA_CHAN} ${CONDA_LIST} && \
-    source activate $CURDIR/$VENV_DIR && \
-    conda install -c ${CONDA_CHAN} ${CONDA_PKGS}
+    echo "create conda env with required R and Python deps" && \
+    conda create -n ${VENV_NAME} -f conda_env.yml && \
+    source activate ${VENV_NAME} && \
     echo "install required R packages" && \
     R --vanilla --slave -e "install.packages($R_PKGS, repos='$R_REPO')" && \
-    echo "activate the env and install package and dev requirements with pip" && \
-    pip install -r requirements-dev.txt && \
+    echo "activate the env and install survey_stats in dev mode" && \
     pip install -e .
-
 }
 
 install (){
 
-    if [ $COND -eq 0 ]; then
+    if [ -e $COND ]; then
         echo "found conda at $COND, skipping the install..."
     else
         echo "couldn't find miniconda on the path, installing..."
@@ -73,6 +63,6 @@ if [ ! -f .develop.lock ]; then
     fi
 else
     echo "environment exists, getting it ready..."
-    source activate "$CURDIR/$VENV_DIR"
+    source activate ${VENV_NAME}
     echo "environment ready!"
 fi
