@@ -1,5 +1,3 @@
--r requirements.txt
--r requirements-noconda.txt
 pytest>=2.9.0
 pytest-cov>=2.0.0
 coverage>=4.0,<4.4  			# rq.filter: >=4.0,<4.4

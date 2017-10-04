@@ -1,0 +1,2 @@
+-r requirements/requirements-noconda.txt
+-r requirements/requirements-conda.txt
