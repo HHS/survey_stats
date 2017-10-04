@@ -1,0 +1,6 @@
+[program:stats_server]
+command=sh run_server.sh
+autostart=true
+directory={{ project_location }}
+stderr_logfile=/var/log/stats_server.err.log
+stdout_logfile=/var/log/stats_server.out.log

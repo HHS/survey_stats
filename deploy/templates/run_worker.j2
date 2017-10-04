@@ -1,0 +1,6 @@
+[program:stats_worker]
+command=sh run_worker.sh
+autostart=true
+directory={{ project_location }}
+stderr_logfile=/var/log/stats_worker.err.log
+stdout_logfile=/var/log/stats_worker.out.log
