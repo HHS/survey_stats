@@ -32,7 +32,7 @@ surveys:
     drnkany5:
       1: "yes"
       2: "no"
-      7: "dont know/not sure"
+      7: "don't know/not sure"
       9: "refused/missing"
   na_synonyms:
     - "na"
@@ -47,9 +47,12 @@ surveys:
     - "dont know/not sure"
     - "don’t know/not sure/refused"
     - "dont know/not sure/refused"
+    - "don't know/not sure/missing"
+    - "dont know/not sure/missing"
     - "don't know/refused/missing"
     - "dont know/refused/missing"
     - "dont know/not sure/refused/missing"
+    - "don't know/not sure/refused/missing"
   replace_labels:
     "age 18 to 24": "18-24"
     "age 25 to 34": "25-34"
