@@ -144,6 +144,7 @@ dependencies:
   - jellyfish==0.5.6
   - jsonschema==2.6.0
   - jsonschema-extractor==0.4
+  - pbr==3.1.1
   - py==1.4.34
   - pyarrow==0.7.1
   - pymonetdb==1.0.6
