@@ -48,13 +48,8 @@ async def bound_fetch(url, data, session):
         return await response.json()
 
 
-async def fetch_all(slices, worker_url, worker_socket=False):
-    conn = None
-    if worker_socket.startswith('/'):
-        conn = aiohttp.UnixConnector(path=worker_socket, limit=MAX_CONCURRENT_REQ)
-        worker_url = 'http://localhost' # + worker_socket 
-    else:
-        conn = aiohttp.TCPConnector(limit=MAX_CONCURRENT_REQ)
+async def fetch_all(slices, worker_url):
+    conn = aiohttp.TCPConnector(limit=MAX_CONCURRENT_REQ)
     rqurl = worker_url + '/stats'
     tasks = []
     # Create client session that will ensure we dont open new connection
@@ -132,7 +127,7 @@ def parse_filter(f):
 async def fetch_stats(dset, qn, vars, filt):
     d = st.dset[dset]
     slices = d.generate_slices(qn, vars, filt)
-    return await fetch_all(slices, app.config.stats_svc, app.config.stats_sock)
+    return await fetch_all(slices, app.config.stats_svc)
 
 
 @app.route('/stats')
@@ -196,13 +191,12 @@ async def fetch_survey_stats(req):
     })
 
 
-def setup_app(dbc, cache_dir, stats_svc, sanic_timeout, use_feather, worker_socket):
+def setup_app(dbc, cache_dir, stats_svc, sanic_timeout, use_feather):
     app.config.dbc = dbc
     app.config.cache = cache_dir
     app.config.stats_svc = stats_svc
     app.config.sanic_timeout = sanic_timeout
     app.config.use_feather = use_feather
-    app.config.stats_sock = worker_socket
     Config.REQUEST_TIMEOUT = sanic_timeout
     Config.KEEP_ALIVE = False
     logger.info('initializing state', dbc=dbc, cdir=cache_dir, f=use_feather)
