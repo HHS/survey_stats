@@ -27,7 +27,7 @@ national:
   incl: False
   vals: [PR, GU, VI]
 surveys:
-  denovo_strata: True
+  denovo_strata: False
   parse_mode: sas
   fpc: True
   source_url_prefix: "https://www.cdc.gov/prams/annual_data/{year}/files/"
