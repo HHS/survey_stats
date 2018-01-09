@@ -205,10 +205,12 @@ class SurveyDataset(object):
             from survey_stats.survey import des_from_survey_db, des_from_feather
             des = des_from_survey_db(
                 DBTBL_FMT.format(dsid=dsid, part=DatasetPart.SURVEYS.value),
-                dbc.name, dbc.host, dbc.port, denovo=cfg.surveys.denovo_strata
+                dbc.name, dbc.host, dbc.port, denovo=cfg.surveys.denovo_strata,
+                fpc=cfg.surveys.fpc
             ) if use_db else des_from_feather(get_datafile_path(
                 DatasetPart.SURVEYS.value, dsid, cdir),
-                                              denovo=cfg.surveys.denovo_strata)
+                                              denovo=cfg.surveys.denovo_strata,
+                                              fpc=cfg.surveys.fpc)
         return cls(dsid=dsid, dbc=dbc, cdir=cdir, meta=meta, svy=svytbl, soc=soctbl, des=des, mapper=mapper)
 
     def hydrate_part(self, part):

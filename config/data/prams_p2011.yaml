@@ -28,8 +28,8 @@ national:
   vals: [PR, GU, VI]
 surveys:
   denovo_strata: False
-  parse_mode: sas
   fpc: True
+  parse_mode: sas
   source_url_prefix: "https://www.cdc.gov/prams/annual_data/{year}/files/"
   s3_url_prefix: "s3://cdc-survey-data/prams/"
   qids: null 

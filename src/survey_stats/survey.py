@@ -2,8 +2,10 @@ import pandas as pd
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
 from rpy2.robjects import Formula
+from rpy2 import robjects as ro
 from survey_stats.helpr import svyciprop_xlogit, svybyci_xlogit, factor_summary
 from survey_stats.helpr import filter_survey_var, rm_nan_survey_var, svyby_nodrop
+from survey_stats.helpr import fix_lonely_psus
 from survey_stats import pdutil as u
 from survey_stats.const import DECIMALS
 from survey_stats import log
@@ -51,7 +53,7 @@ def fetch_stats_by(des, qn_f, r, vs):
     cts.columns = vs + ['eql', 'ct', 'se_ignore']
     cts = cts.set_index(vs)
     cts['eql'] = cts.eql.apply(lambda x: x == 'TRUE' if type(x) == str else x > 0)
-    counts = cts.ct[cts.eql==True].tolist()
+    counts = cts.ct[cts.eql == True].tolist()
     ssizes = cts.groupby(vs).sum()['ct']
     df = df.assign(count=counts, sample_size=ssizes)
     if df.shape[0] > 0:
@@ -66,12 +68,13 @@ def fetch_stats_totals(des, qn_f, r):
     total_ci = svyciprop_xlogit(Formula(qn_f), des, multicore=False)
     # extract stats
     logger.info('fetching stats totals', r=r, q=qn_f)
-    cts = rsvy.svyby(Formula(qn_f), Formula(qn_f), des, rsvy.unwtd_count, na_rm=True,
+    cts = rsvy.svyby(Formula(qn_f), Formula(qn_f), des,
+                     rsvy.unwtd_count, na_rm=True,
                      na_rm_by=True, na_rm_all=True, multicore=False)
     cts = pandas2ri.ri2py(cts)
     cols = ['eql', 'ct', 'se_ignore']
     cts.columns = cols
-    ct = cts.ct[cts.eql==1].sum()
+    ct = cts.ct[cts.eql == 1].sum()
     ss = cts.ct.sum()
     res = {'level': 0,
            'response': r,
@@ -87,7 +90,8 @@ def fetch_stats_totals(des, qn_f, r):
            'sample_size': ss
            }
     # round as appropriate
-    logger.info('finished computation lvl1', res=res, total_ci=total_ci, ct=ct, ss=ss)
+    logger.info('finished computation lvl1', res=res,
+                total_ci=total_ci, ct=ct, ss=ss)
     res = pd.DataFrame([res]).round(DECIMALS)
     return u.fill_none(res)
 
@@ -107,32 +111,38 @@ def fetch_stats(des, qn, r, vs=[], filt={}):
     # get stats_by_fnats for each level of interactions in vars
     # using svyby to compute across combinations of loadings
     logger.info('finished computations, appending dfs', dfs=dfz)
-    return u.fill_none(dfz) #.round(DECIMALS)
+    return u.fill_none(dfz)  # .round(DECIMALS)
 
 
 def subset(d, filter):
     return d._replace(des=subset_survey(d, filter))
 
-def des_from_feather(fthr_file, denovo=False):
+
+def des_from_feather(fthr_file, denovo=False, fpc=False):
     rbase.gc()
     gc.collect()
+    fix_lonely_psus()
     rdf = rfeather.read_feather(fthr_file)
-    logger.info('creating survey design from data and annotations', cols=list(rbase.colnames(rdf)))
+    logger.info('creating survey design from data and annotations',
+                cols=list(rbase.colnames(rdf)))
     strata = '~strata'
     if denovo:
         strata = '~year+strata'
-    res = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'), strata=Formula(strata), data=rdf, nest=True)
+    res = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
+                         strata=Formula(strata), data=rdf, nest=True,
+                         fpc=(Formula('~fpc') if fpc else ro.NULL))
     rbase.gc()
     gc.collect()
     return res
 
 
-def des_from_survey_db(tbl, db, host, port, denovo=False):
+def des_from_survey_db(tbl, db, host, port, denovo=False, fpc=False):
     strata = '~strata'
     if denovo:
         strata = '~yr+sitecode'
     return rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
                           strata=Formula(strata), nest=True,
-                          data=tbl, dbname=db, host=host, port=port, dbtype='MonetDB.R')
-
+                          fpc=(Formula('~fpc') if fpc else ro.NULL),
+                          data=tbl, dbname=db, host=host, port=port,
+                          dbtype='MonetDB.R')
 

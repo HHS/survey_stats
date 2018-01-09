@@ -52,3 +52,8 @@ function(des,expr) {
             eval(parse(text=expr)))
 }''')
 
+fix_lonely_psus = robjects.r('''
+function(){
+    options(survey.lonely.psu="certainty")
+}
+''')
