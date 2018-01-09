@@ -148,7 +148,7 @@ def process_sas_survey(svy_cfg, facets, client=None, lgr=logger):
     map_fn = evalr(fn)
     df_munger = curry(sdf.munge_df)(facets=facets, qids=g.qids,
                                     na_syns=g.na_synonyms, col_fn=map_fn,
-                                    fmts=g.patch_format, lgr=lgr)
+                                    fmts=g.patch_format, fpc=g.fpc, lgr=lgr)
     lbl_loader = curry(load_variable_labels)(repl=g.replace_labels)
     xpt_loader = curry(load_sas_xport_df)(lgr=lgr)
     dfs = map(
@@ -174,6 +174,10 @@ def process_sas_survey(svy_cfg, facets, client=None, lgr=logger):
                    strata=dfs['strata'].astype(int, errors='ignore'),
                    psu=dfs['psu'].astype(int, errors='ignore'))
            .reset_index(drop=True))
+    if g.fpc:
+        dfz = (dfz.assign(fpc=dfs['fpc'].astype(int, errors='ignore'),
+                         sample_ct=dfs['sample_ct'].astype(int, errors='ignore'))
+                  .reset_index(drop=True))
     dfz.visualize()
     lgr.info('merged SAS dfs')
     lgr.unbind('p')

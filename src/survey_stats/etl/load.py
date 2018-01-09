@@ -165,8 +165,8 @@ def process_dataset(cfg, dbc, cache_dir, resume=True):
             with open(svy_descf, 'w') as fh:
                 yaml.dump(svymeta, fh)
             logger.info('saved survey data to feather', name=svy_descf)
-    if dbc is not None:
-        setup_tables(cfg, dbc.uri)
+    #if dbc is not None:
+    #    setup_tables(cfg, dbc.uri)
     logger.unbind('dataset')
 
 

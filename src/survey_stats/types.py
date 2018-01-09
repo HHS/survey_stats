@@ -31,6 +31,7 @@ class ColumnFilter(object):
 class SurveyConfig(object):
     parse_mode = typed(str)
     denovo_strata = typed(bool)
+    fpc = typed(Optional[bool])
     source_url_prefix = typed(str)
     s3_url_prefix = typed(str)
     qids = typed(Sequence[str])

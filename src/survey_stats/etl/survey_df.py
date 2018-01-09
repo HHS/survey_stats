@@ -110,7 +110,7 @@ def find_na_synonyms(na_syns, df):
     return df
 
 
-def munge_df(df, r, lbls, facets, qids, na_syns, col_fn, fmts, lgr=logger):
+def munge_df(df, r, lbls, facets, qids, na_syns, col_fn, fmts, fpc=False, lgr=logger):
     year = r['year']
     lgr.bind(year=year)
     lgr.info('filtering, applying varlabels, munging', patch_fmts=fmts.keys(), colfn=col_fn, shp=df.shape, lbls=lbls)
@@ -135,6 +135,10 @@ def munge_df(df, r, lbls, facets, qids, na_syns, col_fn, fmts, lgr=logger):
                    strata=df[r['strata']].astype(int),
                    psu=df[r['psu']].astype(int))
            .reset_index(drop=True))
+    if fpc:
+        ndf = (ndf.assign(fpc=df[r['fpc']].astype(float),
+                         sample_ct=df[r['sample_ct']].astype(int))
+                  .reset_index(drop=True))
     ndf.columns = list(map(pdutil.undash, list(ndf.columns)))
     lgr.info('completed SAS df munging')
     lgr.unbind('year')
