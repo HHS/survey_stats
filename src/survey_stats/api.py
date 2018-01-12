@@ -218,8 +218,8 @@ def teardown_app(app, loop):
 def serve_app(host, port, workers, debug):
     app.run(host=host, port=port, workers=workers,
             timeout=app.config.sanic_timeout,
-            reuse_port=True, debug=debug)
+            reuse_port=True, debug=False)
 
 
 if __name__ == '__main__':
-    serve_app(host='0.0.0.0', port=7778, workers=1, debug=True)
+    serve_app(host='0.0.0.0', port=7778, workers=1, debug=False)

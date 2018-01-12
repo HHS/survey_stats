@@ -121,7 +121,8 @@ def subset(d, filter):
 def des_from_feather(fthr_file, denovo=False, fpc=False):
     rbase.gc()
     gc.collect()
-    fix_lonely_psus()
+    if fpc:
+        fix_lonely_psus()
     rdf = rfeather.read_feather(fthr_file)
     logger.info('creating survey design from data and annotations',
                 cols=list(rbase.colnames(rdf)))

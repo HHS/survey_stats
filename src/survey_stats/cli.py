@@ -122,7 +122,6 @@ def serve(cache_dir, db_config, db_host, db_port, db_type, db_user, db_password,
         'max_requests_jitter': max_requests_jitter,
         'worker_connections': worker_connections,
         'timeout': timeout,
-        'debug': debug
     }
     logger.info('setting up app', options=options, f=feather)
     app = setup_app(
@@ -156,7 +155,6 @@ def work(cache_dir, db_config, db_host, db_port, db_type, db_user, db_password, 
         'max_requests_jitter': max_requests_jitter,
         'worker_connections': worker_connections,
         'timeout': timeout,
-        'debug': debug
     }
     logger.info('setting up app', options=options, f=feather)
     app = setup_app(
