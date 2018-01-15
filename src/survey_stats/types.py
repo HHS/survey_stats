@@ -32,6 +32,7 @@ class SurveyConfig(object):
     parse_mode = typed(str)
     denovo_strata = typed(bool)
     fpc = typed(Optional[bool])
+    design = typed(str)
     source_url_prefix = typed(str)
     s3_url_prefix = typed(str)
     qids = typed(Sequence[str])
