@@ -121,7 +121,7 @@ def subset(d, filter):
 def des_from_feather(fthr_file, denovo=False, fpc=False):
     rbase.gc()
     gc.collect()
-    if fpc:
+    if fpc and design=='cluster':
         fix_lonely_psus()
     rdf = rfeather.read_feather(fthr_file)
     logger.info('creating survey design from data and annotations',
@@ -129,9 +129,11 @@ def des_from_feather(fthr_file, denovo=False, fpc=False):
     strata = '~strata'
     if denovo:
         strata = '~year+strata'
-    res = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
-                         strata=Formula(strata), data=rdf, nest=True,
-                         fpc=(Formula('~fpc') if fpc else ro.NULL))
+    res = rsvy.svydesign(
+        id=(Formula('~psu') if design == 'cluster' else Formula('~1')),
+        weight=Formula('~weight'),
+        strata=Formula(strata), data=rdf, nest=True,
+        fpc=(Formula('~fpc') if fpc else ro.NULL))
     rbase.gc()
     gc.collect()
     return res

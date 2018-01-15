@@ -17,6 +17,7 @@ national:
 surveys:
   denovo_strata: True
   fpc: False
+  design: cluster
   parse_mode: sas
   source_url_prefix: "https://www.cdc.gov/brfss/annual_data/{year}/files/"
   s3_url_prefix: "s3://cdc-survey-data/brfss/"
