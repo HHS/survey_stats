@@ -118,7 +118,7 @@ def subset(d, filter):
     return d._replace(des=subset_survey(d, filter))
 
 
-def des_from_feather(fthr_file, denovo=False, fpc=False):
+def des_from_feather(fthr_file, denovo=False, fpc=False, design='cluster'):
     rbase.gc()
     gc.collect()
     if fpc and design=='cluster':
@@ -139,7 +139,7 @@ def des_from_feather(fthr_file, denovo=False, fpc=False):
     return res
 
 
-def des_from_survey_db(tbl, db, host, port, denovo=False, fpc=False):
+def des_from_survey_db(tbl, db, host, port, denovo=False, fpc=False,design='cluster'):
     strata = '~strata'
     if denovo:
         strata = '~yr+sitecode'
