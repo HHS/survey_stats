@@ -1,6 +1,6 @@
 ## BRFSS Dataset
 
-### Overview
+### Behavioral Risk Factor Surveillance System
 
 The BRFSS objective is to collect uniform, state-specific data on preventive health practices and risk behaviors that are linked to chronic diseases, injuries, and preventable infectious diseases that affect the adult population. Factors assessed by the BRFSS in 2015 include tobacco use, HIV/AIDS knowledge and prevention, exercise, immunization, health status, healthy days health-related quality of life, health care access, hypertension awareness, arthritis burden, chronic health conditions, alcohol consumption, fruits and vegetables, and seatbelt use. The BRFSS was initiated in 1984, with 15 states collecting surveillance data on risk behaviors through monthly telephone interviews. Over time, the number of states participating in the survey increased, and by 2001, 50 states, the District of Columbia, Puerto Rico, Guam, and the US Virgin Islands were participating in the BRFSS.
 
@@ -24,6 +24,23 @@ The BRFSS objective is to collect uniform, state-specific data on preventive hea
     - Geographic strata (GEOSTR), which may be the entire state or a geographic subset (e.g., counties, census tracts).
     - Density strata (_DENSTR) indicating the density of the phone numbers for a given block of numbers as listed or not listed.
 - In 2015, the inclusion of cellular telephone respondents who also have landline telephones in their household required an adjustment to the design weights to account for the overlapping sample frames
+
+### BRFSS Survey Statistics
+
+The BRFSS dataset uses cluster sampling along strata defined by geographic regions, and telephone number blocks independently for each year of the survey. SInce we do not have a combined dataset across the relevant years of the BRFSS study, we redefine the effective strata to be a combination of survey year and the yearly strata. We find the following design variables in the BRFSS data sets:
+1. **_psu**: the primary sampling unit for the given survey year, relabeled `psu` in our framework
+2. **_ststr**:  the year specific stratum id, relabeled `strata` in our framework
+3. **_llcpwt** or **_finalwt**:  the sampling weight for the given row, relabeled `weight` in our framework
+
+Translating the stratified random sampling setup given for SUDAAN/SAS (STRWOR) and SPSS, we have the following survey design for the R `survey` package:
+```
+des = svydesign(id=~psu, strata=~year+strata,  weight=~weight, data=brfss_data)
+```
+and state-wise (recoded `sitecode`) and year-wise breakouts of a given response for a question are found using the `svyby` function as follows:
+```
+svyby(~I(addepev2=='yes'), ~year+sitecode, des, ci_xlogit, vartype=c('se','ci'), na.rm.by=T)
+```
+where those responding 'yes' to the addepev2 question are of interest here.
 
 ## PRAMS Data
 
@@ -64,7 +81,6 @@ Developed in 1987, PRAMS collects state-specific, population-based data on mater
 
 
 ### PRAMS Survey Statistics
-@(SemanticBits)
 
 The PRAMS dataset, unlike YRBS and BRFSS uses stratified random sampling rather than cluster sampling.  The strata in the PRAMS design are formulated as a combination of year and state specific stratum (some combination of adequacy of prenatal care factors, birth weight, and/or income/demographic factors), where the stratification methodology differs by state. This is captured in the post-processed survey variable SUD_NEST (relabeled as `strata` in our framework ), and given alongside other design variables, namely:
 1. **wtanal**: the analysis weight for sample row concerned, relabelled `weight` in our framework
