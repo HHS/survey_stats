@@ -128,7 +128,7 @@ def des_from_feather(fthr_file, denovo=False, fpc=False, design='cluster'):
                 cols=list(rbase.colnames(rdf)))
     strata = '~strata'
     if denovo:
-        strata = '~year+sitecode'
+        strata = '~year+strata'
     res = rsvy.svydesign(
         id=(Formula('~psu') if design == 'cluster' else Formula('~1')),
         weight=Formula('~weight'),
