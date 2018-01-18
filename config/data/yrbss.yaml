@@ -179,7 +179,7 @@ surveys:
   design: cluster
   parse_mode: spss
   source_url_prefix: "https://www.cdc.gov/brfss/annual_data/{year}/files/"
-  s3_url_prefix: "s3://cdc-survey-data/yrbss/"
+  s3_url_prefix: "s3://owh-stat-data/yrbss/"
   qids: [qn8, qn9, qn10, qn11, qn12, qn13, qn14, qn15, qn16, qn17, qn18, qn19, qn20, qn21, qn22, qn23, qn24, qn25, qn26, qn27, qn28, qn29, qn30, qn31, qn32, qn33, qn34, qn35, qn36, qn37, qn38, qn39, qn40, qn41, qn42, qn43, qn44, qn45, qn46, qn47, qn48, qn49, qn50, qn51, qn52, qn53, qn54, qn55, qn56, qn57, qn58, qn59, qn60, qn61, qn62, qn63, qn64, qn65, qn66, qn69, qn70, qn71, qn72, qn73, qn74, qn75, qn76, qn77, qn78, qn79, qn80, qn81, qn82, qn83, qn84, qn85, qn86, qn87, qn88, qn89, qnfrcig, qndaycig, qncigint, qntob2, qntob3, qntob4, qnnotob2, qnnotob3, qnnotob4, qniudimp, qnshparg, qnothhpl, qndualbc, qnbcnone, qnfr0, qnfr1, qnfr2, qnfr3, qnveg0, qnveg1, qnveg2, qnveg3, qnsoda1, qnsoda2, qnsoda3, qnmilk1, qnmilk2, qnmilk3, qnbk7day, qnpa0day, qnpa7day, qndlype, qnhowmarijuana, qnhallucdrug, qnsunscreenuse, qnindoortanning, qnmusclestrength, qngenderexp, qncelldriving, qnbullyweight, qnbullygay, qntypealcohol, qncigschool, qnchewtobschool, qnalcoholschool, qnmarijuanaschool, qnprescription30d, qncurrentcocaine, qncurrentasthma, qntaughtsexed, qntaughtstd, qntaughtbc, qndietpop, qncoffeetea, qnsportsdrink, qnspdrk1, qnspdrk2, qnspdrk3, qnenergydrink, qnsugardrink, qnwater, qnwater1, qnwater2, qnwater3, qnfastfood, qnfoodallergy, qnsunburn, qnconcentrating, qnspeakenglish]
   meta:
     cols: [year, fwf_zip, fwf, spss, format, formas, sasout, weight, psu, strata, sitecode, sitecode_type, sex, race, grade, sexid, sexpart]
