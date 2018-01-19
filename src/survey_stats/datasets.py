@@ -199,7 +199,7 @@ class SurveyDataset(object):
         soctbl = hydrate_dataset_part(DatasetPart.SOCRATA, None, cdir, dsid) \
             if cfg.socrata and init_soc else None
         # year is a reserved keyword in monetdb so work around
-        mapper = curry(map_with_dict)({'year': 'yr'}) if use_db else identity
+        mapper = identity
         des = None
         if cfg.surveys and init_des:
             from survey_stats.survey import des_from_survey_db, des_from_feather
