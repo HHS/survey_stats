@@ -187,13 +187,13 @@ class SurveyDataset(object):
 
     @classmethod
     def load_dataset(cls, cfg_f, dbc, cdir, init_des=False, 
-                     use_feather=False, init_soc=True, init_svy=True):
+                     use_feather=True, init_soc=True, init_svy=True):
         # given a config file and blaze data handle,
         # work some magic
         cfg = DatasetConfig.from_yaml(cfg_f)
         dsid = cfg.id
         meta = SurveyMeta.load_metadata(cfg, cdir)
-        use_db = dbc is not None and use_feather is False
+        use_db = False
         svytbl = hydrate_dataset_part(DatasetPart.SURVEYS, None, cdir, dsid) \
             if cfg.surveys and init_svy else None
         soctbl = hydrate_dataset_part(DatasetPart.SOCRATA, None, cdir, dsid) \
