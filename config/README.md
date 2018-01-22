@@ -1,3 +1,46 @@
+## YRBSS Dataset
+
+### Youth Risk Behavior Surveillance System
+The YRBSS was developed in 1990 to monitor priority health risk behaviors 
+that contribute markedly to the leading causes of death, disability, and social 
+problems among youth and adults in the United States. These behaviors, often 
+established during childhood and early adolescence, include 
+- Behaviors that contribute to unintentional injuries and violence.
+- Sexual behaviors that contribute to unintended pregnancy and sexually
+transmitted infections, including HIV infection.
+- Alcohol and other drug use.
+- Tobacco use.
+- Unhealthy dietary behaviors.
+- Inadequate physical activity.
+- Prevalence of obesity and asthma. 
+From 1991 through 2015, the YRBSS has collected data from more than 3.8 
+million high school students in more than 1,100 separate surveys.
+
+The YRBS Combined Datasets contain data from YRBS surveys conducted 
+from 1991-2015 nationwide for the United States overall and in multiple 
+states and districts from 1991 - 2015. The purpose of the Combined Datasets 
+is to facilitate YRBS data analyses that require data from multiple years 
+and/or multiple surveys.
+
+### YRBSS Survey Statistics
+
+The YRBSS dataset uses cluster sampling along strata defined by geographic regions, school, grade, and sex. We use the combined YRBSS dataset which merges, reweights and normalizes survey data from 1991-2015 for our statistical analysis. We find the following design variables in the BRFSS data sets:
+1. **psu**: the primary sampling unit for the given survey year
+2. **stratum**:  the year specific stratum id, normalized to `strata` in our framework
+3. **weight**:  the sampling weight for the given row
+
+Translating the stratified random sampling setup given for SUDAAN/SAS (STRWOR) and SPSS, we have the following survey design for the R `survey` package:
+```
+des <- svydesign(id=~psu, weight=~weight, strata=~stratum, data=yrbs_data, nest=TRUE) 
+```
+and overall responses for an individual question or state-wise (recoded `sitecode`) and year-wise breakouts of a given response for a question are found using the `svyciprop` and `svyby` functions as follows:
+```
+svyciprop(~I(qn8=='yes'), des, na.rm=TRUE, method='xlogit') 
+svyby(~I(qn8=='yes'), ~year+sitecode, des, ci_xlogit, vartype=c('se','ci'), na.rm.by=T)
+```
+where those responding 'yes' to the qn8 (helmet use) question are of interest here, and xlogit is a method that modifies the `survey` package's asin method with a logit transformation and modified degrees of freedon in order to more closely approximate the CI and SE valuess produced by SUDAAN/SAS in the CDC published statistics (courtesy Dr. Thomas Lumley). We will be using this `xlogit` method exclusively for all subsequent datasets.
+
+
 ## BRFSS Dataset
 
 ### Behavioral Risk Factor Surveillance System
