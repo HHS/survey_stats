@@ -3,7 +3,6 @@ from survey_stats import log
 
 lgr = log.getLogger(__name__)
 
-meta = {}
 dset = {}
 
 
