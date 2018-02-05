@@ -30,7 +30,7 @@ setup_miniconda (){
 setup_venv () {
 
     echo "update conda" && \
-    conda install -n root _license  
+    conda install -n root _license
     conda update -y -q conda && \
     conda info -a && \
     echo "create conda env with required R and Python deps" && \
@@ -44,8 +44,8 @@ setup_venv () {
 
 install (){
 
-    if [ -e $COND ]; then
-        echo "found conda at $COND, skipping the install..."
+    if [ -e $COND_EXISTS ]; then
+        echo "found conda at $COND_EXISTS, skipping the install..."
     else
         echo "couldn't find miniconda on the path, installing..."
         setup_miniconda
