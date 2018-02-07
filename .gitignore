@@ -71,3 +71,7 @@ error.log
 .RData
 .Rhistory
 .vscode
+
+miniconda.sh
+test.log
+
