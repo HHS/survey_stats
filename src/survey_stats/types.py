@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 from cytoolz.dicttoolz import assoc
 from cytoolz.functoolz import thread_first
-from cattr import typed
 from typing import Optional, Sequence, Callable, TypeVar, Mapping
 from survey_stats import log
 
@@ -23,49 +22,49 @@ cattr.register_structure_hook(
 
 @attr.s(slots=True, frozen=True)
 class ColumnFilter(object):
-    incl = typed(bool)
-    vals = typed(Sequence[str])
+    incl: bool = attr.ib()
+    vals: Sequence[str] = attr.ib()
 
 
 @attr.s(slots=True, frozen=True)
 class SurveyConfig(object):
-    parse_mode = typed(str)
-    denovo_strata = typed(bool)
-    fpc = typed(Optional[bool])
-    design = typed(str)
-    source_url_prefix = typed(str)
-    s3_url_prefix = typed(str)
-    qids = typed(Sequence[str])
-    meta = typed(pd.DataFrame)
-    patch_format = typed(Mapping[str, Mapping[T, T]])
-    na_synonyms = typed(Sequence[str])
-    replace_labels = typed(Mapping[T, T])
-    rename_cols = typed(Optional[Callable[[T], T]])
+    parse_mode: str = attr.ib()
+    denovo_strata: bool = attr.ib()
+    fpc: Optional[bool] = attr.ib()
+    design: str = attr.ib()
+    source_url_prefix: str = attr.ib()
+    s3_url_prefix: str = attr.ib()
+    qids: Sequence[str] = attr.ib()
+    meta: pd.DataFrame = attr.ib()
+    patch_format: Mapping[str, Mapping[T, T]] = attr.ib()
+    na_synonyms: Sequence[str] = attr.ib()
+    replace_labels: Mapping[T, T] = attr.ib()
+    rename_cols: Optional[Callable[[T], T]] = attr.ib()
 
 
 @attr.s(slots=True, frozen=True)
 class SocrataConfig(object):
-    soda_api = typed(Sequence[str])
-    mapcols = typed(Optional[Mapping[str, str]])
-    apply_fn = typed(Optional[Mapping[str, Callable[[T], T]]])
-    mapvals = typed(Optional[Mapping[str, Mapping[T, Callable[[T], T]]]])
-    unstack = typed(Optional[Mapping[str, str]])
-    fold_stats = typed(Optional[Mapping[str, Sequence[str]]])
-    qn_meta = typed(Sequence[str])
-    c_filter = typed(Sequence[str])
+    soda_api: Sequence[str] = attr.ib()
+    mapcols: Optional[Mapping[str, str]] = attr.ib()
+    apply_fn: Optional[Mapping[str, Callable[[T], T]]] = attr.ib()
+    mapvals: Optional[Mapping[str, Mapping[T, Callable[[T], T]]]] = attr.ib()
+    unstack: Optional[Mapping[str, str]] = attr.ib()
+    fold_stats: Optional[Mapping[str, Sequence[str]]] = attr.ib()
+    qn_meta: Sequence[str] = attr.ib()
+    c_filter: Sequence[str] = attr.ib()
 
 
 @attr.s(slots=True, frozen=True)
 class DatasetConfig(object):
-    id = typed(str)
-    description = typed(str)
-    strata = typed(Sequence[str])
-    facets = typed(Sequence[str])
-    facet_levels = typed(Optional[Mapping[str, Sequence[str]]])
-    questions = typed(Optional[Mapping[str, str]])
-    national = typed(Sequence[ColumnFilter])
-    surveys = typed(Optional[SurveyConfig])
-    socrata = typed(Optional[SocrataConfig])
+    id: str = attr.ib()
+    description: str = attr.ib()
+    strata: Sequence[str] = attr.ib()
+    facets: Sequence[str] = attr.ib()
+    facet_levels: Optional[Mapping[str, Sequence[str]]] = attr.ib()
+    questions: Optional[Mapping[str, str]] = attr.ib()
+    national: Sequence[ColumnFilter] = attr.ib()
+    surveys: Optional[SurveyConfig] = attr.ib()
+    socrata: Optional[SocrataConfig] = attr.ib()
 
     @classmethod
     def from_yaml(cls, yaml_f):

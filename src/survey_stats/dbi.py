@@ -4,7 +4,6 @@ import blaze as bz
 import attr
 import yaml
 from enum import unique, Enum
-from cattr import typed
 from survey_stats.const import DBURI_FMT, DSFILE_FMT
 from datashape import datashape
 from survey_stats import log
@@ -35,12 +34,12 @@ class DatasetFileType(Enum):
 
 @attr.s(slots=True, frozen=True)
 class DatabaseConfig(object):
-    host = typed(str)
-    port = typed(int)
-    type = typed(DatabaseType)
-    user = typed(str)
-    password = typed(str)
-    name = typed(str)
+    host: str = attr.ib()
+    port: int = attr.ib()
+    type: DatabaseType = attr.ib()
+    user: str = attr.ib()
+    password: str = attr.ib()
+    name: str = attr.ib()
 
     @property
     def uri(self):

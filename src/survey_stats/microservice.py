@@ -2,7 +2,6 @@ import traceback
 import cattr
 import attr
 import flask_transmute
-from cattr import typed
 from flask import Flask, Blueprint
 from flask_transmute import (
     route, annotate, Response, APIException
@@ -25,11 +24,11 @@ app = Flask(__name__)
 
 @attr.s
 class SvySlice(object):
-    d = typed(str)
-    q = typed(str)
-    r = typed(str)
-    vs = typed(Sequence[str])
-    f = typed(Mapping[str, Sequence[str]])
+    d: str = attr.ib()
+    q: str = attr.ib()
+    r: str = attr.ib()
+    vs: Sequence[str] = attr.ib()
+    f: Mapping[str, Sequence[str]] = attr.ib()
 
 @attr.s
 class SvyStats(dict):

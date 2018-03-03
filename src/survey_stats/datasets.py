@@ -7,7 +7,6 @@ import rpy2
 from rpy2.robjects import Formula
 import types
 import attr
-from cattr import typed
 from pathlib import Path
 from typing import Union, Optional, Sequence, Mapping
 from cytoolz.curried import map, curry, filter
@@ -69,15 +68,15 @@ def hydrate_dataset_part(part, dbc, cdir, dsid, as_blaze=True):
 @attr.s(frozen=True)
 class SurveyMeta(object):
 
-    dsid = typed(str)
-    strata = typed(Sequence[str])
-    facets = typed(Sequence[str])
-    national = typed(ColumnFilter)
-    qns = typed(Union[pd.DataFrame, pd.core.frame.DataFrame])
-    flevels = typed(Union[pd.DataFrame, pd.core.frame.DataFrame])
-    parts = typed(Sequence[DatasetPart])
-    qns_r = typed(Optional[pd.Series])
-    flevels_r = typed(Optional[Mapping[str,Sequence[str]]])
+    dsid: str = attr.ib()
+    strata: Sequence[str] = attr.ib()
+    facets: Sequence[str] = attr.ib()
+    national: ColumnFilter = attr.ib()
+    qns: Union[pd.DataFrame, pd.core.frame.DataFrame] = attr.ib()
+    flevels: Union[pd.DataFrame, pd.core.frame.DataFrame] = attr.ib()
+    parts: Sequence[DatasetPart] = attr.ib()
+    qns_r: Optional[pd.Series] = attr.ib()
+    flevels_r: Optional[Mapping[str,Sequence[str]]] = attr.ib()
 
     @classmethod
     def load_metadata(cls, cfg, cdir):
@@ -99,13 +98,13 @@ class SurveyMeta(object):
             parts.append(DatasetPart.SOCRATA)
         return cls(dsid=dsid, strata=cfg.strata,
                    facets=cfg.facets, national=cfg.national,
-                   qns=qns, flevels=flevels, parts=parts, 
+                   qns=qns, flevels=flevels, parts=parts,
                    qns_r=qns_r, flevels_r=flevels_r)
 
     @threaded_cached_property
     def has_socrata(self):
         return DatasetPart.SOCRATA in self.parts
-    
+
     @threaded_cached_property
     def has_surveys(self):
         return DatasetPart.SURVEYS in self.parts
@@ -157,7 +156,7 @@ class SurveyMeta(object):
         res = (qns
                .groupby(group_cols)
                .agg(aggd)
-               .reset_index() 
+               .reset_index()
                .pipe(lambda xf: u.fill_none(xf))
                .to_dict(orient='records'))
         return res
@@ -175,18 +174,18 @@ class SurveyMeta(object):
 @attr.s(slots=True, frozen=True)
 class SurveyDataset(object):
 
-    dsid = typed(str)
-    dbc = typed(Optional[DatabaseConfig])
-    cdir = typed(Path)
-    meta = typed(SurveyMeta)
-    soc = typed(Optional[bz.interactive._Data])
-    svy = typed(Optional[bz.interactive._Data])
-    des = typed(Optional[rpy2.robjects.vectors.ListVector])
-    mapper = typed(Optional[Union[types.FunctionType,
-                                  types.LambdaType]])
+    dsid: str = attr.ib()
+    dbc: Optional[DatabaseConfig] = attr.ib()
+    cdir: Path = attr.ib()
+    meta: SurveyMeta = attr.ib()
+    soc: Optional[bz.interactive._Data] = attr.ib()
+    svy: Optional[bz.interactive._Data] = attr.ib()
+    des: Optional[rpy2.robjects.vectors.ListVector] = attr.ib()
+    mapper: Optional[Union[types.FunctionType,
+                                  types.LambdaType]] = attr.ib()
 
     @classmethod
-    def load_dataset(cls, cfg_f, dbc, cdir, init_des=False, 
+    def load_dataset(cls, cfg_f, dbc, cdir, init_des=False,
                      use_feather=True, init_soc=True, init_svy=True):
         # given a config file and blaze data handle,
         # work some magic
@@ -291,7 +290,7 @@ class SurveyDataset(object):
         return dfz
 
     def fetch_stats_for_slice(self, qn, r, vars=[], filt={}):
-        from survey_stats.survey import (fetch_stats_totals, 
+        from survey_stats.survey import (fetch_stats_totals,
                                          fetch_stats_by, subset_survey,
                                          dim_design)
         vars = self.mapper(vars)
@@ -299,7 +298,7 @@ class SurveyDataset(object):
         qn_f = '~I(%s=="%s")' % (qn, r)
         logger.info('subsetting des with filter', filt=filt, v=vars, q=qn, r=r)
         des = subset_survey(self.des, filt, qn)
-        dsubs = dim_design(des) 
+        dsubs = dim_design(des)
         if dsubs[0] == 0:
             logger.info('subsetting yields empty df, returning empty result', dim=dsubs)
             cols = ['level'+'response'] + vars + \
@@ -319,7 +318,7 @@ class SurveyDataset(object):
         filt = self.mapper(filt)
         site_col = self.mapper('sitecode')
         if not site_col in filt:
-            # no sitecode in filter 
+            # no sitecode in filter
             # -- national
             nat = self.meta.national
             filt[site_col] = nat.vals if nat.incl else self.values_for_col(site_col, exclude=nat.vals)
