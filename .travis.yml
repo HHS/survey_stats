@@ -6,7 +6,6 @@ install:
   - conda config --set always_yes yes --set changeps1 no \
       && conda install -n root _license \
       && conda update -y -q conda \
-      && conda info -a \
       && conda config --add channels intel \
       && conda create -q -n pydev -c intel/label/test \
             python=3 r-base=3.4 libiconv \
