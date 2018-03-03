@@ -16,7 +16,6 @@ rstats = importr('stats')
 rsvy = importr('survey')
 
 rfeather = importr('feather', on_conflict='warn')
-rmonet = importr('MonetDB.R')
 
 logger = log.getLogger()
 
@@ -44,7 +43,7 @@ def fetch_stats_by(des, qn_f, r, vs):
     ct_f = '%s + %s' % (lvl_f, qn_f[1:])
     logger.info('gen stats for interaction level', lvl_f=lvl_f, qn_f=qn_f, ct_f=ct_f, r=r)
     cols = vs + ['mean', 'se', 'ci_l', 'ci_u']
-    df = svybyci_xlogit(Formula(qn_f), Formula(lvl_f), des, svyciprop_xlogit, vartype=['se', 'ci']) 
+    df = svybyci_xlogit(Formula(qn_f), Formula(lvl_f), des, svyciprop_xlogit, vartype=['se', 'ci'])
     df = pandas2ri.ri2py(df)
     df.columns = cols
     df = df.set_index(vs)
