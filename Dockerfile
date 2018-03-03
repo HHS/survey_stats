@@ -32,7 +32,6 @@ RUN conda config --set always_yes yes --set changeps1 no \
 SHELL ["/bin/bash", "-c", "source activate pydev"]
 
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements/requirements-noconda.txt \
-    && pip install --no-cache-dir -r requirements/requirements-dev.txt \
-    && R --vanilla -e 'install.packages(c("survey","MonetDB.R"), repos="http://r-forge.r-project.org")' \
+    && pip install --no-cache-dir -r requirements.txt \
+    && R --vanilla -e 'install.packages(c("survey"), repos="http://r-forge.r-project.org")' \
     && pip install --no-cache-dir -e .
