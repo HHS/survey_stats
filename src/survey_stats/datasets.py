@@ -308,6 +308,12 @@ class SurveyDataset(object):
         if len(vars) > 0:
             logger.info('fetching stats with var levels', vs=vars, qn=qn, r=r)
             ret = fetch_stats_by(des, qn_f, r, vars)
+            for k in filt.keys():
+                # if a facet is used in both vars and filter,
+                # eliminate the empty non-filtered rows that
+                # arise from our inclusive svyby call for factors
+                if k in vars:
+                    ret = ret[ret[k].isin(filt[k])]
         else:
             logger.info('fetching top level stats', qn=qn, r=r)
             ret = fetch_stats_totals(des, qn_f, r)
