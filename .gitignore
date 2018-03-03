@@ -74,4 +74,5 @@ error.log
 
 miniconda.sh
 test.log
-
+.develop.lock
+.cache.lock
