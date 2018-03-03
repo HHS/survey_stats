@@ -66,5 +66,6 @@ docs/_build
 venv
 
 # Specific to survey_stats
-#cache
+cache
+deploy
 data

@@ -3,7 +3,21 @@ python: '3.6'
 env:
   - CODECLIMATE_REPO_TOKEN=286aac924e768f43d969ca629f36d2d7c911e40d5a3efb9b625b19ec6f481844
 install:
-  - source develop.sh
+  - conda config --set always_yes yes --set changeps1 no \
+      && conda install -n root _license \
+      && conda update -y -q conda \
+      && conda info -a \
+      && conda config --add channels intel \
+      && conda create -q -n pydev -c intel/label/test \
+            python=3 r-base=3.4 libiconv \
+            pandas scikit-learn cython \
+            r-feather r-survival r-dbi \
+      && conda clean --all
+  - pip install --no-cache-dir --upgrade pip \
+      && pip install --no-cache-dir -r requirements/requirements-noconda.txt \
+      && pip install --no-cache-dir -r requirements/requirements-dev.txt \
+      && R --vanilla -e 'install.packages(c("survey","MonetDB.R"), repos="http://r-forge.r-project.org")' \
+      && pip install --no-cache-dir -e .
 script:
   - py.test tests
   - codeclimate-test-reporter
