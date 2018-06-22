@@ -53,3 +53,4 @@ def setup_app(dbc, cdir, use_feather):
                   use_feather=use_feather,
                   init_svy=False, init_soc=False)
     return app
+
