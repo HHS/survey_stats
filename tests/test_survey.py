@@ -18,6 +18,7 @@ def test_subset_survey():
     f = {'sch.wide':['Yes'],
          'comp.imp':['Yes']}
     subdf = subset_survey(rdf, f)
+    # test coment
     fetch_strata_dim = robjects.r('''
         function(s){
             return(dim(s$strata)[1])
