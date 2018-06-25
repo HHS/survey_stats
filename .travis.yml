@@ -8,20 +8,18 @@ install:
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
   - hash -r
-  - conda config --set always_yes yes --set changeps1 no \
-      && conda install -n root _license \
-      && conda update -y -q conda \
-      && conda config --add channels intel \
-      && conda create -q -n pydev -c intel/label/test \
-            python=3 r-base=3.4 libiconv \
-            pandas scikit-learn cython \
-            r-feather r-survival r-dbi \
-      && conda clean --all
-  - pip install --no-cache-dir --upgrade pip \
-      && pip install --no-cache-dir -r requirements/requirements-noconda.txt \
-      && pip install --no-cache-dir -r requirements/requirements-dev.txt \
-      && R --vanilla -e 'install.packages(c("survey","MonetDB.R"), repos="http://r-forge.r-project.org")' \
-      && pip install --no-cache-dir -e .
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda info -a
+  - conda config --add channels intel
+  - conda create -q -n test-environment -c intel/label/test python=3 r-base=3.4.1 libiconv pandas scikit-learn cython r-feather r-survival r-dbi
+  - source activate test-environment
+  - pip install --no-cache-dir --upgrade pip
+  - pip install --no-cache-dir -r requirements/requirements-noconda.txt
+  - pip install --no-cache-dir -r requirements/requirements-dev.txt
+  - R --vanilla -e 'install.packages(c("survey","MonetDB.R"), repos="http://r-forge.r-project.org")'
+  - pip install --no-cache-dir -e .
+
 script:
   - py.test tests
   - codeclimate-test-reporter
