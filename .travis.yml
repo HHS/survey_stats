@@ -13,7 +13,7 @@ install:
   - conda update -q conda
   - conda info -a
   - conda config --add channels intel
-  - conda create -q -n test-environment -c intel/label/test python=3 r-base=3.4.1 libiconv pandas scikit-learn cython r-feather r-survival r-dbi
+  - conda create -q -n test-environment -c intel/label/test python=3 r-base=3.4.1 libiconv pandas scikit-learn r-feather r-survival r-dbi
   - source activate test-environment
   - pip install --no-cache-dir --upgrade pip
   - pip install --no-cache-dir -r requirements/requirements-noconda.txt
