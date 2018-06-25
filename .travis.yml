@@ -4,6 +4,7 @@ env:
   - CODECLIMATE_REPO_TOKEN=286aac924e768f43d969ca629f36d2d7c911e40d5a3efb9b625b19ec6f481844
 install:
   - sudo apt-get update
+  - sudo apt-get install -y curl gcc wget make g++ openssl libreadline-dev libssl-dev libpcre3-dev zlib1g-dev gfortran lzop liblzo2-dev httpie zsh
   - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
