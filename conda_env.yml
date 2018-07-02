@@ -164,4 +164,4 @@ dependencies:
   - us==1.0.0
   - uvloop==0.8.1
   - websockets==3.4
-prefix: /home/ajish/miniconda/envs/survey_env
+prefix: /home/ashok/miniconda/envs/survey_env
