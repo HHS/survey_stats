@@ -15,6 +15,7 @@ national:
 surveys: null
 socrata:
   soda_api:
+    - "https://chronicdata.cdc.gov/resource/fn2i-3j6c.json"
     - "https://chronicdata.cdc.gov/resource/cwqr-cv7t.json"
   unstack:
     facet: facet_level
