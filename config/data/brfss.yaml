@@ -13,7 +13,7 @@ facet_levels: null
 questions: null
 national:
   incl: False
-  vals: [GU, PR, VI] 
+  vals: [GU, PR, VI]
 surveys:
   denovo_strata: True
   fpc: False
@@ -98,7 +98,7 @@ surveys:
     "$50000 or more": "$50k plus"
     "$50000+": "$50k plus"
     "Less than $10000": "<$10k"
-    "Less than $15000 ($10000 to less than $15000)": "$10k-$15k" 
+    "Less than $15000 ($10000 to less than $15000)": "$10k-$15k"
     "Less than $20000 ($15000 to less than $20000)": "$15k-$20k"
     "Less than $25000 ($20000 to less than $25000)": "$20k-$25k"
     "Less than $35000 ($25000 to less than $35000)": "$25k-$35k"
@@ -146,6 +146,7 @@ surveys:
 socrata:
   soda_api:
     - "https://chronicdata.cdc.gov/resource/fn2i-3j6c.json"
+    - "https://chronicdata.cdc.gov/resource/cwqr-cv7t.json"
   mapcols:
     questionid: qid
     locationabbr: sitecode
