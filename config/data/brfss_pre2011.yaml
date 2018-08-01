@@ -35,6 +35,9 @@ socrata:
     response: str.lower
     facet_level: str.lower
     qid: str.lower
+    ci_u: pdutil.div100
+    ci_l: pdutil.div100
+    mean: pdutil.div100
   mapvals:
     sitecode:
       UW: XX
