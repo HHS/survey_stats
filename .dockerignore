@@ -2,7 +2,7 @@
 
 # C extensions
 *.so
-
+__pycache__
 # Packages
 *.egg
 *.egg-info
@@ -63,3 +63,9 @@ docs/_build
 .bootstrap
 .appveyor.token
 *.bak
+venv
+
+# Specific to survey_stats
+cache
+deploy
+data

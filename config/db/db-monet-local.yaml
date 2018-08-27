@@ -1,0 +1,6 @@
+url: "monetdb://monetdb:monetdb@localhost/survey"
+host: localhost
+port: 50000
+db: survey
+user: monetdb
+pass: monetdb

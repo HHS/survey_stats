@@ -65,3 +65,14 @@ docs/_build
 *.bak
 
 cache/
+data/
+
+error.log
+.RData
+.Rhistory
+.vscode
+
+miniconda.sh
+test.log
+.develop.lock
+.cache.lock

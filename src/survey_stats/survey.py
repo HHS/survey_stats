@@ -1,75 +1,82 @@
-import logging
-import gc
-import json
-from toolz.itertoolz import concat, concatv, mapcat
-from toolz.functoolz import thread_last, thread_first, flip, do, compose
-from toolz.curried import map, filter, reduce
-from toolz import curry
-from collections import namedtuple
-from collections import abc
 import pandas as pd
-import rpy2
-import rpy2.robjects as robjects
 from rpy2.robjects import pandas2ri
 from rpy2.robjects.packages import importr
 from rpy2.robjects import Formula
-from survey_stats.parsers import parse_fwfcols_spss, parse_surveyvars_spss, load_survey
-from survey_stats.helpr import svyciprop_yrbs, svybyci_yrbs, subset_des_wexpr
-from survey_stats.helpr import filter_survey_var
+from rpy2 import robjects as ro
+from survey_stats.helpr import svyciprop_xlogit, svybyci_xlogit, factor_summary
+from survey_stats.helpr import filter_survey_var, rm_nan_survey_var, svyby_nodrop
+from survey_stats.helpr import fix_lonely_psus
 from survey_stats import pdutil as u
-from survey_stats.log import logger
+from survey_stats.const import DECIMALS
+from survey_stats import log
+import gc
 
 rbase = importr('base')
 rstats = importr('stats')
 rsvy = importr('survey')
 
-DECIMALS = {
-    'mean': 4,
-    'se': 4,
-    'ci_l': 4,
-    'ci_u': 4,
-    'count': 0
-}
+rfeather = importr('feather', on_conflict='warn')
+
+logger = log.getLogger()
 
 
-def subset_survey(des, filt):
+def dim_design(d):
+    return pandas2ri.ri2py(rbase.dim(d[d.names.index('variables')]))
+
+def subset_survey(des, filt, qn=None):
     # filt is a dict with vars as keys and list of acceptable values as levels
     # example from R:
     #  subset(dclus1, sch.wide=="Yes" & comp.imp=="Yes"
     if not len(filt.keys()) > 0:
         # empty filter, return original design object
         return des
-    filtered = rbase.Reduce("&",
-                            [filter_survey_var(des, k, v) for k, v in filt.items()])
+    filtered = rbase.Reduce(
+        "&",
+        [filter_survey_var(des, k, v) for k, v in filt.items()] +
+        ([rm_nan_survey_var(des, qn)] if qn else [])
+    )
     return rsvy.subset_survey_design(des, filtered)
 
 
-def fetch_stats(des, qn, response=True, vars=[], filt={}):
-    def fetch_stats_by(des, qn_f, vars):
-        lvl_f = Formula('~%s' % ' + '.join(vars))
-        merged = pandas2ri.ri2py(rbase.merge(
-            svybyci_yrbs(qn_f, lvl_f, des, svyciprop_yrbs),
-            rsvy.svyby(qn_f, lvl_f, des, rsvy.unwtd_count, na_rm=True,
-                       na_rm_by=True, na_rm_all=True, multicore=False)
-        ))
-        del merged['se']
-        merged.columns = vars + ['mean', 'se', 'ci_l', 'ci_u', 'count']
-        merged['level'] = len(vars)
-        merged['q'] = qn
-        merged['response'] = response
-        merged = merged.round(DECIMALS)
-        #logging.info(merged.to_json(orient='records'))
-    # create formula for selected question and risk profile
-    # ex: ~qn8, ~!qn8
-    qn_f = Formula('~%s%s' % ('' if response else '!', qn))
-    count = rbase.as_numeric(rsvy.unwtd_count(qn_f, des, na_rm=True,
-                                              multicore=False))[0]
-    total_ci = None
-    if count > 0:
-        total_ci = svyciprop_yrbs(qn_f, des, multicore=False)
+def fetch_stats_by(des, qn_f, r, vs):
+    lvl_f = '~%s' % '+'.join(vs)
+    ct_f = '%s + %s' % (lvl_f, qn_f[1:])
+    logger.info('gen stats for interaction level', lvl_f=lvl_f, qn_f=qn_f, ct_f=ct_f, r=r)
+    cols = vs + ['mean', 'se', 'ci_l', 'ci_u']
+    df = svybyci_xlogit(Formula(qn_f), Formula(lvl_f), des, svyciprop_xlogit, vartype=['se', 'ci'])
+    df = pandas2ri.ri2py(df)
+    df.columns = cols
+    df = df.set_index(vs)
+    cts = svyby_nodrop(Formula(lvl_f), Formula(ct_f), des, rsvy.unwtd_count, keep_var=True)
+    cts = pandas2ri.ri2py(cts).fillna(0.0)
+    cts.columns = vs + ['eql', 'ct', 'se_ignore']
+    cts = cts.set_index(vs)
+    cts['eql'] = cts.eql.apply(lambda x: x == 'TRUE' if type(x) == str else x > 0)
+    counts = cts.ct[cts.eql == True].tolist()
+    ssizes = cts.groupby(vs).sum()['ct']
+    df = df.assign(count=counts, sample_size=ssizes)
+    if df.shape[0] > 0:
+        df['response'] = r
+        df['level'] = len(vs)
+    rdf = u.fill_none(df.round(DECIMALS)).reset_index()
+    logger.info('create svyby df', df=rdf, vars=vs, eq=cts)
+    return rdf
 
+
+def fetch_stats_totals(des, qn_f, r):
+    total_ci = svyciprop_xlogit(Formula(qn_f), des, multicore=False)
     # extract stats
+    logger.info('fetching stats totals', r=r, q=qn_f)
+    cts = rsvy.svyby(Formula(qn_f), Formula(qn_f), des,
+                     rsvy.unwtd_count, na_rm=True,
+                     na_rm_by=True, na_rm_all=True, multicore=False)
+    cts = pandas2ri.ri2py(cts)
+    cols = ['eql', 'ct', 'se_ignore']
+    cts.columns = cols
+    ct = cts.ct[cts.eql == 1].sum()
+    ss = cts.ct.sum()
     res = {'level': 0,
+           'response': r,
            'mean': u.guard_nan(
                rbase.as_numeric(total_ci)[0]) if total_ci else None,
            'se': u.guard_nan(
@@ -78,157 +85,66 @@ def fetch_stats(des, qn, response=True, vars=[], filt={}):
                rbase.attr(total_ci, 'ci')[0]) if total_ci else None,
            'ci_u': u.guard_nan(
                rbase.attr(total_ci, 'ci')[1]) if total_ci else None,
-           'count': count}
+           'count': ct,
+           'sample_size': ss
+           }
     # round as appropriate
-    res = {k: round(v, DECIMALS[k]) if k in DECIMALS else v for k, v in
-           res.items()}
-    # setup the result list
-    res = [res]
-    vstack = vars[:]
-    while len(vstack) > 0:
-        # get stats for each level of interactions in vars
-        # using svyby to compute across combinations of loadings
-        res.extend(fetch_stats_by(des, qn_f, vstack))
-        vstack.pop()
+    logger.info('finished computation lvl1', res=res,
+                total_ci=total_ci, ct=ct, ss=ss)
+    res = pd.DataFrame([res]).round(DECIMALS)
+    return u.fill_none(res)
 
+
+def fetch_stats(des, qn, r, vs=[], filt={}):
+    # ex: ~qn8
+    rbase.gc()
+    gc.collect()
+    qn_f = '~I(%s=="%s")' % (qn, r)
+    logger.info('subsetting des with filter', filt=filt)
+    des = subset_survey(des, filt)
+    logger.info('done subsetting')
+    dfs = [fetch_stats_totals(des, qn_f, r)]
+    levels = [vs[:k+1] for k in range(len(vs))]
+    sts = map(lambda lvl: fetch_stats_by(des, qn_f, r, lvl), levels)
+    dfz = pd.concat(dfs + sts, ignore_index=True)
+    # get stats_by_fnats for each level of interactions in vars
+    # using svyby to compute across combinations of loadings
+    logger.info('finished computations, appending dfs', dfs=dfz)
+    return u.fill_none(dfz)  # .round(DECIMALS)
+
+
+def subset(d, filter):
+    return d._replace(des=subset_survey(d, filter))
+
+
+def des_from_feather(fthr_file, denovo=False, fpc=False, design='cluster'):
+    rbase.gc()
+    gc.collect()
+    if fpc and design=='cluster':
+        fix_lonely_psus()
+    rdf = rfeather.read_feather(fthr_file)
+    logger.info('creating survey design from data and annotations',
+                cols=list(rbase.colnames(rdf)))
+    strata = '~strata'
+    if denovo:
+        strata = '~year+strata'
+    res = rsvy.svydesign(
+        id=(Formula('~psu') if design == 'cluster' else Formula('~1')),
+        weight=Formula('~weight'),
+        strata=Formula(strata), data=rdf, nest=True,
+        fpc=(Formula('~fpc') if fpc else ro.NULL))
+    rbase.gc()
+    gc.collect()
     return res
 
 
-class AnnotatedSurvey(namedtuple('AnnotatedSurvey', ['vars', 'des', 'rdf'])):
-    __slots__ = ()
+def des_from_survey_db(tbl, db, host, port, denovo=False, fpc=False,design='cluster'):
+    strata = '~strata'
+    if denovo:
+        strata = '~yr+sitecode'
+    return rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
+                          strata=Formula(strata), nest=True,
+                          fpc=(Formula('~fpc') if fpc else ro.NULL),
+                          data=tbl, dbname=db, host=host, port=port,
+                          dbtype='MonetDB.R')
 
-    @property
-    def sample_size(self):
-        subs = self.des
-        return rbase.dim(subs[subs.names.index('variables')])[0]
-
-    def subset(self, filter):
-        return self._replace(des=subset_survey(self.des, filter))
-
-    def generate_slices(self, qn, response, vars=[], filt={}):
-        # create the overall filter
-        filt_fmla = u.fmla_for_filt(filt)
-        # subset the rdf as necessary
-        subs = subset_des_wexpr(self.rdf, filt_fmla) if len(
-            filt) > 0 else self.rdf
-        # create a formula for generating the cross-tabs/breakouts across
-        #   the selected vars
-        lvl_f = Formula('~%s' % ' + '.join(vars)) if len(vars) > 0 else None
-        # generate the crosstab/breakouts for the selected vars,
-        #   turn them into R selector expressions and concatenate
-        #   each non-empty selector with the R selector for the outer filter
-        calls = thread_first(
-            rstats.xtabs(lvl_f, subs),
-            rbase.as_data_frame,
-            pandas2ri.ri2py,
-            (pd.DataFrame.query, "Freq > 0"),
-            (pd.DataFrame.get, vars),
-            lambda df: df.apply(
-                lambda z: thread_last(
-                    z.to_dict(),
-                    lambda y: [(v,y[v]) for v in vars],
-                    list,
-                    lambda x: [
-                        tuple(x[:i + 1]) for
-                        i in range(len(x))],
-                ), axis=1),
-            (pd.DataFrame.to_records, False),
-            list,
-            concat,
-            set,
-            map(dict),
-            list
-        ) if len(vars) > 0 else []
-        # setup the formula based on the qn and response
-        # add the base case with empty slice filter
-        #   and dicts of qn/resp fmla, slice selector fmla, filt fmla
-        res = [{'q': qn, 'r': response, 'f': filt, 's': s} for s in [{}, *calls]]
-        return res
-
-    def fetch_stats_for_slice(self, q, r, f, s, cfg):
-        # create formula for selected question and risk profile
-        # create the overall filter
-        nat_f = '(' + u.fmla_for_slice(cfg['national_selector']) + ')'
-        #not national if sitecode in filters or vars
-        # otherwise national
-        nat_keys = set(cfg['national_selector'].keys())
-        if nat_keys.issubset(f.keys()) or nat_keys.issubset(s.keys()):
-            nat_f = '!' + nat_f
-        filt_f = u.fmla_for_filt(f) if len(f.keys()) > 0 else ''
-        slice_f = u.fmla_for_slice(s) if len(s.keys()) > 0 else ''
-        qn_f = Formula('~%s%s' % ('', q))
-        subs_f = (filt_f + ' & ' + slice_f
-                  if len(filt_f) > 0 and len(slice_f) > 0
-                  else filt_f + slice_f)
-        subs_f += ' & ' + nat_f if len(subs_f) > 0 else nat_f
-        idx = self.rdf.colnames.index("sitecode")
-        logger.info("FORMULA: %s" % subs_f)
-        logger.info(rbase.summary(rbase.as_factor(self.rdf[idx])))
-        # subset the design using the slice fmla
-        des = subset_des_wexpr(self.des, subs_f) if len(
-            subs_f) > 0 else self.des
-        count = rbase.as_numeric(rsvy.unwtd_count(qn_f, des, na_rm=True,
-                                                  multicore=False))[0]
-        logger.info("FORMULA: %s, %s, %d" % (q, subs_f, count))
-        total_ci = None
-        if count > 0:
-            total_ci = svyciprop_yrbs(qn_f, des, multicore=False)
-
-        # extract stats
-        res = {'level': slice_f.count('&') + 1 if len(slice_f) > 0 else 0,
-               'mean': u.guard_nan(
-            rbase.as_numeric(total_ci)[0]) if total_ci else None,
-            'se': u.guard_nan(
-            rsvy.SE(total_ci)[0]) if total_ci else None,
-            'ci_l': u.guard_nan(
-            rbase.attr(total_ci, 'ci')[0]) if total_ci else None,
-            'ci_u': u.guard_nan(
-            rbase.attr(total_ci, 'ci')[1]) if total_ci else None,
-            'count': count,
-            'filter': f,
-            'response': bool(r),
-            'q': q}
-        res.update(s)
-        # round as appropriate
-        res = {k: round(v, DECIMALS[k]) if k in DECIMALS and v != None else v for k, v in
-               res.items()}
-        rbase.gc()
-        return res
-
-    def fetch_stats_linear(self, qn, response=True, vars=[], filt={}):
-        return fetch_stats(self.des, qn, response, vars, filt)
-
-    def var_in_svy(self, var):
-        return self.vars.has_key(var)
-
-    def var_lvl_in_svy(self, var, lvl):
-        return self.var_in_svy(var)
-
-    @classmethod
-    def load_cdc_survey(cls, spss_file, dat_files):
-        logging.info('loading column definitions')
-        svy_cols = parse_fwfcols_spss(spss_file)
-
-        logging.info('loading variable annotations')
-        svy_vars = parse_surveyvars_spss(spss_file)
-
-        logging.info('loading survey data from fixed-width file')
-        rdf = load_survey(dat_files, svy_cols, svy_vars)
-
-        logging.info('creating survey design from data and annotations')
-        des = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
-                             strata=Formula('~stratum'), data=rdf, nest=True)
-        return cls(des=des, vars=svy_vars, rdf=rdf)
-
-    @classmethod
-    def from_rdf(cls, spss_file, rdf):
-        logging.info('loading column definitions')
-        svy_cols = parse_fwfcols_spss(spss_file)
-
-        logging.info('loading variable annotations')
-        svy_vars = parse_surveyvars_spss(spss_file)
-
-        logging.info('creating survey design from data and annotations')
-        des = rsvy.svydesign(id=Formula('~psu'), weight=Formula('~weight'),
-                             strata=Formula('~stratum'), data=rdf, nest=True)
-        return cls(des=des, vars=svy_vars, rdf=rdf)

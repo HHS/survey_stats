@@ -1,33 +1,35 @@
 language: python
-python: '3.5'
-sudo: false
+python: '3.6'
 env:
-  global:
-    - LD_PRELOAD=/lib/x86_64-linux-gnu/libSegFault.so
-    - SEGFAULT_SIGNALS=all
-  matrix:
-    - TOXENV=py35,coveralls
-before_install:
-  - python --version
-  - uname -a
-  - lsb_release -a
+  - CODECLIMATE_REPO_TOKEN=286aac924e768f43d969ca629f36d2d7c911e40d5a3efb9b625b19ec6f481844
 install:
-  - pip install tox
-  - virtualenv --version
-  - easy_install --version
-  - pip --version
-  - tox --version
+  - sudo apt-get update
+  - sudo apt-get install -y curl gcc wget make g++ openssl libreadline-dev libssl-dev libpcre3-dev zlib1g-dev gfortran lzop liblzo2-dev httpie zsh
+  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda info -a
+  - conda config --add channels intel
+  - conda create -q -n test-environment -c intel/label/test python=3 r-base=3.4.1 libiconv pandas scikit-learn r-feather r-survival r-dbi
+  - source activate test-environment
+  - pip install --no-cache-dir --upgrade pip
+  - pip install --no-cache-dir -r requirements/requirements-noconda.txt
+  - pip install --no-cache-dir -r requirements/requirements-dev.txt
+  - R --vanilla -e 'install.packages(c("survey","MonetDB.R"), repos="http://r-forge.r-project.org")'
+  - pip install --no-cache-dir -e .
+
 script:
-  - tox -v
-after_failure:
-  - more .tox/log/* | cat
-  - more .tox/*/log/* | cat
-before_cache:
-  - rm -rf $HOME/.cache/pip/log
-cache:
-  directories:
-    - $HOME/.cache/pip
+  - py.test --cov=. tests
+  - codeclimate-test-reporter
 notifications:
   email:
     on_success: never
     on_failure: always
+  slack:
+    secure: HzwHGNv/6gyMFgcGLkXIRDHPJAW0WJU26OwjPKsaPktlrtemIJRymZmHawGigsSRMvYPWwT19oo4jWYIOkJevIgWdd+UZq3IdPFoQfdHsLzsgcpP/NI4qXz5NTXCFJmt3a8elv4ABXvo60Ex8G2bxCwiPjHy2wnNJ5PO6Q5x/Ze6FCuftWZQHkPxdg09jrcE91Eqtu9ttRcbhnNqJaEfd4H8bRyB610yWI7AQknOd+6tnhlu6eWmmOR7zgymJw7spd7tu/CVQWnIosnE5CNZbWNpOTdCzUsiW4aIZt0X8FDRChsYAubWo0AnCfFl6JLfgQ0HetOVllgLBMLFzwuG5MtcIK+o4RV2pwO4LErmcUErsUhwmMn5WDx39BY63FzGdY3P7HJpQWV6plqqGL8Nh5udYF7L1KtFSriy4R5jub5vIEixqeMOZQveUqvxA7wv+NGKz+lbdzrW8fRLLNQb4ag2n18D60JPZaeaGRhIII1f10u3vsQ/9H/5bXoJgx6k22Wk/0pHju0IpEGbwzsPT4uj8OWFHSGXtJ7ZLQ54VR3UvMYG8hrrKKrMd9Wkeg8ariN9L/7dG5xv3NwgTn61UGeCI1PkHJP1dg/i9J2emWVihnJyW8Z4rw3TxaPlmP84ifirYQZ5I9uLP3vX9KzJuAb7Is44TJ3xeI4JrXsiJoI=
+    on_success: change
+    on_failure: change
+after_success: coveralls

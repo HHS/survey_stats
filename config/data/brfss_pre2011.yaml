@@ -1,0 +1,114 @@
+id: brfss_pre2011
+description: "BRFSS survey data from 2000 to 2010, before the introduction of mobile sampling and raking in 2011."
+strata:
+  - year
+  - sitecode
+facets:
+  - sex
+  - race
+  - age
+  - income
+  - education
+national:
+  incl: False
+  vals: [GU,PR,VI]
+surveys: null
+socrata:
+  soda_api:
+    - "https://chronicdata.cdc.gov/resource/fn2i-3j6c.json"
+    - "https://chronicdata.cdc.gov/resource/cwqr-cv7t.json"
+  unstack:
+    facet: facet_level
+  mapcols:
+    questionid: qid
+    locationabbr: sitecode
+    sample_size: count
+    data_value: mean
+    confidence_limit_high: ci_u
+    confidence_limit_low: ci_l
+    break_out_category: facet
+    break_out: facet_level
+    data_value_footnote_symbol: std_err
+    class: topic
+    topic: subtopic
+  apply_fn:
+    response: str.lower
+    facet_level: str.lower
+    qid: str.lower
+    ci_u: pdutil.div100
+    ci_l: pdutil.div100
+    mean: pdutil.div100
+  mapvals:
+    sitecode:
+      UW: XX
+    std_err:
+      "%": -1
+    facet:
+      "Household Income": income
+      "Age Group": age
+      "Education Attained": education
+      "Gender": sex
+      "Race/Ethnicity": race
+    facet_level:
+      "overall": "Total"
+      "white, non-hispanic": "White"
+      "black, non-hispanic": "Black"
+      "american indian or alaskan native, non-hispanic": "AI/AN"
+      "asian, non-hispanic": "Asian"
+      "native hawaiian or other pacific islander, non-hispanic": "NHOPI"
+      "other, non-hispanic": "Other Race"
+      "other race, non-hispanic": "Other Race"
+      "multiracial, non-hispanic": "Multiracial non-Hispanic"
+      "hispanic": "Hispanic"
+      "less than $15,000": "<$15k"
+      "$15,000-$24,999": "$15k-$25k"
+      "$25,000-$34,999": "$25k-$35k"
+      "$35,000-$49,999": "$35k-$50k"
+      "$15,000 - 24,999": "$15k-$25k"
+      "$25,000 - 34,999": "$25k-$35k"
+      "$35,000 - 49,999": "$35k-$50k"
+      "$50,000+": "$50k plus"
+      "less than h.s.": "Less than High School"
+      "h.s. or g.e.d.": "High School Graduate"
+      "some post h.s.": "Attended College/Technical School"
+      "some post-h.s.": "Attended College/Technical School"
+      "college graduate": "College/Technical School Graduate"
+      "college+": "College/Technical School Graduate"
+      "male": "Male"
+      "female": "Female"
+    response:
+      "overall": "Total"
+      "white, non-hispanic": "White"
+      "black, non-hispanic": "Black"
+      "white": "White"
+      "black": "Black"
+      "american indian or alaskan native, non-hispanic": "AI/AN"
+      "asian, non-hispanic": "Asian"
+      "native hawaiian or other pacific islander, non-hispanic": "NHOPI"
+      "other, non-hispanic": "Other Race"
+      "other race, non-hispanic": "Other Race"
+      "other": "Other Race"
+      "multiracial, non-hispanic": "Multiracial non-Hispanic"
+      "multiracial": "Multiracial non-Hispanic"
+      "hispanic": "Hispanic"
+      "less than $15,000": "<$15k"
+      "$15,000-$24,999": "$15k-$25k"
+      "$25,000-$34,999": "$25k-$35k"
+      "$35,000-$49,999": "$35k-$50k"
+      "$15,000 - 24,999": "$15k-$25k"
+      "$25,000 - 34,999": "$25k-$35k"
+      "$35,000 - 49,999": "$35k-$50k"
+      "$50,000+": "$50k plus"
+      "less than h.s.": "Less than High School"
+      "h.s. or g.e.d.": "High School Graduate"
+      "some post h.s.": "Attended College/Technical School"
+      "college graduate": "College/Technical School Graduate"
+      "some post-h.s.": "Attended College/Technical School"
+      "college+": "College/Technical School Graduate"
+      "male": "Male"
+      "female": "Female"
+  unstack:
+    facet: facet_level
+  fold_stats: null
+  qn_meta: [qid, year, question, topic, subtopic, response]
+  c_filter: [qid, question, topic, subtopic, response, facet, facet_level, sitecode, year, count, mean, std_err, ci_u, ci_l]

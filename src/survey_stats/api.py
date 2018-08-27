@@ -1,217 +1,225 @@
-import sys
-import math
-import time
-import logging
-import traceback
 import pandas as pd
-import numpy as np
-
-from collections import OrderedDict
-from collections.abc import Sequence
-from collections.abc import Mapping
-from toolz.dicttoolz import merge
-
+import sqlalchemy as sa
+import blaze as bz
+import requests as rq
+from cytoolz.itertoolz import concatv
+from cytoolz.dicttoolz import assoc, valmap
 from sanic import Sanic
+from sanic.response import json
 from sanic.config import Config
-from sanic.response import text, json
-from aiocache import cached
-
-from survey_stats.log import logger
-from survey_stats import error as sserr
-from survey_stats import settings
-from survey_stats import fetch
+from sanic.exceptions import (
+    SanicException, ServerError, NotFound, InvalidUsage, RequestTimeout
+)
+from survey_stats import log
 from survey_stats import state as st
-from survey_stats.processify import processify
-from survey_stats.error import SSEmptyFilterError, SSInvalidUsage
+from survey_stats.const import MAX_CONCURRENT_REQ
+import ujson as uj
+import json as j
+import asyncio
+import aiohttp
+import ujson
+import traceback
 
-Config.REQUEST_TIMEOUT = 50000000
 
 app = Sanic(__name__)
+logger = log.getLogger()
+sem = None
+headers = {'content-type': 'application/json'}
+app.static('/favicon.ico', './static/favicon.ico')
 
-@app.route("/questions/v2")
-def fetch_questions(req):
-    def get_meta(k, v, dset):
-        key = k.lower()
-        res = (dict(v, id=k))
-        return res
-    dset=req.args.get('d')
-    national = True
-    combined = True
-    svy = st.dset[dset].fetch_survey(combined, national)
-    res = []
-    if svy:
-        res = {k: get_meta(k, v, dset) for k, v in svy.vars.items()}
-    else:
-        qnkey = st.meta[dset].config['qnkey']
-        res = st.meta[dset].qnmeta.reset_index(level=0)
-        sl_res =[]
-        sl_res = res[['facet', 'facet_description',
-            'facet_level', 'facet_level_value']].drop_duplicates()
-        sl_res = {f[0]: {
-            'facet':f[0],
-            'facet_description': f[1]['facet_description'].get_values()[0],
-            'levels': dict(list(f[1][['facet_level','facet_level_value']].to_records(index=False)))
-            } for f in sl_res.groupby('facet')}
 
-        qn_res = res[['questionid', 'topic', 'subtopic', 'question', 'response']].groupby('questionid').agg({
-            'topic': lambda x: x.head(1).get_values()[0],
-            'subtopic': lambda x: x.get_values()[0],
-            'question': lambda x: x.get_values()[0],
-            'response': lambda x: list(x.drop_duplicates())
-        })
-        qn_res = qn_res.to_dict(orient='index')
-        res = {'facets':sl_res, 'questions':qn_res}
-        #logger.info(res)
-    return json(res)
+
+class SurveyError(InvalidUsage):
+
+    def __init__(self, message, info):
+        self.info = info
+        InvalidUsage.__init__(self, message=message)
+
+
+@app.listener('before_server_start')
+def init(sanic, loop):
+    global sem
+    sem = asyncio.Semaphore(MAX_CONCURRENT_REQ, loop=loop)
+
+
+async def bound_fetch(url, data, session):
+    async with sem, session.post(url, json=data, headers=headers) as response:
+        logger.info('submitting async post request', url=response.url, data=data)
+        return await response.json()
+
+
+async def fetch_all(slices, worker_url):
+    conn = aiohttp.TCPConnector(limit=MAX_CONCURRENT_REQ)
+    rqurl = worker_url + '/stats'
+    tasks = []
+    # Create client session that will ensure we dont open new connection
+    # per each request.
+    async with aiohttp.ClientSession(connector=conn, json_serialize=ujson.dumps) as session:
+        for s in slices:
+            logger.info(sl=s, url=rqurl)
+            # pass Semaphore and session to every GET request
+            task = asyncio.ensure_future(bound_fetch(rqurl, s, session))
+            tasks.append(task)
+
+        responses = await asyncio.gather(*tasks)
+        return [r for r in responses]
+
+
+async def fetch_socrata(qn, resp, vars, filt, meta):
+    precomp = meta.fetch_dash(qn, resp, vars, filt)
+    precomp = pd.DataFrame(precomp).fillna(None)
+    precomp['method'] = 'socrata'
+    return precomp.to_dict(orient='record')
+
+
+@app.exception(NotFound, ServerError, InvalidUsage, RequestTimeout, Exception)
+def json_404s(request, exception):
+    tb=traceback.format_exc()
+    logger.info('Uh Oh! Encountered an error while fetching stats!', 
+                error=exception, request=request, traceback=tb) 
+    return json({'error': exception, 'traceback':tb})
+
+
+@app.route("/")
+async def check_status(req):
+    # verify that the upstream services are functional
+    engine = sa.create_engine(app.config.dbc.uri)
+    db = bz.data(engine)
+    dbinfo = {'host': db.data.engine.url.host,
+              'engine': db.data.engine.name,
+              'tables': db.fields,
+              'config': app.config.dbc}
+    r = None
+    wrkinfo = None
+    try:
+        r = rq.get(app.config.stats_svc)
+        wrkinfo = r.json()
+        r = {'error': None, 'data': None}
+    except Exception as e:
+        raise ServerError(str(e))
+    return json({'data':
+                 {'db': dbinfo,
+                  'worker_url': app.config.stats_svc,
+                  'worker_status': wrkinfo
+                  }})
+
 
 @app.route("/questions")
-def fetch_questions(req):
-    def get_meta(k, v, dset):
-        key = k.lower()
-        res = (dict(st.meta[dset].qnmeta.ix[key].ix[0].to_dict(), **v, id=k) if key in
-               st.meta[dset].qnmeta.index else dict(v, id=k))
-        return res
-    dset=req.args.get('d')
-    national = True
-    combined = True
-    svy = st.dset[dset].fetch_survey(combined, national)
-    res = []
-    if svy:
-        res = {k: get_meta(k, v, dset) for k, v in svy.vars.items()}
-        # removed  responses
-        for key,value in res.items():
-            del value['responses']
-            del value['is_integer']
-            if 'response' in value:
-               del value['response'] 
-    else:
-        qnkey = st.meta[dset].config['qnkey']
-        res = st.meta[dset].qnmeta.reset_index(level=0)
-        sl_res =[]
-        sl_res = res[['facet', 'facet_description',
-            'facet_level', 'facet_level_value']].drop_duplicates()
-        sl_res = {f[0]: {
-            'facet':f[0],
-            'facet_description': f[1]['facet_description'].get_values()[0],
-            'levels': dict(list(f[1][['facet_level','facet_level_value']].to_records(index=False)))
-            } for f in sl_res.groupby('facet')}
+async def fetch_questions(req):
+    dset = req.args.get('d')
+    try:
+        d = st.dset[dset]
+        return json({'facets': d.meta.facet_map,
+                     'questions': d.meta.questions}) 
+    except Exception as e:
+        raise ServerError(str(e))
 
-        qn_res = res[['questionid', 'topic', 'subtopic', 'question', 'response']].groupby('questionid').agg({
-            'topic': lambda x: x.head(1).get_values()[0],
-            'subtopic': lambda x: x.get_values()[0],
-            'question': lambda x: x.get_values()[0],
-            'response': lambda x: list(x.drop_duplicates())
-        })
-        qn_res['class'] = qn_res['topic']
-        qn_res['topic'] = qn_res['subtopic']
-        del qn_res['subtopic']
-        qn_res = qn_res.to_dict(orient='index')
-        res = qn_res
-        #logger.info(res)
-    # looping through dictionary and replacing all 'nan' values with empty string
-    for value in res.values():
-        for i in value.keys():
-            item = value[i]
-            if isinstance(item, float) and math.isnan(item):
-               value[i] = ''
-    return json(res)
-
-
-def remap_vars(cfg, coll, into=True):
-    def map_if(pv, k):
-        return pv[k] if k in pv else k
-    pv = ({v: k for k, v in cfg['pop_vars'].items()} if
-          not into else cfg['pop_vars'])
-    res = None
-    typ = type(coll)
-    if isinstance(coll, str):
-        res = coll
-    elif isinstance(coll, Sequence):
-        res = [map_if(pv, k) for k in coll]
-    elif isinstance(coll, Mapping):
-        res = {map_if(pv, k): remap_vars(cfg, v, into) for
-               k, v in coll.items()}
-    else:
-        res = coll
-    return res
-
-def gen_slices(k, svy, qn, resp, m_vars, m_filt):
-    loc = {'svy_id': k, 'dset_id': 'yrbss'}
-    slices = [merge(loc, s)
-        for s in svy.generate_slices(qn, True, m_vars, m_filt) ]
-    slices += [merge(loc, s)
-        for s in svy.generate_slices(qn, False, m_vars, m_filt) ]
-    return slices
-
-async def fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg):
-    slices = gen_slices(k, svy, qn, resp, m_vars, m_filt)
-    results = await fetch.fetch_all(slices)
-    results = [remap_vars(cfg, x, into=False) for x in results]
-    return results
-
-def fetch_socrata(qn, resp, vars, filt, meta):
-    precomp = meta.fetch_dash(qn, resp, vars, filt)
-    precomp = pd.DataFrame(precomp).fillna(-1)
-    precomp['method']='socrata'
-    return precomp.to_dict(orient='records')
-
+@app.route("/check_levels")
+async def fetch_questions(req):
+    return json([d.find_mismatched_levels() for did, d in st.dset.items()]) 
 
 def parse_filter(f):
     return dict(map(lambda fv: (fv.split(':')[0],
-                                fv.split(':')[1].split(',')), f.split('|')))
+                                fv.split(':')[1].split(',')),
+                    f.split('|')))
 
-def parse_response(r):
-    if r.lower() == 'yes' or r.lower() == 'true' or r.lower() == '1':
-        return True
-    elif r.lower() == 'no' or r.lower() == 'false' or r.lower() == '0':
-        return False
-    else:
-        raise Exception('Invalid response value specified!')
 
-@cached(ttl=24*60*60)
+async def fetch_stats(dset, qn, vars, filt):
+    d = st.dset[dset]
+    slices = d.generate_slices(qn, vars, filt)
+    return await fetch_all(slices, app.config.stats_svc)
+
+
 @app.route('/stats')
 async def fetch_survey_stats(req):
-    dset = req.args.get('d')
+    try:
+        dset = req.args.get('d')
+    except KeyError as e:
+        raise SurveyError(str(e), 
+                           info={'datasets': list(dset.keys())})
+    d = st.dset[dset]
+    qs = d.meta.qns
+    fs = d.meta.facet_map
     qn = req.args.get('q')
-    vars = [] if not 'v' in req.args else req.args.get('v').split(',')
-    resp = None if not 'r' in req.args else parse_response(req.args.get('r'))
-    filt = {} if not 'f' in req.args else parse_filter(req.args.get('f'))
-    use_socrata = False if not 's' in req.args else not 0 ** int(req.args.get('s'), 2)
-    meta = st.meta[dset]
-    question = qn #meta.qnmeta[qn]
-    results = None #fetch_socrata(qn, resp, vars, filt, national, meta)
+    if qs.qid.eq(qn).sum() == 0:
+        raise SurveyError("Cannot find qid: %s in dataset: %s" % (qn, dset),
+                           info={'questions': set(qs.qid)})
+    vars = [] if 'v' not in req.args else req.args.get('v').split(',')
+    for v in vars:
+        if not v in d.meta.vars:
+            raise SurveyError("Cannot find var facet v: %s in dataset: %s" % (v, dset),
+                               info={'facets': fs})
+    filt = {} if 'f' not in req.args else parse_filter(req.args.get('f'))
+    for k, vals in filt.items():
+        if not k in fs:
+            raise SurveyError("Cannot find filter facet: %s in dataset: %s" % (k, dset),
+                               info={'facets': fs})
+        for v in vals:
+            typ = type(fs[k][0])
+            if not typ(v) in fs[k]:
+                raise SurveyError("Cannot find value: %s for filter facet: %s in dataset: %s" % (v, k, dset),
+                                   info={'facets': fs})
+
+    use_socrata = False if 's' not in req.args else not 0 ** int(req.args.get('s'), 2)
+    if use_socrata and not d.meta.has_socrata:
+        raise SurveyError("Socrata pre-computed data not available for dataset: %s" % dset, info={'facets': fs})
+    if not use_socrata and not d.meta.has_surveys:
+        raise SurveyError("Surveys data not available for dataset: %s" % dset, info={'facets': fs})
+
+    question = qn  # meta.qnmeta[qn]
+    results = None  # fetch_socrata(qn, resp, vars, filt, national, meta)
     error = None
     try:
         if not use_socrata:
-            (k, cfg) = st.dset[dset].fetch_config(national=True, year=None)
-            svy = st.dset[dset].surveys[k]
-            m_filt = remap_vars(cfg, filt, into=True)
-            m_vars = remap_vars(cfg, vars, into=True)
-            if not svy.subset(m_filt).sample_size > 1:
-                raise SSEmptyFilterError('EmptyFilterError: %s' % (str(m_filt)))
-            question = svy.vars[qn]['question']
-            var_levels = remap_vars(cfg, {v: svy.vars[v] for v in m_vars}, into=False)
-            results = await fetch_computed(k, svy, qn, resp, m_vars, m_filt, cfg)
+            results = await fetch_stats(dset, qn, vars, filt)
+            results = concatv(*results)
+            for v in vars:
+                results = map(lambda d: d if v in d else assoc(d, v, 'Total'), results)
         else:
-            results = fetch_socrata(qn, resp, vars, filt, meta)
+            results = d.fetch_socrata(qn, vars, filt)
+            results = results.to_dict(orient='records')
     except Exception as e:
-        error = str(e)
+        raise ServerError(e)
+    # logger.info('dumping result', res=results)
     return json({
         'error': error,
         'q': qn,
         'filter': filt,
         'question': question,
-        'response': resp,
         'vars': vars,
-        'var_levels': None, #var_levels,
-        'results': results,
-        'is_socrata':use_socrata
+        'results': results
     })
 
 
+def setup_app(dbc, cache_dir, stats_svc, sanic_timeout, use_feather):
+    app.config.dbc = dbc
+    app.config.cache = cache_dir
+    app.config.stats_svc = stats_svc
+    app.config.sanic_timeout = sanic_timeout
+    app.config.use_feather = use_feather
+    Config.REQUEST_TIMEOUT = sanic_timeout
+    Config.KEEP_ALIVE = False
+    logger.info('initializing state', dbc=dbc, cdir=cache_dir, f=use_feather)
+    st.initialize(dbc, cache_dir, init_des=False, use_feather=use_feather, init_svy=True, init_soc=True)
+    return app
+
+
+def startup_app(app, loop):
+    # TODO: deal with open connections
+    pass
+
+
+def teardown_app(app, loop):
+    # TODO: deal with db conns
+    # http://docs.sqlalchemy.org/en/latest/core/connections.html
+    pass
+
 
 def serve_app(host, port, workers, debug):
-    app.run(host=host, port=port, workers=workers, debug=debug)
+    app.run(host=host, port=port, workers=workers,
+            timeout=app.config.sanic_timeout,
+            reuse_port=True, debug=False)
+
 
 if __name__ == '__main__':
-    serve_app(host='0.0.0.0', port=7778, workers=1, debug=True)
+    serve_app(host='0.0.0.0', port=7778, workers=1, debug=False)

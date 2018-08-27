@@ -1,32 +1,65 @@
-import socket
-import traceback
-import logging
-from logging.handlers import SysLogHandler
-from werkzeug.routing import BaseConverter
+import logging.config
+import structlog
 
-from survey_stats import settings
+timestamper = structlog.processors.TimeStamper(fmt="%Y-%m-%d %H:%M:%S")
+pre_chain = [
+	# Add the log level and a timestamp to the event_dict if the log entry
+	# is not from structlog.
+	structlog.stdlib.add_log_level,
+	timestamper,
+]
 
-class ContextFilter(logging.Filter):
+logging.config.dictConfig({
+	"version": 1,
+	"disable_existing_loggers": False,
+	"formatters": {
+		"plain": {
+			"()": structlog.stdlib.ProcessorFormatter,
+			"processor": structlog.dev.ConsoleRenderer(colors=False),
+			"foreign_pre_chain": pre_chain,
+		},
+		"colored": {
+			"()": structlog.stdlib.ProcessorFormatter,
+			"processor": structlog.dev.ConsoleRenderer(colors=True),
+			"foreign_pre_chain": pre_chain,
+		},
+	},
+	"handlers": {
+		"default": {
+			"level": "DEBUG",
+			"class": "logging.StreamHandler",
+			"formatter": "colored",
+		},
+		"file": {
+			"level": "INFO",
+			"class": "logging.handlers.WatchedFileHandler",
+			"filename": "test.log",
+			"formatter": "plain",
+		},
+	},
+	"loggers": {
+		"": {
+			"handlers": ["default", "file"],
+			"level": "INFO",
+			"propagate": True,
+		},
+	}
+})
 
-  def filter(self, record):
-    return True
-
-def getLogger(name='survey_stat_deflog'):
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
-    logger.addHandler(syslog)
-    logger.addHandler(errlog)
-    f = ContextFilter()
-    logger.addFilter(f)
-    return logger
-
-formatter = logging.Formatter(
-    '%(asctime)s - STATS: %(message)s',
-    datefmt='%b %d %H:%M:%S'
+structlog.configure(
+	processors=[
+		structlog.stdlib.add_log_level,
+		timestamper,
+		structlog.processors.StackInfoRenderer(),
+		structlog.processors.format_exc_info,
+		#structlog.processors.JSONRenderer(),
+		structlog.processors.KeyValueRenderer(key_order=['event','level'])
+	],
+	context_class=structlog.threadlocal.wrap_dict(dict),
+	logger_factory=structlog.stdlib.LoggerFactory(),
+	wrapper_class=structlog.stdlib.BoundLogger,
+	cache_logger_on_first_use=True,
 )
-errlog = logging.StreamHandler()
-errlog.setFormatter(formatter)
-syslog = SysLogHandler(address=('logs5.papertrailapp.com', 16468))
-syslog.setFormatter(formatter)
 
-logger = getLogger()
+def getLogger(name='surveystats-default-log'):
+	return structlog.get_logger(name)

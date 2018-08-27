@@ -1,0 +1,17 @@
+version: "2"
+services:
+
+  statsworker:
+    image: ajish/survey_stats
+    ports:
+      - 7788
+    command: survey_stats work
+
+  statsserver:
+    image: ajish/survey_stats
+    ports:
+      - "7777:7777"
+    links:
+      - statsworker
+    command: survey_stats serve
+
