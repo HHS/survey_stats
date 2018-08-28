@@ -19,4 +19,3 @@ s3fs==0.1.2
 SQLAlchemy==1.1.13
 toolz==0.8.2
 ujson==1.35
-pyarrow==0.10.0
