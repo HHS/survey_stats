@@ -8,3 +8,4 @@ flake8>=3.4
 pytest-xdist>=1.9,<1.10
 codeclimate-test-reporter>=0.2
 hypothesis>=3.22
+pyarrow==0.10.0
