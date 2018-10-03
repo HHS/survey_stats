@@ -239,12 +239,10 @@ socrata:
       - mean
       - ci_u
       - ci_l
-      - se
     n:
       - mean_no
       - ci_u_no
       - ci_l_no
-      - se_no
   mapvals:
     race:
       "Native Hawaiian or Other Pacific Islander": "Native Hawaiian/other PI"
@@ -252,4 +250,4 @@ socrata:
       "Hispanic or Latino": "Hispanic/Latino"
       "Multiple Race": "Multiple - Non-Hispanic"
   qn_meta: [qid, year, sitecode, question, topic, subtopic, response, greater_risk_question, lesser_risk_question, description]
-  c_filter: [qid, year, question, topic, subtopic, response, greater_risk_question, lesser_risk_question, description, sitecode, sample_size, mean, se, ci_u, ci_l]
+  c_filter: [qid, year, question, topic, subtopic, response, greater_risk_question, lesser_risk_question, description, sitecode, sample_size, mean, ci_u, ci_l]
