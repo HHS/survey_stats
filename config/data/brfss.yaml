@@ -25,11 +25,7 @@ surveys:
   meta:
     cols: [year, fwf_zip, xpt_zip, fwf, xpt, format, formas, sasout, weight, psu, strata, sitecode, sitecode_type, sex, race, age, income, education]
     rows:
-      - [2011, LLCP2011ASC.ZIP, LLCP2011XPT.ZIP, LLCP2011.ASC, LLCP2011.XPT, format11.sas, formas11.sas, sasout11_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, race2, _age_g, _incomg, _educag]
-      - [2012, LLCP2012ASC.ZIP, LLCP2012XPT.ZIP, LLCP2012.ASC, LLCP2012.XPT, format12.sas, formas12.sas, sasout12_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, race2, _age_g, _incomg, _educag]
-      - [2013, LLCP2013ASC.ZIP, LLCP2013XPT.ZIP, LLCP2013.ASC, LLCP2013.XPT, format13.sas, formas13.sas, sasout13_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
-      - [2014, LLCP2014ASC.ZIP, LLCP2014XPT.ZIP, LLCP2014.ASC, LLCP2014.XPT, format14.sas, formas14.sas, sasout14_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
-      - [2015, LLCP2015ASC.zip, LLCP2015XPT.zip, LLCP2015.ASC, LLCP2015.XPT, format15.sas, formas15.sas, sasout15_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
+      - [2016, LLCP2016ASC.zip, LLCP2016XPT.zip, LLCP2016.ASC, LLCP2016.XPT, format16.sas, formas16.sas, sasout16_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
   patch_format:
     drnkany5:
       1: "yes"
@@ -143,100 +139,4 @@ surveys:
     "male": "Male"
     "female": "Female"
   rename_cols: pdutil.undash
-socrata:
-  soda_api:
-    - "https://chronicdata.cdc.gov/resource/fn2i-3j6c.json"
-  mapcols:
-    questionid: qid
-    locationabbr: sitecode
-    sample_size: count
-    data_value: mean
-    confidence_limit_high: ci_u
-    confidence_limit_low: ci_l
-    break_out_category: facet
-    break_out: facet_level
-    data_value_unit: se
-    class: topic
-    topic: subtopic
-  apply_fn:
-    response: str.lower
-    facet_level: str.lower
-    qid: pdutil.undash
-    ci_u: pdutil.div100
-    ci_l: pdutil.div100
-    mean: pdutil.div100
-  mapvals:
-    sitecode:
-      UW: XX
-    se:
-      "%": -1
-    qid:
-      "race8": race
-    facet:
-      "Household Income": income
-      "Age Group": age
-      "Education Attained": education
-      "Gender": sex
-      "Race/Ethnicity": race
-    facet_level:
-      "overall": "Total"
-      "white, non-hispanic": "White"
-      "black, non-hispanic": "Black"
-      "american indian or alaskan native, non-hispanic": "AI/AN"
-      "asian, non-hispanic": "Asian"
-      "native hawaiian or other pacific islander, non-hispanic": "NHOPI"
-      "other, non-hispanic": "Other Race"
-      "other race, non-hispanic": "Other Race"
-      "multiracial, non-hispanic": "Multiracial non-Hispanic"
-      "hispanic": "Hispanic"
-      "less than $15,000": "<$15k"
-      "$15,000-$24,999": "$15k-$25k"
-      "$25,000-$34,999": "$25k-$35k"
-      "$35,000-$49,999": "$35k-$50k"
-      "$15,000 - 24,999": "$15k-$25k"
-      "$25,000 - 34,999": "$25k-$35k"
-      "$35,000 - 49,999": "$35k-$50k"
-      "$50,000+": "$50k plus"
-      "less than h.s.": "Less than High School"
-      "h.s. or g.e.d.": "High School Graduate"
-      "some post h.s.": "Attended College/Technical School"
-      "some post-h.s.": "Attended College/Technical School"
-      "college graduate": "College/Technical School Graduate"
-      "college+": "College/Technical School Graduate"
-      "male": "Male"
-      "female": "Female"
-    response:
-      "overall": "Total"
-      "white, non-hispanic": "White"
-      "black, non-hispanic": "Black"
-      "white": "White"
-      "black": "Black"
-      "american indian or alaskan native, non-hispanic": "AI/AN"
-      "asian, non-hispanic": "Asian"
-      "native hawaiian or other pacific islander, non-hispanic": "NHOPI"
-      "other, non-hispanic": "Other Race"
-      "other race, non-hispanic": "Other Race"
-      "other": "Other Race"
-      "multiracial, non-hispanic": "Multiracial non-Hispanic"
-      "multiracial": "Multiracial non-Hispanic"
-      "hispanic": "Hispanic"
-      "less than $15,000": "<$15k"
-      "$15,000-$24,999": "$15k-$25k"
-      "$25,000-$34,999": "$25k-$35k"
-      "$35,000-$49,999": "$35k-$50k"
-      "$15,000 - 24,999": "$15k-$25k"
-      "$25,000 - 34,999": "$25k-$35k"
-      "$35,000 - 49,999": "$35k-$50k"
-      "$50,000+": "$50k plus"
-      "less than h.s.": "Less than High School"
-      "h.s. or g.e.d.": "High School Graduate"
-      "some post h.s.": "Attended College/Technical School"
-      "some post-h.s.": "Attended College/Technical School"
-      "college+": "College/Technical School Graduate"
-      "male": "Male"
-      "female": "Female"
-  unstack:
-    facet: facet_level
-  fold_stats: null
-  qn_meta: [qid, year, sitecode, question, topic, subtopic, response, facet, facet_level]
-  c_filter: [qid, question, topic, subtopic, response, facet, facet_level, sitecode, year, count, mean, se, ci_u, ci_l]
+socrata: null
