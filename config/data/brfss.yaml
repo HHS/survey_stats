@@ -30,6 +30,8 @@ surveys:
       - [2013, LLCP2013ASC.ZIP, LLCP2013XPT.ZIP, LLCP2013.ASC, LLCP2013.XPT, format13.sas, formas13.sas, sasout13_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
       - [2014, LLCP2014ASC.ZIP, LLCP2014XPT.ZIP, LLCP2014.ASC, LLCP2014.XPT, format14.sas, formas14.sas, sasout14_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
       - [2015, LLCP2015ASC.zip, LLCP2015XPT.zip, LLCP2015.ASC, LLCP2015.XPT, format15.sas, formas15.sas, sasout15_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
+      - [2016, LLCP2016ASC.zip, LLCP2016XPT.zip, LLCP2016.ASC, LLCP2016.XPT, format16.sas, formas16.sas, sasout16_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
+      - [2017, LLCP2017ASC.zip, LLCP2017XPT.zip, LLCP2017.ASC, LLCP2017.XPT, format17.sas, formas17.sas, sasout17_llcp.sas, _llcpwt, _psu, _ststr, _state, fips, sex, _race, _age_g, _incomg, _educag]
   patch_format:
     drnkany5:
       1: "yes"
