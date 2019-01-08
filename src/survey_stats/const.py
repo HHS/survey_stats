@@ -7,8 +7,8 @@ MB = KB * KB
 DECIMALS = {
     'mean': 6,
     'se': 4,
-    'ci_l': 4,
-    'ci_u': 4,
+    'ci_l': 6,
+    'ci_u': 6,
     'sample_size': 0,
     'count': 0
 }
