@@ -12,7 +12,7 @@ dask==0.15.3
 filelock==2.0.12
 odo==0.5.0
 pandas==0.20.3
-PyYAML==3.12
+PyYAML==4.2b4
 requests==2.20.0
 rpy2==2.8.6
 s3fs==0.1.2
