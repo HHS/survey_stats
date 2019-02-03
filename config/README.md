@@ -13,18 +13,18 @@ transmitted infections, including HIV infection.
 - Unhealthy dietary behaviors.
 - Inadequate physical activity.
 - Prevalence of obesity and asthma. 
-From 1991 through 2015, the YRBSS has collected data from more than 3.8 
+From 1991 through 2017, the YRBSS has collected data from more than 3.8 
 million high school students in more than 1,100 separate surveys.
 
 The YRBS Combined Datasets contain data from YRBS surveys conducted 
-from 1991-2015 nationwide for the United States overall and in multiple 
-states and districts from 1991 - 2015. The purpose of the Combined Datasets 
+from 1991-2017 nationwide for the United States overall and in multiple 
+states and districts from 1991 - 2017. The purpose of the Combined Datasets 
 is to facilitate YRBS data analyses that require data from multiple years 
 and/or multiple surveys.
 
 ### YRBSS Survey Statistics
 
-The YRBSS dataset uses cluster sampling along strata defined by geographic regions, school, grade, and sex. We use the combined YRBSS dataset which merges, reweights and normalizes survey data from 1991-2015 for our statistical analysis. We find the following design variables in the BRFSS data sets:
+The YRBSS dataset uses cluster sampling along strata defined by geographic regions, school, grade, and sex. We use the combined YRBSS dataset which merges, reweights and normalizes survey data from 1991-2017 for our statistical analysis. We find the following design variables in the BRFSS data sets:
 1. **psu**: the primary sampling unit for the given survey year
 2. **stratum**:  the year specific stratum id, normalized to `strata` in our framework
 3. **weight**:  the sampling weight for the given row
@@ -45,16 +45,16 @@ where those responding 'yes' to the qn8 (helmet use) question are of interest he
 
 ### Behavioral Risk Factor Surveillance System
 
-The BRFSS objective is to collect uniform, state-specific data on preventive health practices and risk behaviors that are linked to chronic diseases, injuries, and preventable infectious diseases that affect the adult population. Factors assessed by the BRFSS in 2015 include tobacco use, HIV/AIDS knowledge and prevention, exercise, immunization, health status, healthy days health-related quality of life, health care access, hypertension awareness, arthritis burden, chronic health conditions, alcohol consumption, fruits and vegetables, and seatbelt use. The BRFSS was initiated in 1984, with 15 states collecting surveillance data on risk behaviors through monthly telephone interviews. Over time, the number of states participating in the survey increased, and by 2001, 50 states, the District of Columbia, Puerto Rico, Guam, and the US Virgin Islands were participating in the BRFSS.
+The BRFSS objective is to collect uniform, state-specific data on preventive health practices and risk behaviors that are linked to chronic diseases, injuries, and preventable infectious diseases that affect the adult population. Factors assessed by the BRFSS in 2017 include tobacco use, HIV/AIDS knowledge and prevention, exercise, immunization, health status, healthy days health-related quality of life, health care access, hypertension awareness, arthritis burden, chronic health conditions, alcohol consumption, fruits and vegetables, and seatbelt use. The BRFSS was initiated in 1984, with 15 states collecting surveillance data on risk behaviors through monthly telephone interviews. Over time, the number of states participating in the survey increased, and by 2001, 50 states, the District of Columbia, Puerto Rico, Guam, and the US Virgin Islands were participating in the BRFSS.
 
 #### Data Availability
-- SAS format data available from 1984 to 2015.
+- SAS format data available from 1984 to 2017.
 - Geospatial (Maps data) available for different levels of city/metro/county
 - Filtered to include minimum number of respondents per geo region
 
 #### Questionnaire Structure
 - Core component used by all states
-- Optional modules (25 modules in 2015)
+- Optional modules (25 modules in 2017)
 - Rotated core questions included based on odd/even-numbered years
 - State-added questions
 
