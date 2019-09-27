@@ -1,4 +1,4 @@
-aiofiles==0.3.1
+aiofiles==0.4.0
 aiohttp==2.1.0
 blaze==0.10.1
 boto3==1.4.7
