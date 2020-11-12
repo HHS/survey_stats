@@ -12,7 +12,7 @@ from sanic.exceptions import (
 )
 from survey_stats import log
 from survey_stats import state as st
-from survey_stats.const import MAX_CONCURRENT_REQ
+from survey_stats.const import MAX_CONCURRENT_REQ, DEFAULT_SANIC_RESPONSE_TIMEOUT, DEFAULT_HTTP_RESPONSE_TIMEOUT
 import ujson as uj
 import json as j
 import asyncio
@@ -43,7 +43,7 @@ def init(sanic, loop):
 
 
 async def bound_fetch(url, data, session):
-    async with sem, session.post(url, json=data, headers=headers) as response:
+    async with sem, session.post(url, json=data, headers=headers, timeout=DEFAULT_HTTP_RESPONSE_TIMEOUT) as response:
         logger.info('submitting async post request', url=response.url, data=data)
         return await response.json()
 
@@ -75,8 +75,8 @@ async def fetch_socrata(qn, resp, vars, filt, meta):
 @app.exception(NotFound, ServerError, InvalidUsage, RequestTimeout, Exception)
 def json_404s(request, exception):
     tb=traceback.format_exc()
-    logger.info('Uh Oh! Encountered an error while fetching stats!', 
-                error=exception, request=request, traceback=tb) 
+    logger.info('Uh Oh! Encountered an error while fetching stats!',
+                error=exception, request=request, traceback=tb)
     return json({'error': exception, 'traceback':tb})
 
 
@@ -110,13 +110,13 @@ async def fetch_questions(req):
     try:
         d = st.dset[dset]
         return json({'facets': d.meta.facet_map,
-                     'questions': d.meta.questions}) 
+                     'questions': d.meta.questions})
     except Exception as e:
         raise ServerError(str(e))
 
 @app.route("/check_levels")
 async def fetch_questions(req):
-    return json([d.find_mismatched_levels() for did, d in st.dset.items()]) 
+    return json([d.find_mismatched_levels() for did, d in st.dset.items()])
 
 def parse_filter(f):
     return dict(map(lambda fv: (fv.split(':')[0],
@@ -135,7 +135,7 @@ async def fetch_survey_stats(req):
     try:
         dset = req.args.get('d')
     except KeyError as e:
-        raise SurveyError(str(e), 
+        raise SurveyError(str(e),
                            info={'datasets': list(dset.keys())})
     d = st.dset[dset]
     qs = d.meta.qns
@@ -197,6 +197,7 @@ def setup_app(dbc, cache_dir, stats_svc, sanic_timeout, use_feather):
     app.config.stats_svc = stats_svc
     app.config.sanic_timeout = sanic_timeout
     app.config.use_feather = use_feather
+    Config.RESPONSE_TIMEOUT = DEFAULT_SANIC_RESPONSE_TIMEOUT
     Config.REQUEST_TIMEOUT = sanic_timeout
     Config.KEEP_ALIVE = False
     logger.info('initializing state', dbc=dbc, cdir=cache_dir, f=use_feather)

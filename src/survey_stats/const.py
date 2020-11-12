@@ -46,3 +46,6 @@ CLICK_FILE_PATH = click.Path(exists=True, dir_okay=False)
 CLICK_NUM_WORKERS = click.IntRange(min=1, max=MAX_NUM_WORKERS, clamp=True)
 CLICK_NUM_THREADS = click.IntRange(min=1, max=MAX_NUM_THREADS, clamp=True)
 CLICK_TIMEOUT = click.IntRange(min=1, max=60*10, clamp=True)
+
+DEFAULT_SANIC_RESPONSE_TIMEOUT = 600 #Default max Sanic response timeout
+DEFAULT_HTTP_RESPONSE_TIMEOUT = 600 #Default max Sanic response timeout
