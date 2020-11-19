@@ -45,16 +45,16 @@ where those responding 'yes' to the qn8 (helmet use) question are of interest he
 
 ### Behavioral Risk Factor Surveillance System
 
-The BRFSS objective is to collect uniform, state-specific data on preventive health practices and risk behaviors that are linked to chronic diseases, injuries, and preventable infectious diseases that affect the adult population. Factors assessed by the BRFSS in 2017 include tobacco use, HIV/AIDS knowledge and prevention, exercise, immunization, health status, healthy days health-related quality of life, health care access, hypertension awareness, arthritis burden, chronic health conditions, alcohol consumption, fruits and vegetables, and seatbelt use. The BRFSS was initiated in 1984, with 15 states collecting surveillance data on risk behaviors through monthly telephone interviews. Over time, the number of states participating in the survey increased, and by 2001, 50 states, the District of Columbia, Puerto Rico, Guam, and the US Virgin Islands were participating in the BRFSS.
+The BRFSS objective is to collect uniform, state-specific data on preventive health practices and risk behaviors that are linked to chronic diseases, injuries, and preventable infectious diseases that affect the adult population. Factors assessed by the BRFSS in 2019 include tobacco use, HIV/AIDS knowledge and prevention, exercise, immunization, health status, healthy days health-related quality of life, health care access, hypertension awareness, arthritis burden, chronic health conditions, alcohol consumption, fruits and vegetables, and seatbelt use. The BRFSS was initiated in 1984, with 15 states collecting surveillance data on risk behaviors through monthly telephone interviews. Over time, the number of states participating in the survey increased, and by 2001, 50 states, the District of Columbia, Puerto Rico, Guam, and the US Virgin Islands were participating in the BRFSS.
 
 #### Data Availability
-- SAS format data available from 1984 to 2017.
+- SAS format data available from 1984 to 2019.
 - Geospatial (Maps data) available for different levels of city/metro/county
 - Filtered to include minimum number of respondents per geo region
 
 #### Questionnaire Structure
 - Core component used by all states
-- Optional modules (25 modules in 2017)
+- Optional modules (25 modules in 2019)
 - Rotated core questions included based on odd/even-numbered years
 - State-added questions
 
