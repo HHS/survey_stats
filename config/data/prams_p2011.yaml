@@ -17,8 +17,8 @@ facets:
   - income
   - preg_intend
   - prenatal_care
-  - prev_live_births 
-  - smoked_last_tri 
+  - prev_live_births
+  - smoked_last_tri
   - smoked_3mo_pre_preg
   - wic_during_preg
 facet_levels: {}
@@ -32,12 +32,13 @@ surveys:
   design: stratified
   parse_mode: sas
   source_url_prefix: "https://www.cdc.gov/prams/annual_data/{year}/files/"
-  s3_url_prefix: "s3://owh-stat-data/prams/"
-  qids: null 
+  s3_url_prefix: "s3://owh-stat-data/prams/2020-prams/"
+  qids: null
   meta:
     cols: [year, fwf_zip, xpt_zip, fwf, xpt, format, formas, sasout, weight, psu, strata, sitecode, sitecode_type, birth_weight, marital_status, maternal_race, mother_hispanic, maternal_education, maternal_age_18to44, maternal_age_18to44grp, maternal_age_3lvl, maternal_age_4lvl, medicaid_recip, income, preg_intend, prenatal_care, prev_live_births, smoked_last_tri, smoked_3mo_pre_preg, wic_during_preg, fpc, sample_ct]
     rows:
-      - [yy4_dob, hhs_2012_2014_05112017.sas7bdat.zip, hhs_2012_2014_05112017.sas7bdat.zip, hhs_2012_2014_05112017.sas7bdat.tsv, hhs_2012_2014_05112017.sas7bdat.tsv, hhs_2012_2014_05112017.sas, hhs_2012_2014_05112017.sas, hhs_2012_2014_05112017.sas, wtanal, cell, sud_nest, state, codes, birthwgt, married, matrceth, hisp_bc, matedg, age_1844, age_1844g, mat_age3, mat_age4, ps7_medic7any_brk, income7, ps7_intended7_brk, kessner, prvlivbr, smk43l_a, smk43b_a, wic_preg, totcnt, samcnt] 
+      - [yy4_dob, McConnell_2012_2018.sas7bdat.zip, McConnell_2012_2018.sas7bdat.zip, owh_2012_2018.tsv, owh_2012_2018.tsv, formats.sas7bcat, formats.sas7bcat, formats.sas7bcat, wtanal, cell, sud_nest, state, codes, birthwgt, married, matrceth, hisp_bc, matedg, age_1844, age_1844g, mat_age3, mat_age4, ps7_medic7any_brk, income7, ps7_intended7_brk, kessner, prvlivbr, smk43l_a, smk43b_a, wic_preg, totcnt, samcnt]
+  #   - [yy4_dob, hhs_2012_2014_05112017.sas7bdat.zip, hhs_2012_2014_05112017.sas7bdat.zip, hhs_2012_2014_05112017.sas7bdat.tsv, hhs_2012_2014_05112017.sas7bdat.tsv, hhs_2012_2014_05112017.sas, hhs_2012_2014_05112017.sas, hhs_2012_2014_05112017.sas, wtanal, cell, sud_nest, state, codes, birthwgt, married, matrceth, hisp_bc, matedg, age_1844, age_1844g, mat_age3, mat_age4, ps7_medic7any_brk, income7, ps7_intended7_brk, kessner, prvlivbr, smk43l_a, smk43b_a, wic_preg, totcnt, samcnt]
   patch_format:
     drnkany5:
       1: "yes"
