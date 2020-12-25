@@ -19,4 +19,4 @@ s3fs==0.1.2
 SQLAlchemy==1.3.1
 toolz==0.8.2
 ujson==1.35
-graphviz==0.10.1
+graphviz==0.16
