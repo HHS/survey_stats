@@ -130,7 +130,8 @@ def munge_df(df, r, lbls, facets, qids, na_syns, col_fn, fmts, fpc=False, lgr=lo
            .reset_index(drop=True)
            .assign(year=int(year) if type(year) == int else df[year].astype(int),
                    sitecode=df[r['sitecode']].apply(
-                       SITECODE_TRANSLATORS[r['sitecode_type']]).astype('category'),
+                       SITECODE_TRANSLATORS['codes']).astype('category'),
+                   # SITECODE_TRANSLATORS[r['sitecode_type']]).astype('category'),
                    weight=df[r['weight']].astype(float),
                    strata=df[r['strata']].astype(int),
                    psu=df[r['psu']].astype(int))
